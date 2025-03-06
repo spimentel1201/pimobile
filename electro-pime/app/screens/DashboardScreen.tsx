@@ -12,11 +12,13 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
+import { useRouter } from 'expo-router';
 
 const DashboardScreen = () => {
   const [loading, setLoading] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [activeTab, setActiveTab] = useState('day');
+  const router = useRouter();
   
   // Mock data for dashboard
   const dashboardData = {
@@ -153,6 +155,7 @@ const DashboardScreen = () => {
       icon: 'clipboard-text',
       color: '#0056b3',
       count: 15,
+      route: '/orders'
     },
     {
       id: 'inventory',
@@ -160,6 +163,7 @@ const DashboardScreen = () => {
       icon: 'package-variant',
       color: '#28a745',
       count: 168,
+      route: '/products'
     },
     {
       id: 'customers',
@@ -167,31 +171,18 @@ const DashboardScreen = () => {
       icon: 'account-group',
       color: '#ffc107',
       count: 87,
+      route: '/customers'
     },
     {
-      id: 'reports',
-      name: 'Reportes',
-      icon: 'chart-bar',
-      color: '#6c757d',
-      count: null,
-    },
-    {
-      id: 'services',
-      name: 'Servicios',
-      icon: 'tools',
-      color: '#17a2b8',
-      count: 12,
-    },
-    {
-      id: 'schedule',
-      name: 'Agenda',
-      icon: 'calendar',
+      id: 'sales',
+      name: 'Ventas',
+      icon: 'cash-register',
       color: '#dc3545',
       count: 8,
-    },
+      route: '/sales'
+    }
   ];
-
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: 'pending' | 'in_progress' | 'completed' | string): string => {
     switch (status) {
       case 'pending': return '#ffc107';
       case 'in_progress': return '#0056b3';
@@ -200,7 +191,7 @@ const DashboardScreen = () => {
     }
   };
 
-  const getStatusText = (status) => {
+  const getStatusText = (status: 'pending' | 'in_progress' | 'completed' | string): string => {
     switch (status) {
       case 'pending': return 'Pendiente';
       case 'in_progress': return 'En Proceso';
@@ -209,7 +200,7 @@ const DashboardScreen = () => {
     }
   };
 
-  const getPriorityIcon = (priority) => {
+  const getPriorityIcon = (priority: 'high' | 'medium' | 'low' | string) => {
     switch (priority) {
       case 'high': return { name: 'alert-circle', color: '#dc3545' };
       case 'medium': return { name: 'alert', color: '#ffc107' };
@@ -218,7 +209,7 @@ const DashboardScreen = () => {
     }
   };
 
-  const getAlertIcon = (type) => {
+  const getAlertIcon = (type: 'inventory' | 'order' | 'payment' | string) => {
     switch (type) {
       case 'inventory': return { name: 'package-variant-closed-alert', color: '#ffc107' };
       case 'order': return { name: 'alert-circle', color: '#dc3545' };
@@ -311,10 +302,10 @@ const DashboardScreen = () => {
           <TouchableOpacity 
             key={module.id} 
             style={styles.moduleCard}
-            onPress={() => {/* Navegación a módulo */}}
+            onPress={() => router.push(module.route as any)}
           >
             <View style={[styles.moduleIconContainer, {backgroundColor: module.color}]}>
-              <MaterialCommunityIcons name={module.icon} size={24} color="white" />
+              <MaterialCommunityIcons name={module.icon as keyof typeof MaterialCommunityIcons.glyphMap} size={24} color="white" />
             </View>
             <Text style={styles.moduleName}>{module.name}</Text>
             {module.count !== null && (
@@ -341,7 +332,7 @@ const DashboardScreen = () => {
         <TouchableOpacity key={alert.id} style={styles.alertCard}>
           <View style={[styles.alertIconContainer, {backgroundColor: `${getAlertIcon(alert.type).color}20`}]}>
             <MaterialCommunityIcons 
-              name={getAlertIcon(alert.type).name} 
+              name={getAlertIcon(alert.type).name as keyof typeof MaterialCommunityIcons.glyphMap}
               size={24} 
               color={getAlertIcon(alert.type).color} 
             />
@@ -378,7 +369,7 @@ const DashboardScreen = () => {
             <View style={styles.orderHeader}>
               <Text style={styles.orderCustomer}>{order.customer}</Text>
               <MaterialCommunityIcons 
-                name={getPriorityIcon(order.priority).name} 
+                name={getPriorityIcon(order.priority).name as keyof typeof MaterialCommunityIcons.glyphMap}
                 size={16} 
                 color={getPriorityIcon(order.priority).color} 
               />
@@ -428,7 +419,7 @@ const DashboardScreen = () => {
         </View>
         
         <LineChart
-          data={dashboardData.salesData[activeTab]}
+          data={dashboardData.salesData[activeTab as keyof typeof dashboardData.salesData]}
           width={Dimensions.get('window').width - 40}
           height={220}
           chartConfig={{
@@ -490,7 +481,7 @@ const DashboardScreen = () => {
           <TouchableOpacity key={alert.id} style={styles.notificationItem}>
             <View style={[styles.notificationIcon, {backgroundColor: `${getAlertIcon(alert.type).color}20`}]}>
               <MaterialCommunityIcons 
-                name={getAlertIcon(alert.type).name} 
+                name={getAlertIcon(alert.type).name as keyof typeof MaterialCommunityIcons.glyphMap}
                 size={20} 
                 color={getAlertIcon(alert.type).color} 
               />

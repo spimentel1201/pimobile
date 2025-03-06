@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Alert,
   View,
   Text,
   StyleSheet,
@@ -14,7 +15,6 @@ import { LineChart } from 'react-native-chart-kit';
 
 const ProductsScreen = () => {
   const [viewMode, setViewMode] = useState('grid');
-  const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddProduct, setShowAddProduct] = useState(false);
   
@@ -25,7 +25,7 @@ const ProductsScreen = () => {
     { id: 'chargers', name: 'Cargadores' },
     { id: 'accessories', name: 'Accesorios' },
   ];
-
+  
   const products = [
     {
       id: '1',
@@ -56,7 +56,7 @@ const ProductsScreen = () => {
       ],
     },
   ];
-
+  
   const ProductForm = () => {
     const [formData, setFormData] = useState({
       name: '',
@@ -65,7 +65,7 @@ const ProductsScreen = () => {
       stock: '',
       minStock: '',
     });
-
+  
     return (
       <View style={styles.formContainer}>
         <View style={styles.formHeader}>
@@ -88,7 +88,7 @@ const ProductsScreen = () => {
               placeholder="Ingrese nombre del producto"
             />
           </View>
-
+  
           <View style={styles.formGroup}>
             <Text style={styles.formLabel}>Categoría</Text>
             <View style={styles.categorySelector}>
@@ -111,7 +111,7 @@ const ProductsScreen = () => {
               ))}
             </View>
           </View>
-
+  
           <View style={styles.formGroup}>
             <Text style={styles.formLabel}>Precio</Text>
             <TextInput
@@ -122,7 +122,7 @@ const ProductsScreen = () => {
               keyboardType="numeric"
             />
           </View>
-
+  
           <View style={styles.formRow}>
             <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
               <Text style={styles.formLabel}>Stock Inicial</Text>
@@ -145,7 +145,7 @@ const ProductsScreen = () => {
               />
             </View>
           </View>
-
+  
           <TouchableOpacity style={styles.submitButton}>
             <Text style={styles.submitButtonText}>Guardar Producto</Text>
           </TouchableOpacity>
@@ -153,7 +153,7 @@ const ProductsScreen = () => {
       </View>
     );
   };
-
+  
   const renderHeader = () => (
     <View style={styles.header}>
       <Text style={styles.headerTitle}>Productos</Text>
@@ -167,7 +167,7 @@ const ProductsScreen = () => {
       </View>
     </View>
   );
-
+  
   const renderSearch = () => (
     <View style={styles.searchContainer}>
       <View style={styles.searchBar}>
@@ -195,80 +195,99 @@ const ProductsScreen = () => {
       </TouchableOpacity>
     </View>
   );
-
-  const renderCategories = () => (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.categoriesContainer}>
-      {categories.map((category) => (
+  
+  const renderProductCard = (product: {
+    id: string;
+    name: string;
+    category: string;
+    price: number;
+    stock: number;
+    minStock: number;
+    image: string;
+    priceHistory: Array<{ date: string; price: number }>;
+  }) => {
+      const handleEdit = () => {
+        const [formData, setFormData] = useState({
+          name: product.name,
+          category: product.category,
+          price: product.price.toString(),
+          stock: product.stock.toString(),
+          minStock: product.minStock.toString(),
+        });
+        setShowAddProduct(true);
+      };
+  
+      const handleDelete = () => {
+        Alert.alert(
+          'Eliminar Producto',
+          `¿Está seguro de eliminar ${product.name}?`,
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            { 
+              text: 'Eliminar',
+              style: 'destructive',
+              onPress: () => {
+                // Add delete logic here
+                console.log('Delete product:', product.id);
+              }
+            }
+          ]
+        );
+      };
+  
+      const handleViewHistory = () => {
+        // Add history view logic here
+        console.log('View history for:', product.id);
+      };
+  
+      return (
         <TouchableOpacity
-          key={category.id}
+          key={product.id}
           style={[
-            styles.categoryChip,
-            selectedCategory === category.id && styles.categoryChipActive,
-          ]}
-          onPress={() => setSelectedCategory(category.id)}>
-          <Text
+            styles.productCard,
+            viewMode === 'list' && styles.productCardList,
+          ]}>
+          <Image
+            source={{ uri: product.image }}
             style={[
-              styles.categoryChipText,
-              selectedCategory === category.id && styles.categoryChipTextActive,
-            ]}>
-            {category.name}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
-  );
-
-  const renderProductCard = (product) => (
-    <TouchableOpacity
-      key={product.id}
-      style={[
-        styles.productCard,
-        viewMode === 'list' && styles.productCardList,
-      ]}>
-      <Image
-        source={{ uri: product.image }}
-        style={[
-          styles.productImage,
-          viewMode === 'list' && styles.productImageList,
-        ]}
-      />
-      <View style={styles.productInfo}>
-        <Text style={styles.productName}>{product.name}</Text>
-        <Text style={styles.productPrice}>${product.price}</Text>
-        <View style={styles.stockContainer}>
-          <MaterialCommunityIcons
-            name="package-variant"
-            size={16}
-            color={product.stock <= product.minStock ? '#dc3545' : '#28a745'}
+              styles.productImage,
+              viewMode === 'list' && styles.productImageList,
+            ]}
           />
-          <Text
-            style={[
-              styles.stockText,
-              { color: product.stock <= product.minStock ? '#dc3545' : '#28a745' },
-            ]}>
-            Stock: {product.stock}
-          </Text>
-        </View>
-      </View>
-      {viewMode === 'list' && (
-        <View style={styles.listActions}>
-          <TouchableOpacity style={styles.actionButton}>
-            <MaterialCommunityIcons name="pencil" size={20} color="#0056b3" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
-            <MaterialCommunityIcons name="history" size={20} color="#0056b3" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
-            <MaterialCommunityIcons name="delete" size={20} color="#dc3545" />
-          </TouchableOpacity>
-        </View>
-      )}
-    </TouchableOpacity>
-  );
-
+          <View style={styles.productInfo}>
+            <Text style={styles.productName}>{product.name}</Text>
+            <Text style={styles.productPrice}>${product.price.toFixed(2)}</Text>
+            <View style={styles.stockContainer}>
+              <MaterialCommunityIcons
+                name="package-variant"
+                size={16}
+                color={product.stock <= product.minStock ? '#dc3545' : '#28a745'}
+              />
+              <Text
+                style={[
+                  styles.stockText,
+                  { color: product.stock <= product.minStock ? '#dc3545' : '#28a745' },
+                ]}>
+                Stock: {product.stock}
+              </Text>
+            </View>
+          </View>
+          {viewMode === 'list' && (
+            <View style={styles.listActions}>
+              <TouchableOpacity style={styles.actionButton} onPress={handleEdit}>
+                <MaterialCommunityIcons name="pencil" size={20} color="#0056b3" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionButton} onPress={handleViewHistory}>
+                <MaterialCommunityIcons name="history" size={20} color="#0056b3" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionButton} onPress={handleDelete}>
+                <MaterialCommunityIcons name="delete" size={20} color="#dc3545" />
+              </TouchableOpacity>
+            </View>
+          )}
+        </TouchableOpacity>
+      );
+    };
   const renderPriceHistory = () => {
     const data = {
       labels: products[0].priceHistory.map(h => h.date),
@@ -276,7 +295,7 @@ const ProductsScreen = () => {
         data: products[0].priceHistory.map(h => h.price),
       }],
     };
-
+  
     return (
       <View style={styles.chartContainer}>
         <Text style={styles.chartTitle}>Historial de Precios</Text>
@@ -300,7 +319,20 @@ const ProductsScreen = () => {
       </View>
     );
   };
-
+  // Update the products grid to be more responsive
+  const renderProductsGrid = () => (
+    <ScrollView style={styles.container}>
+      <View style={[
+        styles.productsGrid,
+        viewMode === 'list' ? { flexDirection: 'column' } : null
+      ]}>
+        {products
+          .map(renderProductCard)}
+      </View>
+      {renderPriceHistory()}
+    </ScrollView>
+  );
+  // Update the return statement
   return (
     <View style={styles.container}>
       {renderHeader()}
@@ -309,282 +341,272 @@ const ProductsScreen = () => {
       ) : (
         <>
           {renderSearch()}
-          {renderCategories()}
-          <ScrollView style={styles.productsList}>
-            <View style={[
-              styles.productsGrid,
-              viewMode === 'list' && styles.productsList
-            ]}>
-              {products.map(renderProductCard)}
-            </View>
-            {renderPriceHistory()}
-          </ScrollView>
+          {renderProductsGrid()}
         </>
       )}
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#0056b3',
-  },
-  headerButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0056b3',
-    padding: 10,
-    borderRadius: 8,
-  },
-  addButtonText: {
-    color: 'white',
-    marginLeft: 8,
-    fontWeight: '600',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    padding: 16,
-    backgroundColor: 'white',
-    alignItems: 'center',
-  },
-  searchBar: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f1f3f5',
-    borderRadius: 8,
-    padding: 8,
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 16,
-  },
-  filterButton: {
-    padding: 8,
-    marginRight: 8,
-  },
-  viewModeButton: {
-    padding: 8,
-  },
-  categoriesContainer: {
-    backgroundColor: 'white',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: '#f1f3f5',
-    marginRight: 8,
-  },
-  categoryChipActive: {
-    backgroundColor: '#0056b3',
-  },
-  categoryChipText: {
-    color: '#495057',
-    fontWeight: '500',
-  },
-  categoryChipTextActive: {
-    color: 'white',
-  },
-  productsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 8,
-  },
-  productCard: {
-    width: '48%',
-    backgroundColor: 'white',
-    borderRadius: 12,
-    margin: '1%',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
+  // Add these new styles to your StyleSheet
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: '#f8f9fa',
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 2,
-  },
-  productCardList: {
-    width: '98%',
-    flexDirection: 'row',
-    padding: 8,
-  },
-  productImage: {
-    width: '100%',
-    height: 150,
-    resizeMode: 'cover',
-  },
-  productImageList: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-  },
-  productInfo: {
-    padding: 12,
-    flex: 1,
-  },
-  productName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#212529',
-    marginBottom: 4,
-  },
-  productPrice: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#0056b3',
-    marginBottom: 8,
-  },
-  stockContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  stockText: {
-    marginLeft: 4,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  listActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingLeft: 8,
-  },
-  actionButton: {
-    padding: 8,
-  },
-  chartContainer: {
-    backgroundColor: 'white',
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 16,
+      backgroundColor: 'white',
+      borderBottomWidth: 1,
+      borderBottomColor: '#e9ecef',
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 2,
-  },
-  chartTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#212529',
-    marginBottom: 16,
-  },
-  chart: {
-    marginVertical: 8,
-    borderRadius: 16,
-  },
-  formContainer: {
-    flex: 1,
-    backgroundColor: 'white',
-  },
-  formHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-  },
-  formTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#212529',
-  },
-  closeButton: {
-    padding: 8,
-  },
-  formScroll: {
-    flex: 1,
-    padding: 16,
-  },
-  formGroup: {
-    marginBottom: 16,
-  },
-  formLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#495057',
-    marginBottom: 8,
-  },
-  formInput: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#dee2e6',
-  },
-  formRow: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  categorySelector: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -4,
-  },
-  categoryOption: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    padding: 12,
-    marginHorizontal: 4,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#dee2e6',
-  },
-  categoryOptionSelected: {
-    backgroundColor: '#0056b3',
-    borderColor: '#0056b3',
-  },
-  categoryOptionText: {
-    color: '#495057',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  categoryOptionTextSelected: {
-    color: 'white',
-  },
-  submitButton: {
-    backgroundColor: '#0056b3',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  submitButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});
-
-export default ProductsScreen;
+    headerTitle: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      color: '#0056b3',
+    },
+    headerButtons: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    addButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#0056b3',
+      padding: 10,
+      borderRadius: 8,
+    },
+    addButtonText: {
+      color: 'white',
+      marginLeft: 8,
+      fontWeight: '600',
+    },
+    searchContainer: {
+      flexDirection: 'row',
+      padding: 16,
+      backgroundColor: 'white',
+      alignItems: 'center',
+    },
+    searchBar: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#f1f3f5',
+      borderRadius: 8,
+      padding: 8,
+      marginRight: 8,
+    },
+    searchInput: {
+      flex: 1,
+      marginLeft: 8,
+      fontSize: 16,
+    },
+    filterButton: {
+      padding: 8,
+      marginRight: 8,
+    },
+    viewModeButton: {
+      padding: 8,
+    },
+    categoriesContainer: {
+      backgroundColor: 'white',
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+    },
+    categoryChip: {
+      paddingHorizontal: 16,
+      paddingVertical: 6,
+      borderRadius: 20,
+      backgroundColor: '#f1f3f5',
+      marginRight: 8,
+    },
+    categoryChipActive: {
+      backgroundColor: '#0056b3',
+    },
+    categoryChipText: {
+      color: '#495057',
+      fontWeight: '500',
+    },
+    categoryChipTextActive: {
+      color: 'white',
+    },
+    productsGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      padding: 8,
+    },
+    productCard: {
+      width: '48%',
+      backgroundColor: 'white',
+      borderRadius: 12,
+      margin: '1%',
+      overflow: 'hidden',
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.1,
+      shadowRadius: 3.84,
+      elevation: 2,
+    },
+    productCardList: {
+      width: '98%',
+      flexDirection: 'row',
+      padding: 8,
+    },
+    productImage: {
+      width: '100%',
+      height: 150,
+      resizeMode: 'cover',
+    },
+    productImageList: {
+      width: 80,
+      height: 80,
+      borderRadius: 8,
+    },
+    productInfo: {
+      padding: 12,
+      flex: 1,
+    },
+    productName: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#212529',
+      marginBottom: 4,
+    },
+    productPrice: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: '#0056b3',
+      marginBottom: 8,
+    },
+    stockContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    stockText: {
+      marginLeft: 4,
+      fontSize: 14,
+      fontWeight: '500',
+    },
+    listActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      paddingLeft: 8,
+    },
+    actionButton: {
+      padding: 8,
+    },
+    chartContainer: {
+      backgroundColor: 'white',
+      margin: 16,
+      padding: 16,
+      borderRadius: 12,
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.1,
+      shadowRadius: 3.84,
+      elevation: 2,
+    },
+    chartTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: '#212529',
+      marginBottom: 16,
+    },
+    chart: {
+      marginVertical: 8,
+      borderRadius: 16,
+    },
+    formContainer: {
+      flex: 1,
+      backgroundColor: 'white',
+    },
+    formHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: '#e9ecef',
+    },
+    formTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: '#212529',
+    },
+    closeButton: {
+      padding: 8,
+    },
+    formScroll: {
+      flex: 1,
+      padding: 16,
+    },
+    formGroup: {
+      marginBottom: 16,
+    },
+    formLabel: {
+      fontSize: 16,
+      fontWeight: '500',
+      color: '#495057',
+      marginBottom: 8,
+    },
+    formInput: {
+      backgroundColor: '#f8f9fa',
+      borderRadius: 8,
+      padding: 12,
+      fontSize: 16,
+      borderWidth: 1,
+      borderColor: '#dee2e6',
+    },
+    formRow: {
+      flexDirection: 'row',
+      marginBottom: 16,
+    },
+    categorySelector: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      marginHorizontal: -4,
+    },
+    categoryOption: {
+      backgroundColor: '#f8f9fa',
+      borderRadius: 8,
+      padding: 12,
+      marginHorizontal: 4,
+      marginBottom: 8,
+      borderWidth: 1,
+      borderColor: '#dee2e6',
+    },
+    categoryOptionSelected: {
+      backgroundColor: '#0056b3',
+      borderColor: '#0056b3',
+    },
+    categoryOptionText: {
+      color: '#495057',
+      fontSize: 14,
+      fontWeight: '500',
+    },
+    categoryOptionTextSelected: {
+      color: 'white',
+    },
+    submitButton: {
+      backgroundColor: '#0056b3',
+      borderRadius: 8,
+      padding: 16,
+      alignItems: 'center',
+      marginTop: 24,
+    },
+    submitButtonText: {
+      color: 'white',
+      fontSize: 16,
+      fontWeight: '600',
+    },
+  });
+  export default ProductsScreen;
