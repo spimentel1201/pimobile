@@ -12,6 +12,8 @@ import {
   Linking,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+// Add import
+import NewCustomerModal from '../components/NewCustomerModal';
 
 interface Customer {
   id: string;
@@ -24,6 +26,8 @@ interface Customer {
   lastOrder: string;
   totalOrders: number;
   totalSpent: number;
+  documentType: 'dni' | 'ruc';
+  documentNumber: string;
 }
 
 const CustomersScreen = () => {
@@ -32,6 +36,9 @@ const CustomersScreen = () => {
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
+  
+
+  // Update mockCustomers to include new fields
   const mockCustomers: Customer[] = [
     {
       id: '1',
@@ -44,6 +51,8 @@ const CustomersScreen = () => {
       lastOrder: '2024-01-15',
       totalOrders: 5,
       totalSpent: 850,
+      documentType: 'dni',
+      documentNumber: '12345678',
     },
     // Add more mock customers...
   ];
@@ -164,6 +173,14 @@ const CustomersScreen = () => {
     </TouchableOpacity>
   );
 
+  // Add handleSaveCustomer function
+  const handleSaveCustomer = (newCustomer: Partial<Customer>) => {
+    // Here you would typically make an API call to save the customer
+    console.log('New customer:', newCustomer);
+    setShowAddCustomer(false);
+  };
+
+  // Add NewCustomerModal to the render
   return (
     <View style={styles.container}>
       {renderHeader()}
@@ -174,8 +191,13 @@ const CustomersScreen = () => {
         renderItem={renderCustomerCard}
         keyExtractor={item => item.id}
         numColumns={viewMode === 'grid' ? 2 : 1}
-        key={viewMode} // Force re-render on view mode change
+        key={viewMode}
         contentContainerStyle={styles.customersList}
+      />
+      <NewCustomerModal
+        visible={showAddCustomer}
+        onClose={() => setShowAddCustomer(false)}
+        onSave={(customer: Partial<Customer>) => handleSaveCustomer(customer)}
       />
     </View>
   );

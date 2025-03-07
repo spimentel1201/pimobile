@@ -14,30 +14,30 @@ import {
   Keyboard,
   TouchableWithoutFeedback
 } from 'react-native';
-import { MaterialCommunityIcons, Ionicons, FontAwesome5, AntDesign } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
+import { RepairOrder, BudgetPart, Budget, OrderStatus, StatusInfo } from '../types/budget';
 
 const BudgetScreen = () => {
-  // Estados para la gestión de órdenes
-  const [orders, setOrders] = useState([]);
-  const [filteredOrders, setFilteredOrders] = useState([]);
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
+  // Order management states
+  const [orders, setOrders] = useState<RepairOrder[]>([]);
+  const [filteredOrders, setFilteredOrders] = useState<RepairOrder[]>([]);
+  const [filterStatus, setFilterStatus] = useState<OrderStatus | 'all'>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [showSearch, setShowSearch] = useState<boolean>(false);
 
   // Estados para modales
-  const [modalVisible, setModalVisible] = useState(false);
-  const [detailModalVisible, setDetailModalVisible] = useState(false);
-  const [budgetModalVisible, setBudgetModalVisible] = useState(false);
-  const [notifyModalVisible, setNotifyModalVisible] = useState(false);
+  const [modalVisible, setModalVisible] = useState<boolean>(false);
+  const [detailModalVisible, setDetailModalVisible] = useState<boolean>(false);
+  const [budgetModalVisible, setBudgetModalVisible] = useState<boolean>(false);
+  const [notifyModalVisible, setNotifyModalVisible] = useState<boolean>(false);
 
   // Estado para edición
-  const [editingOrder, setEditingOrder] = useState(null);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-
+  const [editingOrder, setEditingOrder] = useState<RepairOrder | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<RepairOrder | null>(null);
+  
   // Estado para formulario
-  const [formData, setFormData] = useState({
-    id: '',
+  const [formData, setFormData] = useState<FormData>({
     customer: {
       id: '',
       name: '',
@@ -70,28 +70,24 @@ const BudgetScreen = () => {
     history: [],
   });
 
-  // Estado para notificaciones
-  const [notificationData, setNotificationData] = useState({
-    method: 'sms',
-    message: '',
-    orderId: '',
-  });
-
   // Estado para presupuesto
-  const [budgetData, setBudgetData] = useState({
+  const [budgetData, setBudgetData] = useState<Budget>({
     labor: 0,
-    componentCost: 0,
-    othersCost: 0,
-    tax: 10,
-    notes: '',
-    total: 0,
     parts: [],
+    tax: 0,
+    total: 0
   });
 
-  const [newPart, setNewPart] = useState({
+  const [newPart, setNewPart] = useState<Partial<BudgetPart>>({
     name: '',
-    price: '',
-    quantity: '1',
+    price: 0,
+    quantity: 1
+  });
+
+  // Notification state
+  const [notificationData, setNotificationData] = useState<NotificationData>({
+    method: 'sms',
+    message: ''
   });
 
   // Datos de demostración
@@ -108,6 +104,29 @@ const BudgetScreen = () => {
     { id: '3', name: 'Miguel López', phone: '634567890', email: 'miguel@example.com' },
   ];
 
+  // Efectos para filtrado
+  useEffect(() => {
+    filterOrders();
+  }, [orders, filterStatus, searchQuery]);
+
+  const filterOrders = () => {
+    let filtered = [...orders];
+    
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(order => order.status === filterStatus);
+    }
+
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(order => 
+        order.customer.name.toLowerCase().includes(query) ||
+        order.id.toLowerCase().includes(query) ||
+        order.device.model.toLowerCase().includes(query)
+      );
+    }
+
+    setFilteredOrders(filtered);
+  };
   // Cargar datos de prueba al iniciar
   useEffect(() => {
     // Simulamos una carga de datos
@@ -273,8 +292,8 @@ const BudgetScreen = () => {
       },
     ];
 
-    setOrders(mockOrders);
-    setFilteredOrders(mockOrders);
+    setOrders(mockOrders as RepairOrder[]);
+    setFilteredOrders(mockOrders as RepairOrder[]);
   }, []);
 
   // Filtrar órdenes por estado y búsqueda
@@ -301,7 +320,7 @@ const BudgetScreen = () => {
   }, [orders, filterStatus, searchQuery]);
 
   // Formatear fecha para mostrar
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
 
     const date = new Date(dateString);
@@ -315,7 +334,7 @@ const BudgetScreen = () => {
   };
 
   // Obtener texto y color según estado
-  const getStatusInfo = (status) => {
+  const getStatusInfo = (status: OrderStatus): StatusInfo => {
     switch (status) {
       case 'pending':
         return { text: 'Pendiente', color: '#ffc107', icon: 'clock-outline' };
@@ -333,7 +352,7 @@ const BudgetScreen = () => {
   };
 
   // Obtener información de prioridad
-  const getPriorityInfo = (priority) => {
+  const getPriorityInfo = (priority: 'high' | 'medium' | 'low'): { text: string; color: string; icon: string; } => {
     switch (priority) {
       case 'high':
         return { text: 'Alta', color: '#dc3545', icon: 'alert-circle' };
@@ -347,40 +366,64 @@ const BudgetScreen = () => {
   };
 
   // Obtener nombre del técnico por ID
-  const getTechnicianName = (id) => {
+  const getTechnicianName = (id: string): string => {
     const tech = mockTechnicians.find(t => t.id === id);
     return tech ? tech.name : 'No asignado';
   };
 
   // Actualizar campo del formulario
-  const updateFormField = (field, value, nestedField = null) => {
-    if (nestedField) {
-      setFormData({
-        ...formData,
-        [field]: {
-          ...formData[field],
-          [nestedField]: value
+  const updateFormField = <T extends keyof FormData>(
+    field: T,
+    value: FormData[T],
+    nestedField?: string
+  ): void => {
+    setFormData(prev => {
+      if (nestedField) {
+        const fieldValue = prev[field];
+        if (typeof fieldValue === 'object' && fieldValue !== null) {
+          const typedFieldValue = fieldValue as { [key: string]: unknown };
+          return {
+            ...prev,
+            [field]: {
+              ...typedFieldValue,
+              [nestedField]: value
+            }
+          };
         }
-      });
-    } else {
-      setFormData({
-        ...formData,
+        return prev;
+      }
+      return {
+        ...prev,
         [field]: value
-      });
-    }
+      };
+    });
   };
 
-  // Abrir modal de creación/edición
-  const openFormModal = (order = null) => {
+  const openFormModal = (order: RepairOrder | null = null) => {
     if (order) {
-      setFormData({...order});
-      setEditingOrder(order.id);
+      setFormData({
+        id: order.id,
+        customer: { ...order.customer },
+        device: { ...order.device },
+        issue: order.issue,
+        notes: order.notes || '',
+        status: order.status as OrderStatus,
+        priority: order.priority,
+        technicianId: order.technicianId,
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
+        estimatedCompletionDate: order.estimatedCompletionDate,
+        completedAt: order.completedAt,
+        budget: order.budget,
+        history: order.history,
+        imageUrl: order.imageUrl
+      });
+      setEditingOrder(order);
     } else {
-      // Crear una nueva orden con datos por defecto
       const newId = `ORD-${new Date().getFullYear()}-${String(orders.length + 1).padStart(3, '0')}`;
       const now = new Date().toISOString();
-
-      setFormData({
+  
+      const newOrder: RepairOrder = {
         id: newId,
         customer: {
           id: '',
@@ -397,7 +440,7 @@ const BudgetScreen = () => {
         },
         issue: '',
         notes: '',
-        status: 'pending',
+        status: 'pending' as OrderStatus,
         priority: 'medium',
         technicianId: '',
         createdAt: now,
@@ -415,10 +458,16 @@ const BudgetScreen = () => {
           { date: now, action: 'Orden creada', user: 'Admin' }
         ],
         imageUrl: 'https://api.a0.dev/assets/image?text=phone%20repair%20generic&aspect=1:1',
+      };
+  
+      setFormData({
+        ...newOrder,
+        updatedAt: newOrder.updatedAt || '',
+        completedAt: newOrder.completedAt || null
       });
       setEditingOrder(null);
     }
-
+  
     setModalVisible(true);
   };
 
@@ -540,7 +589,7 @@ const BudgetScreen = () => {
 
       setOrders(updatedOrders);
       setNotifyModalVisible(false);
-      setNotificationData({ method: 'sms', message: '', orderId: '' });
+      setNotificationData({ method: 'sms', message: '' });
       Alert.alert('Éxito', `${notifyType} enviado correctamente`);
     } catch (error) {
       Alert.alert('Error', 'No se pudo enviar la notificación');
@@ -548,71 +597,64 @@ const BudgetScreen = () => {
   };
 
   // Cambiar estado de orden
-  const changeOrderStatus = async (id, newStatus) => {
+  const changeOrderStatus = async (id: string, newStatus: OrderStatus): Promise<void> => {
     try {
-      if (!id || !newStatus) {
-        Alert.alert('Error', 'ID de orden o estado no válido');
-        return;
+      if (!id) {
+        throw new Error('Invalid order ID');
       }
 
       const now = new Date().toISOString();
-
-      const statusTexts = {
-        'pending': 'pendiente',
-        'in_progress': 'en proceso',
-        'completed': 'completada',
-        'delivered': 'entregada',
-        'cancelled': 'cancelada'
+      const statusTexts: Record<OrderStatus, string> = {
+        pending: 'pendiente',
+        in_progress: 'en proceso',
+        completed: 'completada',
+        delivered: 'entregada',
+        cancelled: 'cancelada'
       };
 
       const updatedOrders = orders.map(order => {
         if (order.id === id) {
-          const completedAt = newStatus === 'completed' ? now : order.completedAt;
-
-          const updatedHistory = [
-            ...order.history,
-            {
-              date: now,
-              action: `Estado cambiado a ${statusTexts[newStatus]}`,
-              user: 'Admin'
-            }
-          ];
-
           return {
             ...order,
             status: newStatus,
-            completedAt,
-            history: updatedHistory,
+            completedAt: newStatus === 'completed' ? now : order.completedAt,
+            history: [
+              ...order.history,
+              {
+                date: now,
+                action: `Estado cambiado a ${statusTexts[newStatus]}`,
+                user: 'Admin'
+              }
+            ],
             updatedAt: now
           };
         }
         return order;
       });
 
-      setOrders(updatedOrders);
-
+      setOrders(updatedOrders as RepairOrder[]);
+      // Update selected order if it matches the changed order
       if (selectedOrder && selectedOrder.id === id) {
         const updatedOrder = updatedOrders.find(o => o.id === id);
-        setSelectedOrder(updatedOrder);
+        if (updatedOrder) {
+          // Cast the updatedOrder to RepairOrder to ensure type safety
+          setSelectedOrder(updatedOrder as RepairOrder);
+        }
       }
-
       Alert.alert('Éxito', `Estado actualizado a ${statusTexts[newStatus]}`);
     } catch (error) {
-      Alert.alert('Error', 'No se pudo actualizar el estado');
+      Alert.alert('Error', error instanceof Error ? error.message : 'No se pudo actualizar el estado');
     }
   };
 
   // Abrir modal de presupuesto
-  const openBudgetModal = (order) => {
+  const openBudgetModal = (order: RepairOrder) => {
     setSelectedOrder(order);
     setBudgetData({
       labor: order.budget.labor || 0,
-      componentCost: order.budget.componentCost || 0,
-      othersCost: order.budget.othersCost || 0,
-      tax: order.budget.tax || 10,
-      notes: '',
-      total: order.budget.total || 0,
       parts: order.budget.parts || [],
+      tax: order.budget.tax || 10,
+      total: order.budget.total || 0,
     });
     setBudgetModalVisible(true);
   };
@@ -624,8 +666,8 @@ const BudgetScreen = () => {
       return;
     }
 
-    const price = parseFloat(newPart.price);
-    const quantity = parseInt(newPart.quantity) || 1;
+    const price = parseFloat(newPart.price?.toString() || '0');
+    const quantity = parseInt(newPart.quantity?.toString() || '1');
 
     if (isNaN(price) || price <= 0) {
       Alert.alert('Error', 'Ingresa un precio válido');
@@ -643,7 +685,7 @@ const BudgetScreen = () => {
     const updatedParts = [...budgetData.parts, part];
 
     // Recalcular total
-    const laborCost = parseFloat(budgetData.labor) || 0;
+    const laborCost = parseFloat(budgetData.labor.toString()) || 0;
     const partsCost = updatedParts.reduce((sum, part) => sum + (part.price * part.quantity), 0);
     const subtotal = laborCost + partsCost;
     const taxAmount = (subtotal * budgetData.tax) / 100;
@@ -658,17 +700,17 @@ const BudgetScreen = () => {
     // Limpiar formulario de nueva pieza
     setNewPart({
       name: '',
-      price: '',
-      quantity: '1',
+      price: 0,
+      quantity: 1,
     });
   };
 
   // Eliminar parte del presupuesto
-  const removePartFromBudget = (partId) => {
+  const removePartFromBudget = (partId: string) => {
     const updatedParts = budgetData.parts.filter(part => part.id !== partId);
 
     // Recalcular total
-    const laborCost = parseFloat(budgetData.labor) || 0;
+    const laborCost = parseFloat(budgetData.labor.toString()) || 0;
     const partsCost = updatedParts.reduce((sum, part) => sum + (part.price * part.quantity), 0);
     const subtotal = laborCost + partsCost;
     const taxAmount = (subtotal * budgetData.tax) / 100;
@@ -686,7 +728,7 @@ const BudgetScreen = () => {
     const now = new Date().toISOString();
 
     const updatedOrders = orders.map(order => {
-      if (order.id === selectedOrder.id) {
+      if (order.id === selectedOrder?.id) {
         const updatedHistory = [
           ...order.history,
           {
@@ -715,14 +757,16 @@ const BudgetScreen = () => {
     // Actualizar también el pedido seleccionado si estamos en la vista de detalles
     if (selectedOrder) {
       const updatedOrder = updatedOrders.find(o => o.id === selectedOrder.id);
-      setSelectedOrder(updatedOrder);
+      if (updatedOrder) {
+        setSelectedOrder(updatedOrder);
+      }
     }
 
     Alert.alert('Éxito', 'Presupuesto guardado correctamente');
   };
 
   // Actualizar estado de aprobación del presupuesto
-  const updateBudgetApproval = (id, approved) => {
+  const updateBudgetApproval = (id: string, approved: boolean) => {
     const now = new Date().toISOString();
 
     const updatedOrders = orders.map(order => {
@@ -753,13 +797,15 @@ const BudgetScreen = () => {
 
     // Actualizar también el pedido seleccionado
     if (selectedOrder && selectedOrder.id === id) {
-      const updatedOrder = updatedOrders.find(o => o.id === id);
-      setSelectedOrder(updatedOrder);
+      const updatedOrder = updatedOrders.find(o => o.id === id) as RepairOrder;
+      if (updatedOrder) {
+        setSelectedOrder(updatedOrder);
+      }
     }
   };
 
   // Seleccionar cliente existente
-  const selectExistingCustomer = (customer) => {
+  const selectExistingCustomer = (customer: { id: string; name: string; phone: string; email: string; }) => {
     setFormData({
       ...formData,
       customer: {
@@ -771,71 +817,49 @@ const BudgetScreen = () => {
     });
   };
 
-  // Actualizar mano de obra en presupuesto
-  const updateLabor = (value) => {
-    const laborCost = parseFloat(value) || 0;
-    const subtotal = laborCost + (parseFloat(budgetData.componentCost) || 0) + (parseFloat(budgetData.othersCost) || 0);
-    const taxAmount = (subtotal * (parseFloat(budgetData.tax) || 0)) / 100;
-    const total = subtotal + taxAmount;
-
-    setBudgetData({
-      ...budgetData,
-      labor: laborCost,
-      total: parseFloat(total.toFixed(2))
-    });
+  // Funciones de utilidad para el presupuesto
+  const updateLabor = (value: string) => {
+    const labor = parseFloat(value) || 0;
+    setBudgetData(prev => ({
+      ...prev,
+      labor,
+      total: calculateTotal({ ...prev, labor })
+    }));
   };
 
-  // Actualizar impuesto en presupuesto
-  const updateTax = (value) => {
-    const taxRate = parseFloat(value) || 0;
-    const laborCost = parseFloat(budgetData.labor) || 0;
-    const componentCost = parseFloat(budgetData.componentCost) || 0;
-    const othersCost = parseFloat(budgetData.othersCost) || 0;
-    const subtotal = laborCost + componentCost + othersCost;
-    const taxAmount = (subtotal * taxRate) / 100;
-    const total = subtotal + taxAmount;
-
-    setBudgetData({
-      ...budgetData,
-      tax: taxRate,
-      total: parseFloat(total.toFixed(2))
-    });
+  const updateTax = (value: string) => {
+    const tax = parseFloat(value) || 0;
+    setBudgetData(prev => ({
+      ...prev,
+      tax,
+      total: calculateTotal({ ...prev, tax })
+    }));
   };
 
-  // Actualizar costo de componentes
-  const updateComponentCost = (value) => {
-    const compCost = parseFloat(value) || 0;
-    const laborCost = parseFloat(budgetData.labor) || 0;
-    const othersCost = parseFloat(budgetData.othersCost) || 0;
-    const subtotal = laborCost + compCost + othersCost;
-    const taxAmount = (subtotal * (parseFloat(budgetData.tax) || 0)) / 100;
-    const total = subtotal + taxAmount;
-
-    setBudgetData({
-      ...budgetData,
-      componentCost: compCost,
-      total: parseFloat(total.toFixed(2))
-    });
+  // Utility functions with proper typing
+  const calculateTotal = (budget: Budget): number => {
+    const partsTotal = budget.parts.reduce((sum, part) => sum + (part.price * part.quantity), 0);
+    const subtotal = partsTotal + budget.labor;
+    return Number((subtotal + (subtotal * (budget.tax / 100))).toFixed(2));
   };
 
   // Actualizar otros costos
-  const updateOthersCost = (value) => {
+  const updateOthersCost = (value: string) => {
     const others = parseFloat(value) || 0;
-    const laborCost = parseFloat(budgetData.labor) || 0;
-    const compCost = parseFloat(budgetData.componentCost) || 0;
+    const laborCost = parseFloat(budgetData.labor.toString()) || 0;
+    const compCost = budgetData.parts.reduce((sum, part) => sum + (part.price * part.quantity), 0);
     const subtotal = laborCost + compCost + others;
-    const taxAmount = (subtotal * (parseFloat(budgetData.tax) || 0)) / 100;
+    const taxAmount = (subtotal * (parseFloat(budgetData.tax.toString()) || 0)) / 100;
     const total = subtotal + taxAmount;
 
     setBudgetData({
       ...budgetData,
-      othersCost: others,
       total: parseFloat(total.toFixed(2))
     });
   };
 
   // Obtener órdenes de un cliente
-  const getCustomerOrders = (customerId) => {
+  const getCustomerOrders = (customerId: string) => {
     return orders.filter(order => order.customer.id === customerId);
   };
 
@@ -1460,8 +1484,8 @@ const BudgetScreen = () => {
                   <TextInput
                     style={styles.formInput}
                     placeholder="Marca del dispositivo"
-                    value={formData.device.brand}
-                    onChangeText={(text) => updateFormField('device', text, 'brand')}
+                    value={formData.device?.brand || ''}
+                    onChangeText={(text: string) => updateFormField('device', text, 'brand' as keyof typeof formData.device)}
                   />
                 </View>
 
@@ -1802,16 +1826,16 @@ const BudgetScreen = () => {
                       <TextInput
                         style={styles.addPartPriceInput}
                         placeholder="Precio"
-                        value={newPart.price}
-                        onChangeText={(text) => setNewPart({...newPart, price: text})}
+                        value={newPart.price?.toString()}
+                        onChangeText={(text) => setNewPart({...newPart, price: parseFloat(text) || 0})}
                         keyboardType="numeric"
                       />
 
                       <TextInput
                         style={styles.addPartQuantityInput}
                         placeholder="Cant."
-                        value={newPart.quantity}
-                        onChangeText={(text) => setNewPart({...newPart, quantity: text})}
+                        value={newPart.quantity?.toString()}
+                        onChangeText={(text) => setNewPart({...newPart, quantity: parseInt(text) || 1})}
                         keyboardType="numeric"
                       />
                     </View>
@@ -1837,7 +1861,7 @@ const BudgetScreen = () => {
                   <TextInput
                     style={styles.budgetNotesInput}
                     placeholder="Notas sobre el presupuesto..."
-                    value={budgetData.notes}
+                    value={budgetData?.notes || ''}
                     onChangeText={(text) => setBudgetData({...budgetData, notes: text})}
                     multiline
                     numberOfLines={3}

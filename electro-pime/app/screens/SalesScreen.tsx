@@ -7,20 +7,45 @@ import {
   TouchableOpacity,
   FlatList,
   Modal,
-  Animated,
   Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { LineChart } from 'react-native-chart-kit';
-import { Dimensions } from 'react-native';
 import NewSaleScreen from '../../components/NewSaleScreen';
+
+// Move helper functions outside the component
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'completed':
+      return '#28a745';
+    case 'pending':
+      return '#ffc107';
+    case 'in_progress':
+      return '#0056b3';
+    default:
+      return '#6c757d';
+  }
+};
+
+const getStatusText = (status: string): string => {
+  switch (status) {
+    case 'completed':
+      return 'Completado';
+    case 'pending':
+      return 'Pendiente';
+    case 'in_progress':
+      return 'En Proceso';
+    default:
+      return 'Desconocido';
+  }
+};
 
 const SalesScreen = () => {
   const [showNewSale, setShowNewSale] = useState(false);
   const [selectedSale, setSelectedSale] = useState(null);
   const [dateFilter, setDateFilter] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
-  // Add these mock data structures after the imports
+  // Mock data for sales
+  // Move mockSales inside the component
   const mockSales = [
     {
       number: 'VTA-001',
@@ -58,98 +83,8 @@ const SalesScreen = () => {
       ]
     }
   ];
-  // Update the FlatList data prop
-  <FlatList
-    data={mockSales}
-    renderItem={({ item }) => (
-      <TouchableOpacity 
-        style={styles.saleCard}
-        onPress={() => setSelectedSale(item as any)}
-      >
-        <View style={styles.saleHeader}>
-          <Text style={styles.saleNumber}>#{item.number}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: '#28a745' }]}>
-            <Text style={styles.statusText}>{item.status}</Text>
-          </View>
-        </View>
-        
-        <View style={styles.saleInfo}>
-          <View style={styles.infoRow}>
-            <MaterialCommunityIcons name="account" size={20} color="#6c757d" />
-            <Text style={styles.customerName}>{item.customer}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <MaterialCommunityIcons name="calendar" size={20} color="#6c757d" />
-            <Text style={styles.saleDate}>{item.date}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <MaterialCommunityIcons name="cash" size={20} color="#6c757d" />
-            <Text style={styles.saleTotal}>${item.total.toFixed(2)}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <MaterialCommunityIcons name="credit-card" size={20} color="#6c757d" />
-            <Text style={styles.paymentMethod}>{item.paymentMethod}</Text>
-          </View>
-        </View>
 
-        <View style={styles.actionButtons}>
-          <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: '#0056b3' }]}
-            onPress={() => {
-              Alert.alert('Print Ticket', `Printing ticket for sale #${item.number}`);
-            }}
-          >
-            <MaterialCommunityIcons name="printer" size={20} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: '#28a745' }]}
-            onPress={() => {
-              Alert.alert('Send Invoice', `Sending invoice for sale #${item.number}`);
-            }}
-          >
-            <MaterialCommunityIcons name="email" size={20} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: '#ffc107' }]}
-            onPress={() => {
-              Alert.alert('Export Sale', `Exporting sale #${item.number}`);
-            }}
-          >
-            <MaterialCommunityIcons name="download" size={20} color="white" />
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
-    )}
-    keyExtractor={item => item.number}
-    contentContainerStyle={styles.salesList}
-  />
-  // Add this helper function before the SalesScreen component
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return '#28a745';
-      case 'pending':
-        return '#ffc107';
-      case 'in_progress':
-        return '#0056b3';
-      default:
-        return '#6c757d';
-    }
-  };
-  // Add this helper function for status text
-  const getStatusText = (status: string): string => {
-    switch (status) {
-      case 'completed':
-        return 'Completado';
-      case 'pending':
-        return 'Pendiente';
-      case 'in_progress':
-        return 'En Proceso';
-      default:
-        return 'Desconocido';
-    }
-  };
-  // Add sales metrics calculation
+  // Calculate metrics
   const calculateMetrics = () => {
     const today = new Date().toISOString().split('T')[0];
     const todaySales = mockSales.filter(sale => sale.date === today);
@@ -158,16 +93,19 @@ const SalesScreen = () => {
       const currentMonth = today.substring(0, 7);
       return saleMonth === currentMonth;
     });
-  return {
-    dailyTotal: todaySales.reduce((sum, sale) => sum + sale.total, 0),
-    monthlyTotal: monthSales.reduce((sum, sale) => sum + sale.total, 0),
-    averageTicket: monthSales.length > 0 
-      ? monthSales.reduce((sum, sale) => sum + sale.total, 0) / monthSales.length 
-      : 0
+    
+    return {
+      dailyTotal: todaySales.reduce((sum, sale) => sum + sale.total, 0),
+      monthlyTotal: monthSales.reduce((sum, sale) => sum + sale.total, 0),
+      averageTicket: monthSales.length > 0 
+        ? monthSales.reduce((sum, sale) => sum + sale.total, 0) / monthSales.length 
+        : 0
+    };
   };
-  };
-  // Update renderMetrics to use calculated values
+
   const metrics = calculateMetrics();
+
+  // Render metrics component
   const renderMetrics = () => (
     <ScrollView horizontal style={styles.metricsContainer}>
       <View style={styles.metricCard}>
@@ -187,6 +125,8 @@ const SalesScreen = () => {
       </View>
     </ScrollView>
   );
+
+  // Render sale item component
   const renderSaleItem = ({ item }: { item: { 
     number: string;
     status: string;
@@ -194,7 +134,13 @@ const SalesScreen = () => {
     date: string;
     total: number;
     paymentMethod: string;
-  } }) => (
+    items: Array<{
+      id: string;
+      name: string;
+      quantity: number;
+      price: number;
+    }>;
+  }}) => (
     <TouchableOpacity 
       style={styles.saleCard}
       onPress={() => setSelectedSale(item as any)}
@@ -231,7 +177,6 @@ const SalesScreen = () => {
         <TouchableOpacity 
           style={[styles.actionButton, { backgroundColor: '#0056b3' }]}
           onPress={() => {
-            // TODO: Implement print ticket functionality
             Alert.alert('Print Ticket', `Printing ticket for sale #${item.number}`);
           }}
         >
@@ -240,7 +185,6 @@ const SalesScreen = () => {
         <TouchableOpacity 
           style={[styles.actionButton, { backgroundColor: '#28a745' }]}
           onPress={() => {
-            // TODO: Implement invoice sending functionality
             Alert.alert('Send Invoice', `Sending invoice for sale #${item.number}`);
           }}
         >
@@ -249,7 +193,6 @@ const SalesScreen = () => {
         <TouchableOpacity 
           style={[styles.actionButton, { backgroundColor: '#ffc107' }]}
           onPress={() => {
-            // TODO: Implement export functionality
             Alert.alert('Export Sale', `Exporting sale #${item.number}`);
           }}
         >
@@ -258,6 +201,7 @@ const SalesScreen = () => {
       </View>
     </TouchableOpacity>
   );
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -270,7 +214,9 @@ const SalesScreen = () => {
           <Text style={styles.newSaleButtonText}>Nueva Venta</Text>
         </TouchableOpacity>
       </View>
+      
       {renderMetrics()}
+      
       <View style={styles.filterContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {['Hoy', 'Semana', 'Mes', 'Año'].map((period) => (
@@ -292,16 +238,19 @@ const SalesScreen = () => {
           ))}
         </ScrollView>
       </View>
+      
       <FlatList
-        data={[]} // Temporary empty array until sales data is implemented
+        data={mockSales}
         renderItem={renderSaleItem}
         keyExtractor={item => item.number}
         contentContainerStyle={styles.salesList}
       />
+      
       <Modal
         visible={showNewSale}
         animationType="slide"
         onRequestClose={() => setShowNewSale(false)}
+        presentationStyle="fullScreen"
       >
         <NewSaleScreen onClose={() => setShowNewSale(false)} />
       </Modal>
@@ -351,10 +300,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginRight: 16,
     minWidth: 160,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     elevation: 3,
   },
   metricTitle: {
@@ -403,10 +349,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     elevation: 3,
   },
   saleHeader: {
