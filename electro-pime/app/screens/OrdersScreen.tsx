@@ -11,7 +11,7 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Picker } from '@react-native-picker/picker';
 import { useOrders } from '../hooks/useOrders';
 import { ScreenContainer } from '../components/common/ScreenContainer';

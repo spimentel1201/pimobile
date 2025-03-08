@@ -13,7 +13,7 @@ import {
   Keyboard,
   Pressable
 } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Picker } from '@react-native-picker/picker';
 import { RepairOrder, BudgetPart, Budget, OrderStatus, StatusInfo, FormData, NotificationData } from '../types/budget';
 import DateTimePicker from '@react-native-community/datetimepicker';

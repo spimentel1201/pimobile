@@ -10,7 +10,7 @@ import {
   Alert,
   Image,
 } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { User, UserRole, UserFormData, rolePermissions } from '../types/user';
 
 const UsersScreen = () => {

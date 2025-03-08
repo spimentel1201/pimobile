@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 interface ListEmptyStateProps {
   message: string;
@@ -13,7 +13,7 @@ export const ListEmptyState: React.FC<ListEmptyStateProps> = ({
 }) => {
   return (
     <View style={styles.container}>
-      <MaterialCommunityIcons name={icon as keyof typeof MaterialCommunityIcons.glyphMap} size={48} color="#6c757d" />
+      <MaterialCommunityIcons name={icon} size={48} color="#6c757d" />
       <Text style={styles.message}>{message}</Text>
     </View>
   );

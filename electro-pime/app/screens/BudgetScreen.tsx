@@ -13,7 +13,7 @@ import {
   Keyboard,
   Pressable
 } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Picker } from '@react-native-picker/picker';
 import { RepairOrder, BudgetPart, Budget, OrderStatus, StatusInfo, FormData, NotificationData } from '../types/budget';
 
@@ -849,13 +849,17 @@ const BudgetScreen = () => {
             <View style={styles.orderIdContainer}>
               <Text style={styles.orderId}>{item.id}</Text>
               <MaterialCommunityIcons
-                name={getPriorityInfo(item.priority).icon as keyof typeof MaterialCommunityIcons.glyphMap}
+                name={getPriorityInfo(item.priority).icon}
                 size={16}
                 color={getPriorityInfo(item.priority).color}
               />
             </View>
             <View style={[styles.statusBadge, {backgroundColor: getStatusInfo(item.status).color}]}>
-              <MaterialCommunityIcons name={getStatusInfo(item.status).icon as keyof typeof MaterialCommunityIcons.glyphMap} size={12} color="white" />
+              <MaterialCommunityIcons 
+                name={getStatusInfo(item.status).icon} 
+                size={12} 
+                color="white" 
+              />
               <Text style={styles.statusText}>{getStatusInfo(item.status).text}</Text>
             </View>
           </View>
@@ -935,7 +939,7 @@ const BudgetScreen = () => {
                 </View>
 
                 <View style={[styles.detailStatusBadge, {backgroundColor: statusInfo.color}]}>
-                  <MaterialCommunityIcons name={statusInfo.icon as keyof typeof MaterialCommunityIcons.glyphMap} size={14} color="white" />
+                  <MaterialCommunityIcons name={statusInfo.icon} size={14} color="white" />
                   <Text style={styles.detailStatusText}>{statusInfo.text}</Text>
                 </View>
               </View>
@@ -1061,7 +1065,11 @@ const BudgetScreen = () => {
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Prioridad:</Text>
                     <View style={styles.detailValueWithIcon}>
-                      <MaterialCommunityIcons name={priorityInfo.icon as keyof typeof MaterialCommunityIcons.glyphMap} size={16} color={priorityInfo.color} />
+                      <MaterialCommunityIcons 
+                        name={priorityInfo.icon} 
+                        size={16} 
+                        color={priorityInfo.color} 
+                      />
                       <Text style={styles.detailValue}>{priorityInfo.text}</Text>
                     </View>
                   </View>

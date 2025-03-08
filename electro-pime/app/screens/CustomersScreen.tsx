@@ -9,7 +9,7 @@ import {
   FlatList,
   Linking,
 } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 // Add import
 import NewCustomerModal from '../components/NewCustomerModal';
 
