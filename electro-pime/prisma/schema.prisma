@@ -43,6 +43,7 @@ model Device {
   model        String
   serialNumber String?
   condition    String?
+  issue        String?
   RepairOrder  RepairOrder[]
 }
 

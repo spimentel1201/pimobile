@@ -49,6 +49,7 @@ const BudgetScreen = () => {
       model: '',
       serialNumber: '',
       condition: '',
+      issue: ''
     },
     issue: '',
     notes: '',
@@ -288,6 +289,7 @@ const BudgetScreen = () => {
           model: '',
           serialNumber: '',
           condition: '',
+          issue: ''
         },
         issue: '',
         notes: '',

@@ -11,6 +11,25 @@ export interface Device {
   model: string;
   serialNumber: string;
   condition: string;
+  issue: string; // Added this field
+}
+
+export interface RepairOrder {
+  id: string;
+  customer: Customer;
+  device: Device;
+  issue: string; // This should be moved to Device interface
+  notes?: string;
+  status: OrderStatus;
+  priority: PriorityLevel;
+  technicianId: string;
+  createdAt: Date;
+  updatedAt: Date;
+  estimatedCompletionDate: Date;
+  completedAt: Date | null;
+  budget: Budget;
+  history: OrderHistory[];
+  imageUrl?: string;
 }
 
 export interface BudgetPart {
@@ -24,24 +43,6 @@ export interface OrderHistory {
   date: string;  // Changed from Date to string since we store dates as ISO strings in history
   action: string;
   user: string;
-}
-
-export interface RepairOrder {
-  id: string;
-  customer: Customer;
-  device: Device;
-  issue: string;
-  notes?: string;
-  status: OrderStatus;
-  priority: PriorityLevel;
-  technicianId: string;
-  createdAt: Date;
-  updatedAt: Date;
-  estimatedCompletionDate: Date;
-  completedAt: Date | null;  // Changed from Date to Date | null
-  budget: Budget;
-  history: OrderHistory[];
-  imageUrl?: string;
 }
 
 export type OrderStatus = 'pending' | 'in_progress' | 'completed' | 'delivered' | 'cancelled';
