@@ -88,6 +88,15 @@ export default function AppLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="budgets"
+        options={{
+          title: 'Presupuestos',
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons name="cash-register" size={24} color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

@@ -11,7 +11,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { MaterialCommunityIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
-import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
+import { LineChart, PieChart } from 'react-native-chart-kit';
 import { useRouter } from 'expo-router';
 
 const DashboardScreen = () => {
@@ -158,6 +158,14 @@ const DashboardScreen = () => {
       route: '/orders'
     },
     {
+      id: 'budgets',
+      name: 'Presupuestos',
+      icon: 'cash-multiple',
+      color: '#6610f2',
+      count: 10,
+      route: '/(tabs)/budgets'
+    },
+    {
       id: 'inventory',
       name: 'Inventario',
       icon: 'package-variant',
@@ -180,6 +188,14 @@ const DashboardScreen = () => {
       color: '#dc3545',
       count: 8,
       route: '/sales'
+    },
+    {
+      id: 'users',
+      name: 'Usuarios',
+      icon: 'account-cog',
+      color: '#6c757d',
+      count: 12,
+      route: '/(tabs)/users'
     }
   ];
   const getStatusColor = (status: 'pending' | 'in_progress' | 'completed' | string): string => {
@@ -830,8 +846,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
   },
-  chartTabActive: {
-    backgroundColor: '#0056b3',
+  chartTabActive: {    backgroundColor: '#0056b3',
   },
   chartTabText: {
     fontSize: 12,

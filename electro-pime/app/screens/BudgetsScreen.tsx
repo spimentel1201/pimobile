@@ -16,13 +16,14 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import { RepairOrder, BudgetPart, Budget, OrderStatus, StatusInfo, FormData, NotificationData } from '../types/budget';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
-const BudgetScreen = () => {
+const BudgetsScreen = () => {
   // Order management states
   const [orders, setOrders] = useState<RepairOrder[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<RepairOrder[]>([]);
   const [filterStatus, setFilterStatus] = useState<OrderStatus | 'all'>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [showSearch, setShowSearch] = useState<boolean>(false);
 
   // Estados para modales
@@ -34,6 +35,10 @@ const BudgetScreen = () => {
   // Estado para edición
   const [editingOrder, setEditingOrder] = useState<RepairOrder | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<RepairOrder | null>(null);
+
+  // Estado para calendario
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
   
   // Estado para formulario
   const [formData, setFormData] = useState<FormData>({
@@ -107,6 +112,14 @@ const BudgetScreen = () => {
     { id: '3', name: 'Miguel López', phone: '634567890', email: 'miguel@example.com' },
   ];
 
+  const handleDateChange = (event: any, date?: Date) => {
+    setShowDatePicker(false); // Oculta el calendario después de seleccionar una fecha
+    if (date) {
+      setSelectedDate(date); // Actualiza la fecha seleccionada
+      updateFormField('estimatedCompletionDate', date); // Actualiza el campo en el formulario
+    }
+  };
+
   // Efectos para filtrado
   useEffect(() => {
     filterOrders();
@@ -114,20 +127,31 @@ const BudgetScreen = () => {
 
   const filterOrders = () => {
     let filtered = [...orders];
-    
+  
+    // Filtra por estado
     if (filterStatus !== 'all') {
-      filtered = filtered.filter(order => order.status === filterStatus);
-    }
-
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(order => 
-        order.customer.name.toLowerCase().includes(query) ||
-        order.id.toLowerCase().includes(query) ||
-        order.device.model.toLowerCase().includes(query)
+      filtered = filtered.filter(
+        (order) => order.status === filterStatus
       );
     }
-
+  
+    // Filtra por búsqueda
+    if (searchQuery.trim() !== '') {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((order) => {
+        // Verifica que las propiedades existan antes de acceder a ellas
+        const customerName = order.customer?.name?.toLowerCase() || '';
+        const deviceModel = order.device?.model?.toLowerCase() || '';
+        const orderId = order.id?.toLowerCase() || '';
+  
+        return (
+          customerName.includes(query) ||
+          deviceModel.includes(query) ||
+          orderId.includes(query)
+        );
+      });
+    }
+  
     setFilteredOrders(filtered);
   };
   // Cargar datos de prueba al iniciar
@@ -136,30 +160,43 @@ const BudgetScreen = () => {
     const mockOrders = [
       {
         id: 'ORD-2023-001',
-        // ... other fields ...
-        history: [
-          { 
-            date: new Date('2023-12-10T14:30:00').toISOString(), 
-            action: 'Orden creada', 
-            user: 'Admin' 
-          },
-          { 
-            date: new Date('2023-12-10T16:45:00').toISOString(), 
-            action: 'Asignada a técnico Carlos Méndez', 
-            user: 'Admin' 
-          },
-          { 
-            date: new Date('2023-12-11T09:30:00').toISOString(), 
-            action: 'Diagnóstico completado', 
-            user: 'Carlos Méndez' 
-          }
-        ],
-        // ... other fields ...
-      }
+        customer: {
+          id: '1',
+          name: 'Juan Pérez', // Asegúrate de que esta propiedad exista
+          phone: '612345678',
+          email: 'juan@example.com',
+        },
+        device: {
+          type: 'smartphone',
+          brand: 'Samsung', // Asegúrate de que esta propiedad exista
+          model: 'Galaxy S21', // Asegúrate de que esta propiedad exista
+          serialNumber: '123456789',
+          condition: 'Buen estado',
+        },
+        issue: 'Pantalla rota',
+        notes: '',
+        status: 'pending',
+        priority: 'medium',
+        technicianId: '1',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        estimatedCompletionDate: new Date(),
+        completedAt: null,
+        budget: {
+          labor: 0,
+          parts: [],
+          tax: 0,
+          total: 0,
+          approved: false,
+          notes: '',
+        },
+        history: [],
+      },
     ];
     
     setOrders(mockOrders as RepairOrder[]);
     setFilteredOrders(mockOrders as RepairOrder[]);
+    
   }, []);
 
   // Filtrar órdenes por estado y búsqueda
@@ -838,45 +875,52 @@ const BudgetScreen = () => {
     <FlatList
       data={filteredOrders}
       keyExtractor={(item) => item.id}
-      renderItem={({item}) => (
-        <TouchableOpacity
-          style={styles.orderCard}
-          onPress={() => viewOrderDetails(item)}
-        >
-          <View style={styles.orderCardHeader}>
-            <View style={styles.orderIdContainer}>
-              <Text style={styles.orderId}>{item.id}</Text>
-              <MaterialCommunityIcons
-                name={getPriorityInfo(item.priority).icon as keyof typeof MaterialCommunityIcons.glyphMap}
-                size={16}
-                color={getPriorityInfo(item.priority).color}
-              />
-            </View>
-            <View style={[styles.statusBadge, {backgroundColor: getStatusInfo(item.status).color}]}>
-              <MaterialCommunityIcons name={getStatusInfo(item.status).icon as keyof typeof MaterialCommunityIcons.glyphMap} size={12} color="white" />
-              <Text style={styles.statusText}>{getStatusInfo(item.status).text}</Text>
-            </View>
-          </View>
-
-          <View style={styles.orderContent}>
-            <Image source={{ uri: item.imageUrl }} style={styles.orderImage} />
-
-            <View style={styles.orderDetails}>
-              <Text style={styles.customerName}>{item.customer.name}</Text>
-              <Text style={styles.deviceInfo}>{item.device.brand} {item.device.model}</Text>
-              <Text style={styles.issueText} numberOfLines={2}>{item.issue}</Text>
-
-              <View style={styles.orderFooter}>
-                <Text style={styles.technicianName}>
-                  <MaterialCommunityIcons name="account-wrench" size={14} color="#6c757d" />
-                  {' '}{getTechnicianName(item.technicianId)}
-                </Text>
-                <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
+      renderItem={({ item }) => {
+        // Verifica que el item y sus propiedades estén definidos
+        if (!item || !item.customer || !item.device) {
+          return null; // O puedes renderizar un componente de error o un placeholder
+        }
+  
+        return (
+          <TouchableOpacity
+            style={styles.orderCard}
+            onPress={() => viewOrderDetails(item)}
+          >
+            <View style={styles.orderCardHeader}>
+              <View style={styles.orderIdContainer}>
+                <Text style={styles.orderId}>{item.id}</Text>
+                <MaterialCommunityIcons
+                  name={getPriorityInfo(item.priority).icon as keyof typeof MaterialCommunityIcons.glyphMap}
+                  size={16}
+                  color={getPriorityInfo(item.priority).color}
+                />
+              </View>
+              <View style={[styles.statusBadge, { backgroundColor: getStatusInfo(item.status).color }]}>
+                <MaterialCommunityIcons name={getStatusInfo(item.status).icon as keyof typeof MaterialCommunityIcons.glyphMap} size={12} color="white" />
+                <Text style={styles.statusText}>{getStatusInfo(item.status).text}</Text>
               </View>
             </View>
-          </View>
-        </TouchableOpacity>
-      )}
+  
+            <View style={styles.orderContent}>
+              <Image source={{ uri: item.imageUrl }} style={styles.orderImage} />
+  
+              <View style={styles.orderDetails}>
+                <Text style={styles.customerName}>{item.customer.name}</Text>
+                <Text style={styles.deviceInfo}>{item.device.brand} {item.device.model}</Text>
+                <Text style={styles.issueText} numberOfLines={2}>{item.issue}</Text>
+  
+                <View style={styles.orderFooter}>
+                  <Text style={styles.technicianName}>
+                    <MaterialCommunityIcons name="account-wrench" size={14} color="#6c757d" />
+                    {' '}{getTechnicianName(item.technicianId)}
+                  </Text>
+                  <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
+                </View>
+              </View>
+            </View>
+          </TouchableOpacity>
+        );
+      }}
       ListEmptyComponent={
         <View style={styles.emptyContainer}>
           <MaterialCommunityIcons name="clipboard-text-outline" size={64} color="#dee2e6" />
@@ -1069,11 +1113,29 @@ const BudgetScreen = () => {
                     <Text style={styles.detailValue}>{getTechnicianName(selectedOrder.technicianId)}</Text>
                   </View>
 
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Fecha estimada:</Text>
-                    <Text style={styles.detailValue}>
-                      {formatDate(selectedOrder.estimatedCompletionDate)}
-                    </Text>
+                  <View style={styles.formRow}>
+                    <Text style={styles.formLabel}>Fecha estimada:</Text>
+                    <TouchableOpacity
+                      style={styles.datePickerButton}
+                      onPress={() => setShowDatePicker(true)} // Abre el calendario al hacer clic
+                    >
+                      <Text style={styles.datePickerText}>
+                        {formData.estimatedCompletionDate
+                          ? formatDate(formData.estimatedCompletionDate)
+                          : 'Seleccionar fecha'}
+                      </Text>
+                      <MaterialCommunityIcons name="calendar" size={18} color="#0056b3" />
+                    </TouchableOpacity>
+
+                    {/* Muestra el calendario si showDatePicker es true */}
+                    {showDatePicker && (
+                      <DateTimePicker
+                        value={selectedDate}
+                        mode="datetime" // Permite seleccionar fecha y hora
+                        display="default"
+                        onChange={handleDateChange}
+                      />
+                    )}
                   </View>
 
                   {selectedOrder.notes && (
@@ -2389,21 +2451,6 @@ const styles = StyleSheet.create({
     height: 40,
     width: '100%',
   },
-  datePickerButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    borderWidth: 1,
-    borderColor: '#dee2e6',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  datePickerText: {
-    fontSize: 14,
-    color: '#495057',
-  },
   notifyContent: {
     padding: 16,
   },
@@ -2654,6 +2701,21 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     minHeight: 80,
   },
+  datePickerButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  datePickerText: {
+    fontSize: 14,
+    color: '#495057',
+  },
 });
 
-export default BudgetScreen;
+export default BudgetsScreen;

@@ -1,0 +1,150 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  email     String   @unique
+  fullName  String
+  password  String
+  role      Role     @default(TECHNICIAN)
+  active    Boolean  @default(true)
+  lastLogin DateTime?
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    RepairOrder[]
+  history   OrderHistory[]
+}
+
+model Customer {
+  id             String        @id @default(uuid())
+  name           String
+  email          String?
+  phone          String
+  address        String?
+  documentType   DocumentType?
+  documentNumber String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  orders         RepairOrder[]
+}
+
+model Device {
+  id           String     @id @default(uuid())
+  type         DeviceType
+  brand        String
+  model        String
+  serialNumber String?
+  condition    String?
+  RepairOrder  RepairOrder[]
+}
+
+model RepairOrder {
+  id                     String        @id @default(uuid())
+  customer               Customer      @relation(fields: [customerId], references: [id])
+  customerId             String
+  device                 Device        @relation(fields: [deviceId], references: [id])
+  deviceId               String
+  issue                  String
+  notes                  String?
+  status                 OrderStatus   @default(PENDING)
+  priority              PriorityLevel @default(MEDIUM)
+  technician             User          @relation(fields: [technicianId], references: [id])
+  technicianId          String
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  estimatedCompletionDate DateTime
+  completedAt           DateTime?
+  imageUrl              String?
+  budget                Budget?
+  history               OrderHistory[]
+}
+
+model Budget {
+  id            String       @id @default(uuid())
+  repairOrder   RepairOrder @relation(fields: [repairOrderId], references: [id])
+  repairOrderId String      @unique
+  labor         Float       @default(0)
+  tax           Float       @default(0)
+  total         Float
+  approved      Boolean     @default(false)
+  notes         String?
+  parts         BudgetPart[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model BudgetPart {
+  id       String   @id @default(uuid())
+  name     String
+  price    Float
+  quantity Int
+  budget   Budget   @relation(fields: [budgetId], references: [id])
+  budgetId String
+}
+
+model OrderHistory {
+  id            String      @id @default(uuid())
+  date          DateTime    @default(now())
+  action        String
+  user          User        @relation(fields: [userId], references: [id])
+  userId        String
+  order         RepairOrder @relation(fields: [repairOrderId], references: [id])
+  repairOrderId String
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  category    String
+  price       Float
+  cost        Float
+  stock       Int      @default(0)
+  minStock    Int      @default(5)
+  supplier    String?
+  imageUrl    String?
+  sku         String   @unique
+  location    String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum Role {
+  ADMIN
+  TECHNICIAN
+  SELLER
+}
+
+enum OrderStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  DELIVERED
+  CANCELLED
+}
+
+enum PriorityLevel {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum DeviceType {
+  SMARTPHONE
+  TABLET
+  OTHER
+}
+
+enum DocumentType {
+  DNI
+  RUC
+}
