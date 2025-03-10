@@ -1,11 +1,27 @@
 import { AppRegistry } from 'react-native';
-import App from './App';  // Updated import path
+import App from './App';
 
 const appName = 'ElectroPime';
 
 AppRegistry.registerComponent(appName, () => App);
 
-// Add this for web rendering
-AppRegistry.runApplication(appName, {
-  rootTag: document.getElementById('root'),
-});
+// Only run this in browser environments
+if (typeof document !== 'undefined') {
+  // Add necessary styles for react-native-web
+  const style = document.createElement('style');
+  style.textContent = `
+    html, body, #root {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    #root {
+      display: flex;
+      flex: 1;
+    }
+  `;
+  document.head.appendChild(style);
+  AppRegistry.runApplication(appName, {
+    rootTag: document.getElementById('root')
+  });
+}

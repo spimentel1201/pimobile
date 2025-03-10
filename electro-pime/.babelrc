@@ -2,6 +2,12 @@
     "presets": [
       "@babel/preset-env",
       "@babel/preset-react",
-      "@babel/preset-typescript" // Añade este preset
+      "@babel/preset-typescript",
+      "babel-preset-expo"
+    ],
+    "plugins": [
+      ["@babel/plugin-proposal-class-properties", { "loose": true }],
+      ["@babel/plugin-transform-private-methods", { "loose": true }],
+      ["@babel/plugin-transform-private-property-in-object", { "loose": true }]
     ]
   }

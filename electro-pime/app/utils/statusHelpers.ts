@@ -31,3 +31,6 @@ export const getStatusInfo = (status: OrderStatus): StatusInfo => {
 
   return statusMap[status];
 };
+
+// Add this to prevent it from being treated as a route
+export default null;
