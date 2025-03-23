@@ -1,21 +1,24 @@
 {
   "expo": {
     "name": "electro-pime",
-    "slug": "electro-pime",
+    "slug": "pimobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/logo.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
+    "entryPoint": "./index.js",
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.slutdevs.pimobile",
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",
@@ -36,6 +39,15 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "a4b239cb-d78a-4bf3-9c09-559b34b7c0cc"
+      }
+    },
+    "owner": "thegrozzo"
   }
 }

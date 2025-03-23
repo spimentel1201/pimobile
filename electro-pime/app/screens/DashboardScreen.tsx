@@ -9,10 +9,14 @@ import {
   Dimensions,
   RefreshControl,
   StatusBar,
+  Platform,
 } from 'react-native';
 import { MaterialCommunityIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import { useRouter } from 'expo-router';
+import { Link } from 'expo-router';
+
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const DashboardScreen = () => {
   const [loading, setLoading] = useState(false);
@@ -147,57 +151,57 @@ const DashboardScreen = () => {
       }
     ]
   };
+    const modules = [
+      {
+        id: 'orders',
+        name: 'Órdenes',
+        icon: 'clipboard-text',
+        color: '#0056b3',
+        count: 15,
+        route: '/orders'
+      },
+      {
+        id: 'budgets',
+        name: 'Presupuestos',
+        icon: 'cash-multiple',
+        color: '#6610f2',
+        count: 10,
+        route: '/(tabs)/budgets'
+      },
+      {
+        id: 'inventory',
+        name: 'Inventario',
+        icon: 'package-variant',
+        color: '#28a745',
+        count: 168,
+        route: '/products'
+      },
+      {
+        id: 'customers',
+        name: 'Clientes',
+        icon: 'account-group',
+        color: '#ffc107',
+        count: 87,
+        route: '/customers'
+      },
+      {
+        id: 'sales',
+        name: 'Ventas',
+        icon: 'cash-register',
+        color: '#dc3545',
+        count: 8,
+        route: '/sales'
+      },
+      {
+        id: 'users',
+        name: 'Usuarios',
+        icon: 'account-cog',
+        color: '#6c757d',
+        count: 12,
+        route: '/(tabs)/users'
+      }
+    ];
 
-  const modules = [
-    {
-      id: 'orders',
-      name: 'Órdenes',
-      icon: 'clipboard-text',
-      color: '#0056b3',
-      count: 15,
-      route: '/orders'
-    },
-    {
-      id: 'budgets',
-      name: 'Presupuestos',
-      icon: 'cash-multiple',
-      color: '#6610f2',
-      count: 10,
-      route: '/(tabs)/budgets'
-    },
-    {
-      id: 'inventory',
-      name: 'Inventario',
-      icon: 'package-variant',
-      color: '#28a745',
-      count: 168,
-      route: '/products'
-    },
-    {
-      id: 'customers',
-      name: 'Clientes',
-      icon: 'account-group',
-      color: '#ffc107',
-      count: 87,
-      route: '/customers'
-    },
-    {
-      id: 'sales',
-      name: 'Ventas',
-      icon: 'cash-register',
-      color: '#dc3545',
-      count: 8,
-      route: '/sales'
-    },
-    {
-      id: 'users',
-      name: 'Usuarios',
-      icon: 'account-cog',
-      color: '#6c757d',
-      count: 12,
-      route: '/(tabs)/users'
-    }
-  ];
   const getStatusColor = (status: 'pending' | 'in_progress' | 'completed' | string): string => {
     switch (status) {
       case 'pending': return '#ffc107';
@@ -335,6 +339,7 @@ const DashboardScreen = () => {
     </View>
   );
 
+
   const renderAlerts = () => (
     <View style={styles.alertsContainer}>
       <View style={styles.sectionHeader}>
@@ -446,12 +451,12 @@ const DashboardScreen = () => {
             color: (opacity = 1) => `rgba(0, 86, 179, ${opacity})`,
             labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
             propsForDots: {
-              r: '6',
+              r: Platform.OS === 'web' ? '4' : '6', // Smaller radius on web
               strokeWidth: '2',
               stroke: '#0056b3'
             },
             propsForBackgroundLines: {
-              strokeDasharray: '', // Solid background lines
+              strokeDasharray: '',
             },
             style: {
               borderRadius: 16,
@@ -459,6 +464,15 @@ const DashboardScreen = () => {
           }}
           bezier
           style={styles.chart}
+          // Add this for web platform to suppress warnings
+          {...(Platform.OS === 'web' ? {
+            getDotProps: () => ({
+              r: 4,
+              strokeWidth: 2,
+              stroke: '#0056b3',
+              fill: '#0056b3',
+            })
+          } : {})}
         />
       </View>
 
@@ -479,6 +493,11 @@ const DashboardScreen = () => {
           backgroundColor="transparent"
           paddingLeft="15"
           absolute
+          // Add this for web platform to suppress warnings
+          {...(Platform.OS === 'web' ? {
+            hasLegend: true,
+            legendPosition: 'right'
+          } : {})}
         />
       </View>
     </View>
@@ -512,8 +531,9 @@ const DashboardScreen = () => {
     </View>
   );
 
+  // En el return del componente
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
       {renderHeader()}
       
@@ -532,10 +552,9 @@ const DashboardScreen = () => {
       </ScrollView>
       
       {showNotifications && renderNotifications()}
-    </View>
+    </SafeAreaView>
   );
 };
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -609,9 +628,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowRadius: 4,
     elevation: 2,
   },
   metricIconContainer: {
@@ -630,14 +649,22 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#212529',
-    marginBottom: 4,
   },
   metricLabel: {
     fontSize: 12,
     color: '#6c757d',
+    marginTop: 4,
   },
   modulesContainer: {
     padding: 16,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    margin: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   modulesGridContainer: {
     flexDirection: 'row',
@@ -645,41 +672,32 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   moduleCard: {
-    width: '31%',
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    width: '30%',
     alignItems: 'center',
+    marginBottom: 20,
     position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
   moduleIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 56,
+    height: 56,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
   },
   moduleName: {
     fontSize: 12,
-    fontWeight: '600',
     color: '#212529',
     textAlign: 'center',
   },
   moduleCountBadge: {
     position: 'absolute',
-    top: 8,
+    top: -4,
     right: 8,
     backgroundColor: '#dc3545',
     borderRadius: 10,
-    minWidth: 18,
-    height: 18,
+    minWidth: 20,
+    height: 20,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 4,
@@ -689,11 +707,22 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
   },
+  alertsContainer: {
+    padding: 16,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    margin: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 18,
@@ -703,28 +732,18 @@ const styles = StyleSheet.create({
   sectionLink: {
     fontSize: 14,
     color: '#0056b3',
-    fontWeight: '500',
-  },
-  alertsContainer: {
-    padding: 16,
   },
   alertCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
   },
   alertIconContainer: {
     width: 40,
     height: 40,
-    borderRadius: 10,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -735,36 +754,37 @@ const styles = StyleSheet.create({
   alertMessage: {
     fontSize: 14,
     color: '#212529',
-    fontWeight: '500',
-    marginBottom: 4,
   },
   alertTime: {
     fontSize: 12,
     color: '#6c757d',
+    marginTop: 4,
   },
   alertActionContainer: {
     padding: 8,
   },
   recentOrdersContainer: {
     padding: 16,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    margin: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   orderCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
     flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+    paddingBottom: 16,
   },
   orderImage: {
     width: 60,
     height: 60,
-    borderRadius: 10,
+    borderRadius: 12,
     marginRight: 12,
   },
   orderContent: {
@@ -778,16 +798,15 @@ const styles = StyleSheet.create({
   },
   orderCustomer: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: 'bold',
     color: '#212529',
   },
   orderDevice: {
     fontSize: 14,
-    color: '#495057',
-    marginBottom: 2,
+    color: '#212529',
   },
   orderService: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#6c757d',
     marginBottom: 8,
   },
@@ -799,19 +818,18 @@ const styles = StyleSheet.create({
   orderStatus: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 4,
+    borderRadius: 12,
   },
   orderStatusText: {
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: 'bold',
   },
   orderDate: {
     fontSize: 12,
     color: '#6c757d',
   },
   chartsContainer: {
-    padding: 16,
-    paddingBottom: 24,
+    padding: 8,
   },
   chartCard: {
     backgroundColor: 'white',
@@ -819,9 +837,9 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowRadius: 4,
     elevation: 2,
   },
   chartHeader: {
@@ -834,31 +852,32 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#212529',
-    marginBottom: 16,
   },
   chartTabs: {
     flexDirection: 'row',
-    backgroundColor: '#f1f3f5',
-    borderRadius: 8,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 4,
   },
   chartTab: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
   },
-  chartTabActive: {    backgroundColor: '#0056b3',
+  chartTabActive: {
+    backgroundColor: '#0056b3',
   },
   chartTabText: {
     fontSize: 12,
     color: '#6c757d',
-    fontWeight: '500',
   },
   chartTabTextActive: {
     color: 'white',
+    fontWeight: 'bold',
   },
   chart: {
-    borderRadius: 16,
     marginVertical: 8,
+    borderRadius: 16,
   },
   notificationsPanel: {
     position: 'absolute',
@@ -870,7 +889,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: -2, height: 0 },
     shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowRadius: 4,
     elevation: 5,
     zIndex: 1000,
   },
@@ -883,7 +902,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e9ecef',
   },
   notificationsTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#212529',
   },
@@ -911,12 +930,11 @@ const styles = StyleSheet.create({
   notificationMessage: {
     fontSize: 14,
     color: '#212529',
-    marginBottom: 4,
   },
   notificationTime: {
     fontSize: 12,
     color: '#6c757d',
-  },
+    marginTop: 4,
+  }
 });
-
 export default DashboardScreen;
