@@ -5,8 +5,18 @@
     <meta charset="utf-8">
     <title>Redirecting...</title>
     <script>
-      // Redirigir todas las rutas a index.html
-      window.location.href = window.location.origin + '/electro-pime/';
+      // Guardar la ruta actual para usarla después de la redirección
+      var pathSegments = window.location.pathname.split('/');
+      var route = '';
+      
+      // Extraer la ruta después de /electro-pime/
+      if (pathSegments.length > 2) {
+        // Unir todos los segmentos después de 'electro-pime'
+        route = '/' + pathSegments.slice(2).join('/');
+      }
+      
+      // Redirigir a la página principal con la ruta como parámetro
+      window.location.href = window.location.origin + '/electro-pime/?path=' + encodeURIComponent(route);
     </script>
   </head>
   <body>
