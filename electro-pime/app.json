@@ -19,8 +19,15 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "output": "dist",
+      "favicon": "./assets/images/favicon.png",
+      "build": {
+        "babel": {
+          "include": [
+            "node_modules/expo-router"
+          ]
+        }
+      }
     },
     "plugins": [
       "expo-router",
