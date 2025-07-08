@@ -27,7 +27,8 @@
             "node_modules/expo-router"
           ]
         }
-      }
+      },
+      "pwa": false
     },
     "plugins": [
       "expo-router",
