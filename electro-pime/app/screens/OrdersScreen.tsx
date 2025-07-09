@@ -9,9 +9,11 @@ import {
   Modal,
   ScrollView,
   Alert,
+  SafeAreaView,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
+import { useRouter } from 'expo-router';
 
 interface Technician {
   id: string;
@@ -105,22 +107,25 @@ const OrdersScreen = () => {
     }
   ];
   
-  // Update the useState initialization for orders
   const [orders, setOrders] = useState<Order[]>(mockOrders);
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [filterStatus, setFilterStatus] = useState<Order['status'] | 'all'>('all');
+  const router = useRouter();
+
   const renderHeader = () => (
     <View style={styles.header}>
-      <Text style={styles.headerTitle}>Órdenes</Text>
-      <TouchableOpacity 
-        style={styles.addButton}
-        onPress={() => setShowNewOrder(true)}
-      >
-        <MaterialCommunityIcons name="plus" size={24} color="white" />
-        <Text style={styles.addButtonText}>Nueva Orden</Text>
-      </TouchableOpacity>
+      <View style={styles.headerContent}>
+        <Text style={styles.headerTitle}>Órdenes de Reparación</Text>
+        <TouchableOpacity 
+          style={styles.addButton}
+          onPress={() => router.push('/orders/new')}
+        >
+          <MaterialCommunityIcons name="plus" size={20} color="white" />
+          <Text style={styles.addButtonText}>Nueva Orden</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
   const renderFilters = () => (
@@ -257,23 +262,29 @@ const OrdersScreen = () => {
   );
   return (
     <View style={styles.container}>
-      {renderHeader()}
-      {renderFilters()}
-      <FlatList
-        data={filterStatus === 'all' ? orders : orders.filter(order => order.status === filterStatus)}
-        renderItem={renderOrderCard}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.ordersList}
-      />
+      <SafeAreaView style={styles.safeArea}>
+        {renderHeader()}
+        <View style={styles.contentContainer}>
+          {renderFilters()}
+          <FlatList
+            data={filterStatus === 'all' ? orders : orders.filter(order => order.status === filterStatus)}
+            renderItem={renderOrderCard}
+            keyExtractor={item => item.id}
+            contentContainerStyle={styles.ordersList}
+          />
+        </View>
+      </SafeAreaView>
       <Modal
         visible={showNewOrder}
         animationType="slide"
         onRequestClose={() => setShowNewOrder(false)}
       >
-        <NewOrderForm 
-          onClose={() => setShowNewOrder(false)}
-          editingOrder={selectedOrder}
-        />
+        <SafeAreaView style={styles.safeArea}>
+          <NewOrderForm 
+            onClose={() => setShowNewOrder(false)}
+            editingOrder={selectedOrder}
+          />
+        </SafeAreaView>
       </Modal>
 
       <Modal
@@ -281,25 +292,26 @@ const OrdersScreen = () => {
         animationType="slide" 
         onRequestClose={() => setShowOrderDetails(false)}
       >
-        <View style={styles.container}>
-          <View style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: 16,
-            backgroundColor: 'white',
-            borderBottomWidth: 1,
-            borderBottomColor: '#e9ecef'
-          }}>
-            <Text style={{
-              fontSize: 20,
-              fontWeight: 'bold',
-              color: '#0056b3'
-            }}>Orden #{selectedOrder?.id}</Text>
-            <TouchableOpacity onPress={() => setShowOrderDetails(false)}>
-              <MaterialCommunityIcons name="close" size={24} color="#0056b3" />
-            </TouchableOpacity>
-          </View>
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.container}>
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: 16,
+              backgroundColor: 'white',
+              borderBottomWidth: 1,
+              borderBottomColor: '#e9ecef'
+            }}>
+              <Text style={{
+                fontSize: 20,
+                fontWeight: 'bold',
+                color: '#0056b3'
+              }}>Orden #{selectedOrder?.id}</Text>
+              <TouchableOpacity onPress={() => setShowOrderDetails(false)}>
+                <MaterialCommunityIcons name="close" size={24} color="#0056b3" />
+              </TouchableOpacity>
+            </View>
 
           <ScrollView style={{padding: 16}}>
             <View style={{
@@ -545,7 +557,8 @@ const OrdersScreen = () => {
               </View>
             </View>
           </ScrollView>
-        </View>
+          </View>
+        </SafeAreaView>
       </Modal>
     </View>
   );
@@ -576,7 +589,7 @@ const NewOrderForm: React.FC<NewOrderFormProps> = ({ onClose, editingOrder }) =>
   };
 
   return (
-    <View style={styles.container}>
+    <View style={{flex: 1}}>
       <View style={{
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -598,7 +611,7 @@ const NewOrderForm: React.FC<NewOrderFormProps> = ({ onClose, editingOrder }) =>
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.container}>
+      <ScrollView style={{flex: 1, paddingBottom: 80}} contentContainerStyle={{paddingBottom: 20}}>
         <Text style={{
           fontSize: 18,
           fontWeight: 'bold',
@@ -775,58 +788,113 @@ const NewOrderForm: React.FC<NewOrderFormProps> = ({ onClose, editingOrder }) =>
           <Picker.Item label="Baja" value="low" />
         </Picker>
 
+      </ScrollView>
+      
+      <View style={styles.footer}>
         <TouchableOpacity 
-          style={{
-            backgroundColor: '#0056b3',
-            padding: 16,
-            borderRadius: 8,
-            alignItems: 'center',
-            marginHorizontal: 16,
-            marginVertical: 24,
-          }}
+          style={[styles.footerButton, styles.cancelButton]}
+          onPress={onClose}
+        >
+          <Text style={styles.cancelButtonText}>Cancelar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.footerButton, styles.submitButton]}
           onPress={handleSubmit}
         >
-          <Text style={{color: 'white', fontSize: 16, fontWeight: '500'}}>
+          <Text style={styles.submitButtonText}>
             {editingOrder ? 'Actualizar' : 'Crear'} Orden
           </Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </View>
   );
 };
 
-// Add these styles to your StyleSheet
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  safeArea: {
+    flex: 1,
+  },
+  contentContainer: {
+    flex: 1,
+  },
+  footer: {
+    flexDirection: 'row',
+    padding: 16,
+    backgroundColor: 'white',
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  footerButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 8,
+  },
+  cancelButton: {
     backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+  },
+  submitButton: {
+    backgroundColor: '#0056b3',
+  },
+  cancelButtonText: {
+    color: '#495057',
+    fontWeight: '600',
+  },
+  submitButtonText: {
+    color: 'white',
+    fontWeight: '600',
   },
   header: {
+    backgroundColor: '#2563eb',
+    padding: 16,
+    paddingTop: 50,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#0056b3',
+    color: 'white',
+    fontSize: 20,
+    fontWeight: '600',
   },
   addButton: {
+    backgroundColor: '#2563eb',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#28a745',
-    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    elevation: 1,
   },
   addButtonText: {
     color: 'white',
-    marginLeft: 8,
+    marginLeft: 6,
     fontWeight: '500',
+    fontSize: 14,
   },
   filtersContainer: {
     padding: 16,

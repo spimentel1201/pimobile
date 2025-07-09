@@ -155,7 +155,7 @@ const DashboardScreen = () => {
       icon: 'clipboard-text',
       color: '#0056b3',
       count: 15,
-      route: '/orders'
+      route: '/(tabs)/orders'
     },
     {
       id: 'budgets',
@@ -171,7 +171,7 @@ const DashboardScreen = () => {
       icon: 'package-variant',
       color: '#28a745',
       count: 168,
-      route: '/products'
+      route: '/(tabs)/products'
     },
     {
       id: 'customers',
@@ -179,7 +179,7 @@ const DashboardScreen = () => {
       icon: 'account-group',
       color: '#ffc107',
       count: 87,
-      route: '/customers'
+      route: '/(tabs)/customers'
     },
     {
       id: 'sales',
@@ -187,7 +187,7 @@ const DashboardScreen = () => {
       icon: 'cash-register',
       color: '#dc3545',
       count: 8,
-      route: '/sales'
+      route: '/(tabs)/sales'
     },
     {
       id: 'users',
