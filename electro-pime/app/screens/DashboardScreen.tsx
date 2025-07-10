@@ -155,7 +155,7 @@ const DashboardScreen = () => {
       icon: 'clipboard-text',
       color: '#0056b3',
       count: 15,
-      route: '/(tabs)/orders'
+      route: '/orders'
     },
     {
       id: 'budgets',
@@ -163,7 +163,7 @@ const DashboardScreen = () => {
       icon: 'cash-multiple',
       color: '#6610f2',
       count: 10,
-      route: '/(tabs)/budgets'
+      route: '/budgets'
     },
     {
       id: 'inventory',
@@ -171,7 +171,7 @@ const DashboardScreen = () => {
       icon: 'package-variant',
       color: '#28a745',
       count: 168,
-      route: '/(tabs)/products'
+      route: '/products'
     },
     {
       id: 'customers',
@@ -179,7 +179,7 @@ const DashboardScreen = () => {
       icon: 'account-group',
       color: '#ffc107',
       count: 87,
-      route: '/(tabs)/customers'
+      route: '/customers'
     },
     {
       id: 'sales',
@@ -187,7 +187,7 @@ const DashboardScreen = () => {
       icon: 'cash-register',
       color: '#dc3545',
       count: 8,
-      route: '/(tabs)/sales'
+      route: '/sales'
     },
     {
       id: 'users',
@@ -195,7 +195,7 @@ const DashboardScreen = () => {
       icon: 'account-cog',
       color: '#6c757d',
       count: 12,
-      route: '/(tabs)/users'
+      route: '/users'
     }
   ];
   const getStatusColor = (status: 'pending' | 'in_progress' | 'completed' | string): string => {

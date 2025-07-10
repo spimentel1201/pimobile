@@ -1,54 +1,56 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack, useSegments, useRouter } from 'expo-router';
+import { Stack, useSegments, useRouter, Redirect } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar, View, StyleSheet } from 'react-native';
+import { StatusBar, View, StyleSheet, ActivityIndicator } from 'react-native';
 import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 import { useColorScheme } from 'react-native';
 import BottomTabBar from './components/BottomTabBar';
 import CustomHeader, { StackScreenWithCustomHeader } from './components/CustomHeader';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ServiceOrderProvider } from './contexts/ServiceOrderContext';
+// SecureStore is imported in AuthContext
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-const HIDDEN_ROUTES = ['/login', '/register', '/welcome'];
+const HIDDEN_ROUTES = ['/login', '/register', '/welcome', '/'];
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded, setLoaded] = useState(false);
+function RootLayoutNav() {
+  const { user, loading } = useAuth();
   const segments = useSegments();
   const [isTabBarVisible, setIsTabBarVisible] = useState(true);
+  const colorScheme = useColorScheme();
 
-  // Cargar fuentes
-  const [fontsLoaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
+  const router = useRouter();
 
   useEffect(() => {
-    async function prepare() {
-      try {
-        // Verificar si la ruta actual debe ocultar la barra de pestañas
-        const path = `/${segments.join('/')}`;
-        setIsTabBarVisible(!HIDDEN_ROUTES.some(route => path.startsWith(route)));
-
-        // Pequeño delay para asegurar la carga
-        await new Promise(resolve => setTimeout(resolve, 500));
-      } catch (e) {
-        console.warn(e);
-      } finally {
-        setLoaded(true);
-        await SplashScreen.hideAsync();
+    const path = `/${segments.join('/')}`;
+    const isAuthRoute = HIDDEN_ROUTES.includes(path) || path.startsWith('/auth/');
+    
+    // Redirect logic
+    if (!loading) {
+      if (!user && !isAuthRoute) {
+        // User not logged in and not on auth route, redirect to login
+        // Using router.navigate with type assertion
+        (router as any).navigate('login');
+      } else if (user && isAuthRoute) {
+        // User logged in but on auth route, redirect to home
+        (router as any).navigate('dashboard');
       }
     }
+    
+    // Show/hide tab bar based on route
+    setIsTabBarVisible(!isAuthRoute);
+  }, [user, loading, segments, router]);
 
-    if (fontsLoaded) {
-      prepare();
-    }
-  }, [fontsLoaded, segments]);
-
-  if (!loaded || !fontsLoaded) {
-    return null;
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
   }
 
   return (
@@ -58,10 +60,12 @@ export default function RootLayout() {
           screenOptions={{
             header: (props) => <CustomHeader {...props} />,
             contentStyle: { backgroundColor: '#f8fafc' },
-            headerShown: false, // Deshabilitar encabezado por defecto
+            headerShown: false,
           }}
         >
-          <StackScreenWithCustomHeader name="index" options={{ title: 'Inicio' }} />
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="login" options={{ title: 'Iniciar Sesión' }} />
+          <Stack.Screen name="register" options={{ title: 'Registrarse' }} />
           <StackScreenWithCustomHeader name="dashboard" options={{ title: 'Dashboard' }} />
           <StackScreenWithCustomHeader name="orders" options={{ title: 'Órdenes' }} />
           <StackScreenWithCustomHeader name="orders/new" options={{ title: 'Nueva Orden' }} />
@@ -82,9 +86,56 @@ export default function RootLayout() {
   );
 }
 
+export default function RootLayout() {
+  const [loaded, setLoaded] = useState(false);
+  const [fontsLoaded] = useFonts({
+    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+  });
+
+  useEffect(() => {
+    async function prepare() {
+      try {
+        // Add any initialization logic here
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        setLoaded(true);
+        await SplashScreen.hideAsync();
+      }
+    }
+
+    if (fontsLoaded) {
+      prepare();
+    }
+  }, [fontsLoaded]);
+
+  if (!loaded || !fontsLoaded) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
+  return (
+    <AuthProvider>
+      <ServiceOrderProvider>
+        <RootLayoutNav />
+      </ServiceOrderProvider>
+    </AuthProvider>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     position: 'relative',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
   },
 });
