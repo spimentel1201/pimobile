@@ -320,8 +320,8 @@ const SalesScreen = () => {
             <View style={styles.ticket}>
               {/* Ticket Header */}
               <View style={styles.ticketBrand}>
-                <Text style={styles.ticketBrandName}>ELECTRO PIME</Text>
-                <Text style={styles.ticketBrandSubtitle}>Reparación de Electrodomésticos</Text>
+                <Text style={styles.ticketBrandName}>ELECTRONICA PIMENTEL</Text>
+                <Text style={styles.ticketBrandSubtitle}>Reparación de Electrodomésticos en general y venta de componentes electrónicos</Text>
               </View>
 
               <View style={styles.ticketDivider} />
