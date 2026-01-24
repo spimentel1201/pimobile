@@ -1,124 +1,131 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
   FlatList,
   Modal,
   ScrollView,
   Alert,
   SafeAreaView,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
+import { api } from '../services/api';
+import { RepairOrder, RepairOrderStatus } from '../types/api';
+import { useAuth } from '../contexts/AuthContext';
 
-interface Technician {
-  id: string;
-  name: string;
-  specialty: string;
-  available: boolean;
-}
+const STATUS_COLORS: Record<RepairOrderStatus, string> = {
+  RECEIVED: '#9CA3AF',
+  DIAGNOSED: '#3B82F6',
+  IN_PROGRESS: '#F59E0B',
+  WAITING_FOR_PARTS: '#8B5CF6',
+  COMPLETED: '#10B981',
+  DELIVERED: '#059669',
+  CANCELLED: '#EF4444',
+};
 
-interface Device {
-  brand: string;
-  model: string;
-  serialNumber?: string;
-  issue: string;
-  condition: string;
-}
+const STATUS_LABELS: Record<RepairOrderStatus, string> = {
+  RECEIVED: 'Recibido',
+  DIAGNOSED: 'Diagnosticado',
+  IN_PROGRESS: 'En Progreso',
+  WAITING_FOR_PARTS: 'Esperando Repuestos',
+  COMPLETED: 'Completado',
+  DELIVERED: 'Entregado',
+  CANCELLED: 'Cancelado',
+};
 
-interface Customer {
-  id: string;
-  name: string;
-  phone: string;
-  email: string;
-}
-
-interface Order {
-  id: string;
-  customer: Customer;
-  device: Device;
-  technician?: Technician;
-  status: 'pending' | 'in_progress' | 'completed' | 'delivered';
-  createdAt: string;
-  updatedAt: string;
-  estimatedCost?: number;
-  notes?: string;
-  priority: 'high' | 'medium' | 'low';
-}
-
-// Add this before the OrdersScreen component
-interface NewOrderFormProps {
-  onClose: () => void;
-  editingOrder: Order | null;
-}
+type FilterStatus = RepairOrderStatus | 'ALL';
 
 const OrdersScreen = () => {
-  // Add this after the interfaces and before the OrdersScreen component
-  const mockOrders: Order[] = [
-    {
-      id: 'ORD-001',
-      customer: {
-        id: 'C1',
-        name: 'Juan Pérez',
-        phone: '612345678',
-        email: 'juan@example.com'
-      },
-      device: {
-        brand: 'Samsung',
-        model: 'TV LED 55"',
-        serialNumber: 'SN123456',
-        issue: 'No enciende',
-        condition: 'Usado'
-      },
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      priority: 'high'
-    },
-    {
-      id: 'ORD-002',
-      customer: {
-        id: 'C2',
-        name: 'María García',
-        phone: '623456789',
-        email: 'maria@example.com'
-      },
-      device: {
-        brand: 'LG',
-        model: 'Refrigerador',
-        serialNumber: 'LG789012',
-        issue: 'No enfría',
-        condition: 'Usado'
-      },
-      technician: {
-        id: 'T1',
-        name: 'Carlos Técnico',
-        specialty: 'Refrigeración',
-        available: true
-      },
-      status: 'in_progress',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      priority: 'medium'
-    }
-  ];
-  
-  const [orders, setOrders] = useState<Order[]>(mockOrders);
-  const [showNewOrder, setShowNewOrder] = useState(false);
-  const [showOrderDetails, setShowOrderDetails] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [filterStatus, setFilterStatus] = useState<Order['status'] | 'all'>('all');
   const router = useRouter();
+  const { user } = useAuth();
+  const [orders, setOrders] = useState<RepairOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>('ALL');
+  const [selectedOrder, setSelectedOrder] = useState<RepairOrder | null>(null);
+  const [showOrderDetails, setShowOrderDetails] = useState(false);
+
+  const fetchOrders = useCallback(async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setError(null);
+      const data = await api.getRepairOrders();
+      setOrders(data);
+    } catch (err: any) {
+      console.error('Error fetching orders:', err);
+      setError(err.message || 'Error al cargar las órdenes');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      fetchOrders();
+    } else {
+      setLoading(false);
+    }
+  }, [user, fetchOrders]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchOrders();
+  }, [fetchOrders]);
+
+  const handleStatusUpdate = async (orderId: string, newStatus: RepairOrderStatus) => {
+    try {
+      await api.updateRepairOrder(orderId, { status: newStatus });
+      Alert.alert('Éxito', 'Estado actualizado correctamente');
+      fetchOrders();
+    } catch (err: any) {
+      console.error('Error updating status:', err);
+      Alert.alert('Error', err.message || 'No se pudo actualizar el estado');
+    }
+  };
+
+  const handleDeleteOrder = async (orderId: string) => {
+    Alert.alert(
+      'Confirmar eliminación',
+      '¿Está seguro que desea eliminar esta orden?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.deleteRepairOrder(orderId);
+              Alert.alert('Éxito', 'Orden eliminada correctamente');
+              fetchOrders();
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'No se pudo eliminar la orden');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const filteredOrders = filterStatus === 'ALL'
+    ? orders
+    : orders.filter(order => order.status === filterStatus);
 
   const renderHeader = () => (
     <View style={styles.header}>
       <View style={styles.headerContent}>
         <Text style={styles.headerTitle}>Órdenes de Reparación</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.addButton}
           onPress={() => router.push('/orders/new')}
         >
@@ -128,34 +135,36 @@ const OrdersScreen = () => {
       </View>
     </View>
   );
+
   const renderFilters = () => (
     <View style={styles.filtersContainer}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        {['all', 'pending', 'in_progress', 'completed', 'delivered'].map((status) => (
+        {(['ALL', ...Object.keys(STATUS_LABELS)] as FilterStatus[]).map((status) => (
           <TouchableOpacity
             key={status}
             style={[
               styles.filterChip,
               filterStatus === status && styles.filterChipActive
             ]}
-            onPress={() => setFilterStatus(status as typeof filterStatus)}
+            onPress={() => setFilterStatus(status)}
           >
+            {status !== 'ALL' && (
+              <View style={[styles.statusDot, { backgroundColor: STATUS_COLORS[status as RepairOrderStatus] }]} />
+            )}
             <Text style={[
               styles.filterChipText,
               filterStatus === status && styles.filterChipTextActive
             ]}>
-              {status === 'all' ? 'Todas' : 
-               status === 'pending' ? 'Pendientes' :
-               status === 'in_progress' ? 'En Progreso' :
-               status === 'completed' ? 'Completadas' : 'Entregadas'}
+              {status === 'ALL' ? 'Todas' : STATUS_LABELS[status as RepairOrderStatus]}
             </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
     </View>
   );
-  const renderOrderCard = ({ item }: { item: Order }) => (
-    <TouchableOpacity 
+
+  const renderOrderCard = ({ item }: { item: RepairOrder }) => (
+    <TouchableOpacity
       style={styles.orderCard}
       onPress={() => {
         setSelectedOrder(item);
@@ -164,102 +173,242 @@ const OrdersScreen = () => {
     >
       <View style={styles.orderHeader}>
         <View>
-          <Text style={styles.orderId}>#{item.id}</Text>
-          <Text style={styles.orderCustomer}>{item.customer.name}</Text>
+          <Text style={styles.orderId}>#{item.id.slice(0, 8)}</Text>
+          <Text style={styles.orderCustomer}>{item.customer?.name || item.customerName || 'Sin cliente'}</Text>
         </View>
-        <View style={[
-          styles.statusBadge,
-          { backgroundColor: item.status === 'pending' ? '#ffc107' :
-                           item.status === 'in_progress' ? '#0056b3' :
-                           item.status === 'completed' ? '#28a745' : '#6c757d' }
-        ]}>
-          <Text style={styles.statusText}>
-            {item.status === 'pending' ? 'Pendiente' :
-             item.status === 'in_progress' ? 'En Progreso' :
-             item.status === 'completed' ? 'Completado' : 'Entregado'}
+        <View style={[styles.statusBadge, { backgroundColor: STATUS_COLORS[item.status] }]}>
+          <Text style={styles.statusText}>{STATUS_LABELS[item.status]}</Text>
+        </View>
+      </View>
+
+      {item.items && item.items.length > 0 && (
+        <View style={styles.deviceInfo}>
+          <MaterialCommunityIcons name="devices" size={20} color="#6c757d" />
+          <Text style={styles.deviceText}>
+            {item.items[0].brand} {item.items[0].model} - {item.items[0].deviceType}
           </Text>
         </View>
-      </View>
-      <View style={styles.deviceInfo}>
-        <MaterialCommunityIcons name="television" size={20} color="#6c757d" />
-        <Text style={styles.deviceText}>
-          {item.device.brand} {item.device.model}
-        </Text>
-      </View>
+      )}
+
+      <Text style={styles.orderDescription} numberOfLines={2}>
+        {item.description}
+      </Text>
+
       <View style={styles.orderFooter}>
         <View style={styles.technicianInfo}>
-          {item.technician ? (
+          {(item.technician?.firstName || item.technicianName) ? (
             <>
-              <MaterialCommunityIcons name="account-wrench" size={20} color="#0056b3" />
-              <Text style={styles.technicianName}>{item.technician.name}</Text>
+              <MaterialCommunityIcons name="account-wrench" size={20} color="#3B82F6" />
+              <Text style={styles.technicianName}>
+                {item.technician
+                  ? `${item.technician.firstName} ${item.technician.lastName}`
+                  : item.technicianName}
+              </Text>
             </>
           ) : (
             <Text style={styles.noTechnician}>Sin técnico asignado</Text>
           )}
         </View>
-        <Text style={styles.orderDate}>{new Date(item.createdAt).toLocaleDateString()}</Text>
+        <Text style={styles.orderDate}>
+          {new Date(item.createdAt).toLocaleDateString()}
+        </Text>
       </View>
+
       <View style={styles.orderActions}>
-        <TouchableOpacity 
-          style={[styles.actionButton, { backgroundColor: '#0056b3' }]}
-          onPress={() => {
-            setSelectedOrder(item);
-            setShowNewOrder(true);
-          }}
+        <TouchableOpacity
+          style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
+          onPress={() => router.push(`/orders/${item.id}/edit`)}
         >
-          <MaterialCommunityIcons name="pencil" size={20} color="white" />
+          <MaterialCommunityIcons name="pencil" size={18} color="white" />
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.actionButton, { backgroundColor: '#28a745' }]}
+        <TouchableOpacity
+          style={[styles.actionButton, { backgroundColor: '#10B981' }]}
           onPress={() => {
-            Alert.alert(
-              'Notificar Cliente',
-              '¿Desea enviar una notificación al cliente?',
-              [
-                {
-                  text: 'Cancelar',
-                  style: 'cancel'
-                },
-                {
-                  text: 'Notificar',
-                  onPress: () => {
-                    // TODO: Implement customer notification logic
-                    Alert.alert('Éxito', 'Cliente notificado exitosamente');
-                  }
-                }
-              ]
-            );
+            Alert.alert('Cambiar Estado', 'Seleccione el nuevo estado', [
+              ...Object.entries(STATUS_LABELS).map(([status, label]) => ({
+                text: label,
+                onPress: () => handleStatusUpdate(item.id, status as RepairOrderStatus),
+              })),
+              { text: 'Cancelar', style: 'cancel' },
+            ]);
           }}
         >
-          <MaterialCommunityIcons name="bell" size={20} color="white" />
+          <MaterialCommunityIcons name="swap-horizontal" size={18} color="white" />
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.actionButton, { backgroundColor: '#ffc107' }]}
-          onPress={() => {
-            Alert.alert(
-              'Generar Presupuesto',
-              '¿Desea generar un presupuesto para esta orden?',
-              [
-                {
-                  text: 'Cancelar',
-                  style: 'cancel'
-                },
-                {
-                  text: 'Generar',
-                  onPress: () => {
-                    // TODO: Implement estimate generation logic
-                    Alert.alert('Éxito', 'Presupuesto generado exitosamente');
-                  }
-                }
-              ]
-            );
-          }}
+        <TouchableOpacity
+          style={[styles.actionButton, { backgroundColor: '#EF4444' }]}
+          onPress={() => handleDeleteOrder(item.id)}
         >
-          <MaterialCommunityIcons name="file-document" size={20} color="white" />
+          <MaterialCommunityIcons name="delete" size={18} color="white" />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
+
+  const renderOrderDetails = () => {
+    if (!selectedOrder) return null;
+
+    return (
+      <Modal
+        visible={showOrderDetails}
+        animationType="slide"
+        onRequestClose={() => setShowOrderDetails(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Orden #{selectedOrder.id.slice(0, 8)}</Text>
+            <TouchableOpacity onPress={() => setShowOrderDetails(false)}>
+              <MaterialCommunityIcons name="close" size={24} color="#374151" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            {/* Status */}
+            <View style={styles.detailSection}>
+              <Text style={styles.detailSectionTitle}>Estado</Text>
+              <View style={[styles.statusBadge, { backgroundColor: STATUS_COLORS[selectedOrder.status], alignSelf: 'flex-start' }]}>
+                <Text style={styles.statusText}>{STATUS_LABELS[selectedOrder.status]}</Text>
+              </View>
+            </View>
+
+            {/* Customer */}
+            <View style={styles.detailSection}>
+              <Text style={styles.detailSectionTitle}>Cliente</Text>
+              <View style={styles.detailRow}>
+                <MaterialCommunityIcons name="account" size={20} color="#6B7280" />
+                <Text style={styles.detailText}>{selectedOrder.customer?.name || selectedOrder.customerName || 'N/A'}</Text>
+              </View>
+              {selectedOrder.customer?.phone && (
+                <View style={styles.detailRow}>
+                  <MaterialCommunityIcons name="phone" size={20} color="#6B7280" />
+                  <Text style={styles.detailText}>{selectedOrder.customer.phone}</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Device(s) */}
+            <View style={styles.detailSection}>
+              <Text style={styles.detailSectionTitle}>Dispositivo(s)</Text>
+              {selectedOrder.items?.map((item, index) => (
+                <View key={index} style={styles.itemCard}>
+                  <View style={styles.detailRow}>
+                    <MaterialCommunityIcons name="devices" size={20} color="#6B7280" />
+                    <Text style={styles.detailText}>{item.brand} {item.model}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <MaterialCommunityIcons name="tag" size={20} color="#6B7280" />
+                    <Text style={styles.detailText}>{item.deviceType}</Text>
+                  </View>
+                  {item.serialNumber && (
+                    <View style={styles.detailRow}>
+                      <MaterialCommunityIcons name="barcode" size={20} color="#6B7280" />
+                      <Text style={styles.detailText}>{item.serialNumber}</Text>
+                    </View>
+                  )}
+                  <View style={styles.detailRow}>
+                    <MaterialCommunityIcons name="alert-circle" size={20} color="#6B7280" />
+                    <Text style={styles.detailText}>{item.problemDescription}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            {/* Technician */}
+            <View style={styles.detailSection}>
+              <Text style={styles.detailSectionTitle}>Técnico Asignado</Text>
+              {(selectedOrder.technician?.firstName || selectedOrder.technicianName) ? (
+                <View style={styles.detailRow}>
+                  <MaterialCommunityIcons name="account-wrench" size={20} color="#6B7280" />
+                  <Text style={styles.detailText}>
+                    {selectedOrder.technician
+                      ? `${selectedOrder.technician.firstName} ${selectedOrder.technician.lastName}`
+                      : selectedOrder.technicianName}
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.noTechnician}>Sin técnico asignado</Text>
+              )}
+            </View>
+
+            {/* Description */}
+            <View style={styles.detailSection}>
+              <Text style={styles.detailSectionTitle}>Descripción</Text>
+              <Text style={styles.detailText}>{selectedOrder.description}</Text>
+            </View>
+
+            {/* Notes */}
+            {selectedOrder.notes && (
+              <View style={styles.detailSection}>
+                <Text style={styles.detailSectionTitle}>Notas</Text>
+                <Text style={styles.detailText}>{selectedOrder.notes}</Text>
+              </View>
+            )}
+
+            {/* Costs */}
+            <View style={styles.detailSection}>
+              <Text style={styles.detailSectionTitle}>Costos</Text>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Revisión inicial:</Text>
+                <Text style={styles.detailText}>S/ {selectedOrder.initialReviewCost?.toFixed(2) || '0.00'}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Total:</Text>
+                <Text style={[styles.detailText, styles.totalCost]}>S/ {selectedOrder.totalCost?.toFixed(2) || '0.00'}</Text>
+              </View>
+            </View>
+
+            {/* Dates */}
+            <View style={styles.detailSection}>
+              <Text style={styles.detailSectionTitle}>Fechas</Text>
+              <View style={styles.detailRow}>
+                <MaterialCommunityIcons name="calendar" size={20} color="#6B7280" />
+                <Text style={styles.detailText}>Creada: {new Date(selectedOrder.createdAt).toLocaleDateString()}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <MaterialCommunityIcons name="update" size={20} color="#6B7280" />
+                <Text style={styles.detailText}>Actualizada: {new Date(selectedOrder.updatedAt).toLocaleDateString()}</Text>
+              </View>
+            </View>
+          </ScrollView>
+
+          <View style={styles.modalFooter}>
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: '#3B82F6' }]}
+              onPress={() => {
+                setShowOrderDetails(false);
+                router.push(`/orders/${selectedOrder.id}/edit`);
+              }}
+            >
+              <MaterialCommunityIcons name="pencil" size={20} color="white" />
+              <Text style={styles.modalButtonText}>Editar</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+    );
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+        <Text style={styles.loadingText}>Cargando órdenes...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.centered}>
+        <MaterialCommunityIcons name="alert-circle" size={48} color="#EF4444" />
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={fetchOrders}>
+          <Text style={styles.retryButtonText}>Reintentar</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
@@ -267,545 +416,29 @@ const OrdersScreen = () => {
         <View style={styles.contentContainer}>
           {renderFilters()}
           <FlatList
-            data={filterStatus === 'all' ? orders : orders.filter(order => order.status === filterStatus)}
+            data={filteredOrders}
             renderItem={renderOrderCard}
             keyExtractor={item => item.id}
             contentContainerStyle={styles.ordersList}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <MaterialCommunityIcons name="clipboard-text-outline" size={64} color="#D1D5DB" />
+                <Text style={styles.emptyText}>No hay órdenes</Text>
+                <TouchableOpacity
+                  style={styles.emptyButton}
+                  onPress={() => router.push('/orders/new')}
+                >
+                  <Text style={styles.emptyButtonText}>Crear primera orden</Text>
+                </TouchableOpacity>
+              </View>
+            }
           />
         </View>
       </SafeAreaView>
-      <Modal
-        visible={showNewOrder}
-        animationType="slide"
-        onRequestClose={() => setShowNewOrder(false)}
-      >
-        <SafeAreaView style={styles.safeArea}>
-          <NewOrderForm 
-            onClose={() => setShowNewOrder(false)}
-            editingOrder={selectedOrder}
-          />
-        </SafeAreaView>
-      </Modal>
-
-      <Modal
-        visible={showOrderDetails}
-        animationType="slide" 
-        onRequestClose={() => setShowOrderDetails(false)}
-      >
-        <SafeAreaView style={styles.safeArea}>
-          <View style={styles.container}>
-            <View style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: 16,
-              backgroundColor: 'white',
-              borderBottomWidth: 1,
-              borderBottomColor: '#e9ecef'
-            }}>
-              <Text style={{
-                fontSize: 20,
-                fontWeight: 'bold',
-                color: '#0056b3'
-              }}>Orden #{selectedOrder?.id}</Text>
-              <TouchableOpacity onPress={() => setShowOrderDetails(false)}>
-                <MaterialCommunityIcons name="close" size={24} color="#0056b3" />
-              </TouchableOpacity>
-            </View>
-
-          <ScrollView style={{padding: 16}}>
-            <View style={{
-              marginBottom: 24,
-              backgroundColor: 'white',
-              padding: 16,
-              borderRadius: 8,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.1,
-              shadowRadius: 2,
-              elevation: 2,
-            }}>
-              <Text style={{
-                fontSize: 18,
-                fontWeight: 'bold',
-                color: '#0056b3',
-                marginBottom: 8
-              }}>Estado</Text>
-              <View style={[
-                styles.statusBadge,
-                { 
-                  backgroundColor: selectedOrder?.status === 'pending' ? '#ffc107' :
-                                 selectedOrder?.status === 'in_progress' ? '#0056b3' :
-                                 selectedOrder?.status === 'completed' ? '#28a745' : '#6c757d',
-                  alignSelf: 'flex-start',
-                  marginTop: 8
-                }
-              ]}>
-                <Text style={styles.statusText}>
-                  {selectedOrder?.status === 'pending' ? 'Pendiente' :
-                   selectedOrder?.status === 'in_progress' ? 'En Progreso' :
-                   selectedOrder?.status === 'completed' ? 'Completado' : 'Entregado'}
-                </Text>
-              </View>
-            </View>
-
-            <View style={{
-              marginBottom: 24,
-              backgroundColor: 'white',
-              padding: 16,
-              borderRadius: 8,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.1,
-              shadowRadius: 2,
-              elevation: 2,
-            }}>
-              <Text style={{
-                fontSize: 18,
-                fontWeight: 'bold',
-                color: '#0056b3',
-                marginBottom: 8
-              }}>Cliente</Text>
-              <View style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                marginBottom: 8
-              }}>
-                <MaterialCommunityIcons name="account" size={20} color="#6c757d" />
-                <Text style={{
-                  marginLeft: 8,
-                  color: '#495057',
-                  fontSize: 14
-                }}>{selectedOrder?.customer.name}</Text>
-              </View>
-              <View style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                marginBottom: 8
-              }}>
-                <MaterialCommunityIcons name="phone" size={20} color="#6c757d" />
-                <Text style={{
-                  marginLeft: 8,
-                  color: '#495057',
-                  fontSize: 14
-                }}>{selectedOrder?.customer.phone}</Text>
-              </View>
-              <View style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                marginBottom: 8
-              }}>
-                <MaterialCommunityIcons name="email" size={20} color="#6c757d" />
-                <Text style={{
-                  marginLeft: 8,
-                  color: '#495057',
-                  fontSize: 14
-                }}>{selectedOrder?.customer.email}</Text>
-              </View>
-            </View>
-
-            <View style={{
-              marginBottom: 24,
-              backgroundColor: 'white',
-              padding: 16,
-              borderRadius: 8,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.1,
-              shadowRadius: 2,
-              elevation: 2,
-            }}>
-              <Text style={{
-                fontSize: 18,
-                fontWeight: 'bold',
-                color: '#0056b3',
-                marginBottom: 8
-              }}>Dispositivo</Text>
-              <View style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                marginBottom: 8
-              }}>
-                <MaterialCommunityIcons name="television" size={20} color="#6c757d" />
-                <Text style={{
-                  marginLeft: 8,
-                  color: '#495057',
-                  fontSize: 14
-                }}>{selectedOrder?.device.brand} {selectedOrder?.device.model}</Text>
-              </View>
-              {selectedOrder?.device.serialNumber && (
-                <View style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  marginBottom: 8
-                }}>
-                  <MaterialCommunityIcons name="barcode" size={20} color="#6c757d" />
-                  <Text style={{
-                    marginLeft: 8,
-                    color: '#495057',
-                    fontSize: 14
-                  }}>{selectedOrder.device.serialNumber}</Text>
-                </View>
-              )}
-              <View style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                marginBottom: 8
-              }}>
-                <MaterialCommunityIcons name="alert-circle" size={20} color="#6c757d" />
-                <Text style={{
-                  marginLeft: 8,
-                  color: '#495057',
-                  fontSize: 14
-                }}>{selectedOrder?.device.issue}</Text>
-              </View>
-            </View>
-
-            <View style={{
-              marginBottom: 24,
-              backgroundColor: 'white',
-              padding: 16,
-              borderRadius: 8,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.1,
-              shadowRadius: 2,
-              elevation: 2,
-            }}>
-              <Text style={{
-                fontSize: 18,
-                fontWeight: 'bold',
-                color: '#0056b3',
-                marginBottom: 8
-              }}>Técnico Asignado</Text>
-              {selectedOrder?.technician ? (
-                <>
-                  <View style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    marginBottom: 8
-                  }}>
-                    <MaterialCommunityIcons name="account-wrench" size={20} color="#6c757d" />
-                    <Text style={{
-                      marginLeft: 8,
-                      color: '#495057',
-                      fontSize: 14
-                    }}>{selectedOrder.technician.name}</Text>
-                  </View>
-                  <View style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    marginBottom: 8
-                  }}>
-                    <MaterialCommunityIcons name="tools" size={20} color="#6c757d" />
-                    <Text style={{
-                      marginLeft: 8,
-                      color: '#495057',
-                      fontSize: 14
-                    }}>{selectedOrder.technician.specialty}</Text>
-                  </View>
-                </>
-              ) : (
-                <Text style={styles.noTechnician}>Sin técnico asignado</Text>
-              )}
-            </View>
-
-            <View style={{
-              marginBottom: 24,
-              backgroundColor: 'white',
-              padding: 16,
-              borderRadius: 8,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.1,
-              shadowRadius: 2,
-              elevation: 2,
-            }}>
-              <Text style={{
-                fontSize: 18,
-                fontWeight: 'bold',
-                color: '#0056b3',
-                marginBottom: 8
-              }}>Detalles Adicionales</Text>
-              <View style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                marginBottom: 8
-              }}>
-                <MaterialCommunityIcons name="flag" size={20} color="#6c757d" />
-                <Text style={{
-                  color: selectedOrder?.priority === 'high' ? '#dc3545' :
-                         selectedOrder?.priority === 'medium' ? '#ffc107' : '#28a745'
-                }}>
-                  Prioridad {selectedOrder?.priority === 'high' ? 'Alta' :
-                            selectedOrder?.priority === 'medium' ? 'Media' : 'Baja'}
-                </Text>
-              </View>
-              <View style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                marginBottom: 8
-              }}>
-                <MaterialCommunityIcons name="calendar" size={20} color="#6c757d" />
-                <Text style={{
-                  marginLeft: 8,
-                  color: '#495057',
-                  fontSize: 14
-                }}>
-                  Creada el {selectedOrder && new Date(selectedOrder.createdAt).toLocaleDateString()}
-                </Text>
-              </View>
-            </View>
-          </ScrollView>
-          </View>
-        </SafeAreaView>
-      </Modal>
-    </View>
-  );
-};
-
-
-const NewOrderForm: React.FC<NewOrderFormProps> = ({ onClose, editingOrder }) => {
-  const [formData, setFormData] = useState({
-    customer: {
-      name: editingOrder?.customer?.name || '',
-      phone: editingOrder?.customer?.phone || '',
-      email: editingOrder?.customer?.email || ''
-    },
-    device: {
-      brand: editingOrder?.device?.brand || '',
-      model: editingOrder?.device?.model || '',
-      serialNumber: editingOrder?.device?.serialNumber || '',
-      issue: editingOrder?.device?.issue || '',
-      condition: editingOrder?.device?.condition || ''
-    },
-    priority: editingOrder?.priority || 'medium',
-    notes: editingOrder?.notes || ''
-  });
-
-  const handleSubmit = () => {
-    // TODO: Implement form submission
-    onClose();
-  };
-
-  return (
-    <View style={{flex: 1}}>
-      <View style={{
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 16,
-        backgroundColor: 'white',
-        borderBottomWidth: 1,
-        borderBottomColor: '#e9ecef',
-      }}>
-        <Text style={{
-          fontSize: 20,
-          fontWeight: 'bold',
-          color: '#0056b3'
-        }}>
-          {editingOrder ? 'Editar Orden' : 'Nueva Orden'}
-        </Text>
-        <TouchableOpacity onPress={onClose}>
-          <MaterialCommunityIcons name="close" size={24} color="#0056b3" />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView style={{flex: 1, paddingBottom: 80}} contentContainerStyle={{paddingBottom: 20}}>
-        <Text style={{
-          fontSize: 18,
-          fontWeight: 'bold',
-          color: '#0056b3',
-          marginVertical: 16,
-          paddingHorizontal: 16,
-        }}>Información del Cliente</Text>
-        <TextInput
-          style={{
-            backgroundColor: 'white',
-            borderWidth: 1,
-            borderColor: '#dee2e6',
-            borderRadius: 8,
-            padding: 12,
-            marginHorizontal: 16,
-            marginBottom: 12,
-            fontSize: 16,
-          }}
-          placeholder="Nombre del cliente"
-          value={formData.customer.name}
-          onChangeText={text => setFormData({
-            ...formData,
-            customer: { ...formData.customer, name: text }
-          })}
-        />
-        <TextInput
-          style={{
-            backgroundColor: 'white',
-            borderWidth: 1,
-            borderColor: '#dee2e6',
-            borderRadius: 8,
-            padding: 12,
-            marginHorizontal: 16,
-            marginBottom: 12,
-            fontSize: 16,
-          }}
-          placeholder="Teléfono"
-          value={formData.customer.phone}
-          keyboardType="phone-pad"
-          onChangeText={text => setFormData({
-            ...formData,
-            customer: { ...formData.customer, phone: text }
-          })}
-        />
-        <TextInput
-          style={{
-            backgroundColor: 'white',
-            borderWidth: 1,
-            borderColor: '#dee2e6',
-            borderRadius: 8,
-            padding: 12,
-            marginHorizontal: 16,
-            marginBottom: 12,
-            fontSize: 16,
-          }}
-          placeholder="Email"
-          value={formData.customer.email}
-          keyboardType="email-address"
-          onChangeText={text => setFormData({
-            ...formData,
-            customer: { ...formData.customer, email: text }
-          })}
-        />
-
-        <Text style={{
-          fontSize: 18,
-          fontWeight: 'bold', 
-          color: '#0056b3',
-          marginVertical: 16,
-          paddingHorizontal: 16,
-        }}>Información del Dispositivo</Text>
-        <TextInput
-          style={{
-            backgroundColor: 'white',
-            borderWidth: 1,
-            borderColor: '#dee2e6',
-            borderRadius: 8,
-            padding: 12,
-            marginHorizontal: 16,
-            marginBottom: 12,
-            fontSize: 16,
-          }}
-          placeholder="Marca"
-          value={formData.device.brand}
-          onChangeText={text => setFormData({
-            ...formData,
-            device: { ...formData.device, brand: text }
-          })}
-        />
-        <TextInput
-          style={{
-            backgroundColor: 'white',
-            borderWidth: 1,
-            borderColor: '#dee2e6',
-            borderRadius: 8,
-            padding: 12,
-            marginHorizontal: 16,
-            marginBottom: 12,
-            fontSize: 16,
-          }}
-          placeholder="Modelo"
-          value={formData.device.model}
-          onChangeText={text => setFormData({
-            ...formData,
-            device: { ...formData.device, model: text }
-          })}
-        />
-        <TextInput
-          style={{
-            backgroundColor: 'white',
-            borderWidth: 1,
-            borderColor: '#dee2e6',
-            borderRadius: 8,
-            padding: 12,
-            marginHorizontal: 16,
-            marginBottom: 12,
-            fontSize: 16,
-          }}
-          placeholder="Número de Serie"
-          value={formData.device.serialNumber}
-          onChangeText={text => setFormData({
-            ...formData,
-            device: { ...formData.device, serialNumber: text }
-          })}
-        />
-        <TextInput
-          style={{
-            backgroundColor: 'white',
-            borderWidth: 1,
-            borderColor: '#dee2e6',
-            borderRadius: 8,
-            padding: 12,
-            marginHorizontal: 16,
-            marginBottom: 12,
-            fontSize: 16,
-            height: 100,
-            textAlignVertical: 'top'
-          }}
-          placeholder="Problema"
-          value={formData.device.issue}
-          multiline
-          numberOfLines={3}
-          onChangeText={text => setFormData({
-            ...formData,
-            device: { ...formData.device, issue: text }
-          })}
-        />
-
-        <Text style={{
-          fontSize: 18,
-          fontWeight: 'bold',
-          color: '#0056b3',
-          marginVertical: 16,
-          paddingHorizontal: 16,
-        }}>Prioridad</Text>
-        <Picker
-          selectedValue={formData.priority}
-          onValueChange={value => setFormData({
-            ...formData,
-            priority: value
-          })}
-          style={{
-            backgroundColor: 'white',
-            borderWidth: 1,
-            borderColor: '#dee2e6',
-            borderRadius: 8,
-            padding: 12,
-            marginHorizontal: 16,
-            marginBottom: 12,
-          }}
-        >
-          <Picker.Item label="Alta" value="high" />
-          <Picker.Item label="Media" value="medium" />
-          <Picker.Item label="Baja" value="low" />
-        </Picker>
-
-      </ScrollView>
-      
-      <View style={styles.footer}>
-        <TouchableOpacity 
-          style={[styles.footerButton, styles.cancelButton]}
-          onPress={onClose}
-        >
-          <Text style={styles.cancelButtonText}>Cancelar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.footerButton, styles.submitButton]}
-          onPress={handleSubmit}
-        >
-          <Text style={styles.submitButtonText}>
-            {editingOrder ? 'Actualizar' : 'Crear'} Orden
-          </Text>
-        </TouchableOpacity>
-      </View>
+      {renderOrderDetails()}
     </View>
   );
 };
@@ -813,61 +446,45 @@ const NewOrderForm: React.FC<NewOrderFormProps> = ({ onClose, editingOrder }) =>
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#F3F4F6',
   },
   safeArea: {
     flex: 1,
   },
-  contentContainer: {
+  centered: {
     flex: 1,
-  },
-  footer: {
-    flexDirection: 'row',
-    padding: 16,
-    backgroundColor: 'white',
-    borderTopWidth: 1,
-    borderTopColor: '#e9ecef',
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  footerButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 8,
+    alignItems: 'center',
+    padding: 32,
   },
-  cancelButton: {
-    backgroundColor: '#f8f9fa',
-    borderWidth: 1,
-    borderColor: '#dee2e6',
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#6B7280',
   },
-  submitButton: {
-    backgroundColor: '#0056b3',
+  errorText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#EF4444',
+    textAlign: 'center',
   },
-  cancelButtonText: {
-    color: '#495057',
-    fontWeight: '600',
+  retryButton: {
+    marginTop: 16,
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
   },
-  submitButtonText: {
+  retryButtonText: {
     color: 'white',
     fontWeight: '600',
   },
   header: {
-    backgroundColor: '#2563eb',
-    padding: 16,
-    paddingTop: 50,
-    paddingBottom: 16,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    backgroundColor: 'white',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
   headerContent: {
     flexDirection: 'row',
@@ -875,52 +492,61 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    color: 'white',
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: 'bold',
+    color: '#111827',
   },
   addButton: {
-    backgroundColor: '#2563eb',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    elevation: 1,
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
   },
   addButtonText: {
     color: 'white',
-    marginLeft: 6,
-    fontWeight: '500',
-    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  contentContainer: {
+    flex: 1,
   },
   filtersContainer: {
-    padding: 16,
     backgroundColor: 'white',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
   filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F3F4F6',
     marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#dee2e6',
   },
   filterChipActive: {
-    backgroundColor: '#0056b3',
-    borderColor: '#0056b3',
+    backgroundColor: '#3B82F6',
   },
   filterChipText: {
-    color: '#495057',
+    fontSize: 14,
+    color: '#4B5563',
   },
   filterChipTextActive: {
     color: 'white',
   },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
   ordersList: {
     padding: 16,
+    paddingBottom: 100,
   },
   orderCard: {
     backgroundColor: 'white',
@@ -940,67 +566,185 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   orderId: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#0056b3',
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#3B82F6',
   },
   orderCustomer: {
-    fontSize: 14,
-    color: '#212529',
-    marginTop: 4,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginTop: 2,
   },
   statusBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
   },
   statusText: {
     color: 'white',
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   deviceInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   deviceText: {
     marginLeft: 8,
-    color: '#495057',
+    fontSize: 14,
+    color: '#4B5563',
+  },
+  orderDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 12,
   },
   orderFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
   },
   technicianInfo: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   technicianName: {
-    marginLeft: 8,
-    color: '#0056b3',
+    marginLeft: 6,
+    fontSize: 14,
+    color: '#3B82F6',
   },
   noTechnician: {
-    color: '#6c757d',
+    fontSize: 14,
+    color: '#9CA3AF',
     fontStyle: 'italic',
   },
   orderDate: {
-    color: '#6c757d',
     fontSize: 12,
+    color: '#9CA3AF',
   },
   orderActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    marginTop: 12,
     gap: 8,
   },
   actionButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 64,
+  },
+  emptyText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  emptyButton: {
+    marginTop: 16,
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  emptyButtonText: {
+    color: 'white',
+    fontWeight: '600',
+  },
+  // Modal styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  modalContent: {
+    flex: 1,
+    padding: 16,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    padding: 16,
+    backgroundColor: 'white',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14,
+    borderRadius: 8,
+    gap: 8,
+  },
+  modalButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  detailSection: {
+    backgroundColor: 'white',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  detailSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  detailText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#4B5563',
+    flex: 1,
+  },
+  detailLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    width: 120,
+  },
+  totalCost: {
+    fontWeight: '600',
+    color: '#059669',
+    fontSize: 16,
+  },
+  itemCard: {
+    backgroundColor: '#F9FAFB',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
   },
 });
 
