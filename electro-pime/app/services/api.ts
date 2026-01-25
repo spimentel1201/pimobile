@@ -22,7 +22,12 @@ import {
   Device,
 } from '../types/api';
 
-const API_BASE_URL = 'https://repairserviceapi-a79i.onrender.com';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+
+if (!API_BASE_URL) {
+  console.error('Missing EXPO_PUBLIC_API_URL environment variable');
+}
+
 
 class ApiService {
   private token: string | null = null;

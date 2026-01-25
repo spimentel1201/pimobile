@@ -15,7 +15,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.pimentel.electropime"
     },
     "web": {
       "bundler": "metro",
@@ -45,6 +46,14 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "28eab53f-77e4-4718-8d42-0b4aa2355d6e"
+      }
     }
   }
 }
