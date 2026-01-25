@@ -84,6 +84,7 @@ const DashboardScreen = () => {
   const renderHeader = () => (
     <View style={styles.header}>
       <View>
+        <Text style={styles.companyName}>Electrónica Pimentel</Text>
         <Text style={styles.greeting}>
           ¡Hola, {user?.firstName || 'Usuario'}!
         </Text>
@@ -96,12 +97,6 @@ const DashboardScreen = () => {
           })}
         </Text>
       </View>
-      <TouchableOpacity
-        style={styles.notificationButton}
-        onPress={() => router.push('/notifications' as any)}
-      >
-        <Ionicons name="notifications-outline" size={24} color="#374151" />
-      </TouchableOpacity>
     </View>
   );
 
@@ -183,7 +178,7 @@ const DashboardScreen = () => {
           <TouchableOpacity
             key={order.id}
             style={styles.orderCard}
-            onPress={() => router.push(`/orders/${order.id}` as any)}
+            onPress={() => router.push(`/orders?openOrderId=${order.id}` as any)}
           >
             <View style={styles.orderHeader}>
               <Text style={styles.orderId}>#{order.id.slice(0, 8)}</Text>
@@ -251,6 +246,13 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#111827',
+  },
+  companyName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#3B82F6',
+    marginBottom: 2,
+    textTransform: 'uppercase',
   },
   date: {
     fontSize: 14,

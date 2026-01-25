@@ -14,7 +14,7 @@ import {
   Platform,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { api } from '../services/api';
@@ -45,6 +45,7 @@ type FilterStatus = RepairOrderStatus | 'ALL';
 
 const OrdersScreen = () => {
   const router = useRouter();
+  const { openOrderId } = useLocalSearchParams<{ openOrderId: string }>();
   const { user } = useAuth();
   const [orders, setOrders] = useState<RepairOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,6 +85,17 @@ const OrdersScreen = () => {
       setLoading(false);
     }
   }, [user, fetchOrders]);
+
+  // Handle deep linking / query param to open modal
+  useEffect(() => {
+    if (orders.length > 0 && openOrderId) {
+      const orderToOpen = orders.find(o => o.id === openOrderId);
+      if (orderToOpen) {
+        setSelectedOrder(orderToOpen);
+        setShowOrderDetails(true);
+      }
+    }
+  }, [orders, openOrderId]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -179,43 +191,62 @@ const OrdersScreen = () => {
         <head>
           <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
           <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
             body { font-family: 'Inter', Helvetica, Arial, sans-serif; padding: 40px; color: #1F2937; background: #fff; line-height: 1.5; -webkit-print-color-adjust: exact; }
-            .header-badge { background: #DBEAFE; color: #1E40AF; padding: 4px 12px; border-radius: 999px; display: inline-block; font-size: 12px; font-weight: 600; text-transform: uppercase; margin-bottom: 15px; }
-            .page-title { font-size: 32px; font-weight: 800; margin: 0; color: #111827; letter-spacing: -0.5px; }
-            .page-subtitle { color: #6B7280; font-size: 14px; margin-top: 5px; }
+            
+            .brand-header { text-align: center; margin-bottom: 30px; }
+            .brand-name { font-size: 28px; font-weight: 800; color: #1E40AF; text-transform: uppercase; margin-bottom: 5px; letter-spacing: -0.5px; }
+            .brand-details { font-size: 11px; color: #6B7280; line-height: 1.4; max-width: 80%; margin: 0 auto; }
+            
+            .header-badge { background: #DBEAFE; color: #1E40AF; padding: 4px 12px; border-radius: 999px; display: inline-block; font-size: 12px; font-weight: 600; text-transform: uppercase; margin-bottom: 10px; }
+            .page-title { font-size: 24px; font-weight: 800; margin: 0; color: #111827; letter-spacing: -0.5px; }
+            .page-subtitle { color: #6B7280; font-size: 13px; margin-top: 5px; }
             
             .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 30px; }
             .card { border: 1px solid #E5E7EB; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
             .card-title { font-size: 10px; font-weight: 700; color: #9CA3AF; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 1px; }
-            .card-content h3 { margin: 0 0 5px 0; font-size: 18px; color: #111827; font-weight: 700; }
-            .card-content p { margin: 0; color: #4B5563; font-size: 14px; line-height: 1.6; }
+            .card-content h3 { margin: 0 0 5px 0; font-size: 16px; color: #111827; font-weight: 700; }
+            .card-content p { margin: 0; color: #4B5563; font-size: 13px; line-height: 1.6; }
 
             .table-section { margin-top: 30px; }
-            .table-title { font-size: 18px; font-weight: 700; margin-bottom: 15px; color: #111827; }
+            .table-title { font-size: 16px; font-weight: 700; margin-bottom: 15px; color: #111827; }
             table { width: 100%; border-collapse: separate; border-spacing: 0; border: 1px solid #E5E7EB; border-radius: 12px; overflow: hidden; }
-            th { text-align: left; padding: 12px 20px; background: #F9FAFB; color: #6B7280; font-size: 11px; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid #E5E7EB; letter-spacing: 0.5px; }
-            td { padding: 16px 20px; border-bottom: 1px solid #E5E7EB; font-size: 14px; color: #1F2937; vertical-align: top; }
+            th { text-align: left; padding: 12px 15px; background: #F9FAFB; color: #6B7280; font-size: 10px; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid #E5E7EB; letter-spacing: 0.5px; }
+            td { padding: 12px 15px; border-bottom: 1px solid #E5E7EB; font-size: 13px; color: #1F2937; vertical-align: top; }
             tr:last-child td { border-bottom: none; }
             .price-col { font-weight: 600; color: #2563EB; text-align: right; }
             
             .footer-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 30px; margin-top: 30px; }
             .terms-box { border: 1px solid #E5E7EB; border-radius: 12px; padding: 20px; background: #F9FAFB; }
-            .terms-title { font-size: 12px; font-weight: 700; margin-bottom: 10px; text-transform: uppercase; color: #111827; }
-            .terms-text { font-size: 10px; color: #6B7280; text-align: justify; line-height: 1.6; }
+            .terms-title { font-size: 11px; font-weight: 700; margin-bottom: 10px; text-transform: uppercase; color: #111827; }
+            .terms-text { font-size: 9px; color: #6B7280; text-align: justify; line-height: 1.6; }
             
-            .summary-box { border: 1px solid #E5E7EB; border-radius: 12px; padding: 25px; background: #fff; }
-            .summary-title { font-size: 12px; font-weight: 700; color: #6B7280; text-transform: uppercase; margin-bottom: 15px; letter-spacing: 0.5px; }
-            .summary-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; color: #374151; }
-            .total-row { display: flex; justify-content: space-between; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #E5E7EB; font-size: 24px; font-weight: 800; color: #2563EB; }
+            .summary-box { border: 1px solid #E5E7EB; border-radius: 12px; padding: 20px; background: #fff; }
+            .summary-title { font-size: 11px; font-weight: 700; color: #6B7280; text-transform: uppercase; margin-bottom: 15px; letter-spacing: 0.5px; }
+            .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; color: #374151; }
+            .total-row { display: flex; justify-content: space-between; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #E5E7EB; font-size: 20px; font-weight: 800; color: #2563EB; }
 
             .badge-acc { font-size: 11px; background: #F3F4F6; padding: 2px 8px; border-radius: 4px; border: 1px solid #E5E7EB; margin-right: 4px; display: inline-block; margin-bottom: 4px; color: #4B5563; }
+            
+            .signature-section { margin-top: 60px; display: flex; justify-content: flex-end; padding-right: 20px; }
+            .signature-line { border-top: 1px solid #9CA3AF; width: 200px; text-align: center; padding-top: 10px; }
+            .signature-text { font-size: 11px; font-weight: 700; color: #6B7280; text-transform: uppercase; }
           </style>
         </head>
         <body>
-          <div class="header-badge">Orden en Reparación</div>
-          <h1 class="page-title">Orden de Reparación #${order.id.slice(0, 8).toUpperCase()}</h1>
-          <div class="page-subtitle">Generado el ${new Date().toLocaleString()}</div>
+          <div class="brand-header">
+            <div class="brand-name">Electrónica Pimentel</div>
+            <div class="brand-details">
+              Av. Principal 123, Lima • Tel: 555-0123 • contacto@pimentel.com<br>
+              Especialistas en Reparación de Electrodomésticos
+            </div>
+          </div>
+          
+          <div style="text-align: center; margin-bottom: 30px;">
+            <div class="header-badge">Orden en Reparación</div>
+            <h1 class="page-title">Orden #${order.id.slice(0, 8).toUpperCase()}</h1>
+            <div class="page-subtitle">Generado el ${new Date().toLocaleString()}</div>
+          </div>
 
           <div class="grid-2">
             <div class="card">
@@ -294,8 +325,10 @@ const OrdersScreen = () => {
             </div>
           </div>
           
-          <div style="margin-top: 30px; text-align: center; color: #9CA3AF; font-size: 12px;">
-            <p>Electrónica Pimentel - Av. Principal 123 - Tel: 555-0123</p>
+          <div class="signature-section">
+            <div class="signature-line">
+              <div class="signature-text">Firma del Cliente</div>
+            </div>
           </div>
         </body>
       </html>

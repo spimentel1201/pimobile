@@ -394,80 +394,138 @@ const SalesScreen = () => {
   };
 
   const generateTicketHTML = (sale: Sale) => {
-    const itemsHTML = sale.items?.map(item => `
-      <tr>
-        <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.productName || 'Producto'}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">S/ ${item.price.toFixed(2)}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;">S/ ${(item.quantity * item.price).toFixed(2)}</td>
-      </tr>
-    `).join('') || '';
-
     return `
       <!DOCTYPE html>
       <html>
         <head>
           <meta charset="utf-8">
-          <title>Ticket de Venta</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Recibo de Venta</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 20px; max-width: 400px; margin: 0 auto; }
-            .header { text-align: center; margin-bottom: 20px; border-bottom: 2px dashed #ccc; padding-bottom: 15px; }
-            .brand { font-size: 24px; font-weight: bold; color: #3B82F6; }
-            .subtitle { font-size: 12px; color: #666; }
-            .info { margin: 15px 0; }
-            .info-row { margin: 5px 0; font-size: 13px; }
-            .divider { border-top: 1px dashed #ccc; margin: 15px 0; }
-            table { width: 100%; border-collapse: collapse; }
-            th { background: #f5f5f5; padding: 10px 8px; text-align: left; font-size: 12px; }
-            .total-row { background: #f0f9ff; }
-            .total-label { font-size: 18px; font-weight: bold; }
-            .total-value { font-size: 24px; font-weight: bold; color: #10B981; }
-            .footer { text-align: center; margin-top: 20px; padding-top: 15px; border-top: 2px dashed #ccc; }
-            .footer-thanks { font-size: 14px; color: #333; }
-            .footer-small { font-size: 11px; color: #999; margin-top: 5px; }
+            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
+            body { font-family: 'Roboto', Helvetica, Arial, sans-serif; padding: 40px; max-width: 500px; margin: 0 auto; background: #fff; color: #333; }
+            
+            .header { text-align: center; margin-bottom: 30px; }
+            .logo-placeholder { width: 48px; height: 48px; background: #E0E7FF; border-radius: 50%; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; color: #2563EB; font-weight: bold; font-size: 24px; }
+            .company-name { font-size: 22px; font-weight: 900; color: #2563EB; text-transform: uppercase; margin-bottom: 5px; letter-spacing: -0.5px; }
+            .company-details { font-size: 10px; color: #6B7280; line-height: 1.4; max-width: 80%; margin: 0 auto; }
+            
+            .receipt-title { margin-top: 25px; text-align: center; }
+            .receipt-label { font-size: 18px; font-weight: 900; color: #000; text-transform: uppercase; margin-bottom: 2px; }
+            .receipt-no { font-size: 16px; font-weight: 700; color: #2563EB; margin-bottom: 5px; }
+            .receipt-date { font-size: 10px; color: #6B7280; text-transform: uppercase; font-weight: 500; }
+            
+            .section-divider { border-top: 1px dotted #D1D5DB; margin: 20px 0; }
+            
+            .info-block { margin-bottom: 15px; }
+            .info-label { font-size: 10px; font-weight: 700; color: #6B7280; text-transform: uppercase; margin-bottom: 3px; }
+            .info-main { font-size: 13px; font-weight: 700; color: #111827; }
+            .info-sub { font-size: 11px; color: #6B7280; font-style: italic; }
+            
+            .table-title { font-size: 10px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; border-bottom: 2px solid #2563EB; padding-bottom: 5px; display: inline-block; }
+            
+            .product-row { margin-bottom: 15px; }
+            .sku-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
+            .sku { font-size: 10px; font-weight: 700; color: #2563EB; }
+            .badge { background: #EEF2FF; color: #4F46E5; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; }
+            .product-name { font-size: 13px; font-weight: 700; color: #111827; margin-bottom: 2px; }
+            .price-row { display: flex; justify-content: space-between; font-size: 12px; color: #4B5563; }
+            .price-total { font-weight: 700; color: #000; }
+            
+            .summary-section { margin-top: 20px; border-top: 1px solid #E5E7EB; padding-top: 15px; }
+            .summary-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12px; color: #6B7280; }
+            .total-row { display: flex; justify-content: space-between; margin-top: 10px; align-items: center; border-top: 2px solid #2563EB; padding-top: 10px; }
+            .total-label { font-size: 16px; font-weight: 900; color: #000; text-transform: uppercase; }
+            .total-value { font-size: 28px; font-weight: 900; color: #2563EB; }
+            
+            .warranty-box { margin-top: 30px; border: 1px dashed #D1D5DB; padding: 15px; border-radius: 8px; position: relative; }
+            .warranty-title { display: flex; align-items: center; font-size: 10px; font-weight: 900; color: #2563EB; text-transform: uppercase; margin-bottom: 5px; }
+            .warranty-text { font-size: 9px; color: #6B7280; line-height: 1.4; }
+            
+            .signatures { margin-top: 50px; border-top: 1px solid #E5E7EB; padding-top: 10px; text-align: center; }
+            .sign-label { font-size: 9px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: 0.5px; }
+            
+            .footer-strip { margin-top: 30px; background: #2563EB; color: #fff; text-align: center; padding: 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; border-radius: 4px; }
           </style>
         </head>
         <body>
           <div class="header">
-            <div class="brand">ELECTRO PIME</div>
-            <div class="subtitle">Reparación de Electrodomésticos</div>
+            <div class="logo-placeholder">EP</div>
+            <div class="company-name">Electrónica Pimentel</div>
+            <div class="company-details">
+              Av. Principal 123, Lima<br>
+              Tel: +51 555-123-456 • contacto@pimentel.com
+            </div>
           </div>
           
-          <div class="info">
-            <div class="info-row"><strong>Fecha:</strong> ${new Date(sale.createdAt).toLocaleString()}</div>
-            <div class="info-row"><strong>Ticket:</strong> #${sale.id.slice(0, 8).toUpperCase()}</div>
-            <div class="info-row"><strong>Cliente:</strong> ${sale.customerFullName || sale.customerName || 'Cliente General'}</div>
-            <div class="info-row"><strong>Método de Pago:</strong> ${PAYMENT_METHOD_LABELS[sale.paymentMethod]}</div>
+          <div class="receipt-title">
+            <div class="receipt-label">Recibo de Venta</div>
+            <div class="receipt-no">No. ${sale.id.slice(0, 8).toUpperCase()}</div>
+            <div class="receipt-date">${new Date(sale.createdAt).toLocaleDateString()} - ${new Date(sale.createdAt).toLocaleTimeString()}</div>
           </div>
           
-          <div class="divider"></div>
+          <div class="section-divider"></div>
           
-          <table>
-            <thead>
-              <tr>
-                <th>Producto</th>
-                <th style="text-align: center;">Cant.</th>
-                <th style="text-align: right;">P.Unit.</th>
-                <th style="text-align: right;">Subtotal</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${itemsHTML}
-            </tbody>
-          </table>
+          <div class="info-block">
+            <div class="info-label">Facturado a:</div>
+            <div class="info-main">${sale.customerFullName || sale.customerName || 'Cliente General'}</div>
+            <!-- <div class="info-sub">ID: 12345678</div> -->
+          </div>
           
-          <div class="divider"></div>
+          <div class="info-block">
+            <div class="info-label">Vendedor:</div>
+            <div class="info-main">${sale.userName || 'Administrador'}</div>
+          </div>
           
-          <table>
-            <tr class="total-row">
-              <td class="total-label" style="padding: 12px;">TOTAL:</td>
-              <td class="total-value" style="padding: 12px; text-align: right;">S/ ${sale.totalAmount.toFixed(2)}</td>
-            </tr>
-          </table>
+          <div class="section-divider"></div>
           
-          <div class="footer">
-            <div class="footer-thanks">¡Gracias por su compra!</div>
-            <div class="footer-small">Conserve este ticket</div>
+          <div style="margin-bottom: 20px;">
+            <div class="table-title">Detalle de Productos</div>
+            ${sale.items?.map((item, i) => `
+              <div class="product-row">
+                <div class="sku-row">
+                  <span class="sku">SKU-${item.productId?.slice(0, 4).toUpperCase() || 'GEN'}</span>
+                  <span class="badge">REPUESTO</span>
+                </div>
+                <div class="product-name">${item.productName || 'Producto'}</div>
+                <div class="price-row">
+                  <span>${item.quantity} x S/ ${item.price.toFixed(2)}</span>
+                  <span class="price-total">S/ ${(item.quantity * item.price).toFixed(2)}</span>
+                </div>
+              </div>
+            `).join('') || ''}
+          </div>
+          
+          <div class="summary-section">
+            <div class="summary-row">
+              <span>Subtotal</span>
+              <span>S/ ${sale.totalAmount.toFixed(2)}</span>
+            </div>
+            <div class="summary-row">
+              <span>Impuestos (0%)</span>
+              <span>S/ 0.00</span>
+            </div>
+            <div class="total-row">
+              <span class="total-label">TOTAL</span>
+              <span class="total-value">S/ ${sale.totalAmount.toFixed(2)}</span>
+            </div>
+          </div>
+          
+          <div class="warranty-box">
+            <div class="warranty-title">
+              <span style="font-size: 14px; margin-right: 5px;">✓</span> GARANTÍA
+            </div>
+            <div class="warranty-text">
+              Componentes electrónicos: garantía por defectos de fábrica (30 días). No aplica en semiconductores con rastros de soldadura o mala manipulación.
+            </div>
+          </div>
+          
+          <div class="signatures">
+            <div class="sign-label">FIRMA AUTORIZADA</div>
+          </div>
+          
+          <div class="footer-strip">
+            Gracias por su compra. Expertos desde 2010.
           </div>
         </body>
       </html>
@@ -477,21 +535,36 @@ const SalesScreen = () => {
   const handlePrintPDF = async (sale: Sale) => {
     try {
       const html = generateTicketHTML(sale);
-      const { uri } = await Print.printToFileAsync({ html });
 
       if (Platform.OS === 'web') {
-        await Print.printAsync({ html });
-      } else {
-        const isAvailable = await Sharing.isAvailableAsync();
-        if (isAvailable) {
-          await Sharing.shareAsync(uri, {
-            mimeType: 'application/pdf',
-            dialogTitle: 'Ticket de Venta',
-            UTI: 'com.adobe.pdf',
-          });
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(html);
+          printWindow.document.close();
+          const timer = setInterval(() => {
+            if (printWindow.document.readyState === 'complete') {
+              clearInterval(timer);
+              printWindow.focus();
+              printWindow.print();
+            }
+          }, 100);
         } else {
-          Alert.alert('PDF Generado', `El archivo se guardó en: ${uri}`);
+          Alert.alert('Error', 'Por favor permite las ventanas emergentes para imprimir el ticket.');
         }
+        return;
+      }
+
+      const { uri } = await Print.printToFileAsync({ html });
+      const isAvailable = await Sharing.isAvailableAsync();
+
+      if (isAvailable) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Ticket de Venta',
+          UTI: 'com.adobe.pdf',
+        });
+      } else {
+        Alert.alert('PDF Generado', `El archivo se guardó en: ${uri}`);
       }
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -502,6 +575,25 @@ const SalesScreen = () => {
   const handleShareTicket = async (sale: Sale) => {
     try {
       const html = generateTicketHTML(sale);
+
+      if (Platform.OS === 'web') {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(html);
+          printWindow.document.close();
+          const timer = setInterval(() => {
+            if (printWindow.document.readyState === 'complete') {
+              clearInterval(timer);
+              printWindow.focus();
+              printWindow.print();
+            }
+          }, 100);
+        } else {
+          Alert.alert('Error', 'Por favor permite las ventanas emergentes para compartir el ticket.');
+        }
+        return;
+      }
+
       const { uri } = await Print.printToFileAsync({ html });
 
       const isAvailable = await Sharing.isAvailableAsync();
