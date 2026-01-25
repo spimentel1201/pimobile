@@ -60,7 +60,11 @@ const OrdersScreen = () => {
     try {
       setError(null);
       const data = await api.getRepairOrders();
-      setOrders(data);
+      // Sort orders by createdAt descending (newest first)
+      const sortedData = data.sort((a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      setOrders(sortedData);
     } catch (err: any) {
       console.error('Error fetching orders:', err);
       setError(err.message || 'Error al cargar las órdenes');
@@ -164,60 +168,63 @@ const OrdersScreen = () => {
   );
 
   const renderOrderCard = ({ item }: { item: RepairOrder }) => (
-    <TouchableOpacity
-      style={styles.orderCard}
-      onPress={() => {
-        setSelectedOrder(item);
-        setShowOrderDetails(true);
-      }}
-    >
-      <View style={styles.orderHeader}>
-        <View>
-          <Text style={styles.orderId}>#{item.id.slice(0, 8)}</Text>
-          <Text style={styles.orderCustomer}>{item.customer?.name || item.customerName || 'Sin cliente'}</Text>
+    <View style={styles.orderCard}>
+      <TouchableOpacity
+        onPress={() => {
+          setSelectedOrder(item);
+          setShowOrderDetails(true);
+        }}
+        activeOpacity={0.7}
+      >
+        <View style={styles.orderHeader}>
+          <View>
+            <Text style={styles.orderId}>#{item.id.slice(0, 8)}</Text>
+            <Text style={styles.orderCustomer}>{item.customer?.name || item.customerName || 'Sin cliente'}</Text>
+          </View>
+          <View style={[styles.statusBadge, { backgroundColor: STATUS_COLORS[item.status] }]}>
+            <Text style={styles.statusText}>{STATUS_LABELS[item.status]}</Text>
+          </View>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: STATUS_COLORS[item.status] }]}>
-          <Text style={styles.statusText}>{STATUS_LABELS[item.status]}</Text>
-        </View>
-      </View>
 
-      {item.items && item.items.length > 0 && (
-        <View style={styles.deviceInfo}>
-          <MaterialCommunityIcons name="devices" size={20} color="#6c757d" />
-          <Text style={styles.deviceText}>
-            {item.items[0].brand} {item.items[0].model} - {item.items[0].deviceType}
+        {item.items && item.items.length > 0 && (
+          <View style={styles.deviceInfo}>
+            <MaterialCommunityIcons name="devices" size={20} color="#6c757d" />
+            <Text style={styles.deviceText}>
+              {item.items[0].brand} {item.items[0].model} - {item.items[0].deviceType}
+            </Text>
+          </View>
+        )}
+
+        <Text style={styles.orderDescription} numberOfLines={2}>
+          {item.description}
+        </Text>
+
+        <View style={styles.orderFooter}>
+          <View style={styles.technicianInfo}>
+            {(item.technician?.firstName || item.technicianName) ? (
+              <>
+                <MaterialCommunityIcons name="account-wrench" size={20} color="#3B82F6" />
+                <Text style={styles.technicianName}>
+                  {item.technician
+                    ? `${item.technician.firstName} ${item.technician.lastName}`
+                    : item.technicianName}
+                </Text>
+              </>
+            ) : (
+              <Text style={styles.noTechnician}>Sin técnico asignado</Text>
+            )}
+          </View>
+          <Text style={styles.orderDate}>
+            {new Date(item.createdAt).toLocaleDateString()}
           </Text>
         </View>
-      )}
-
-      <Text style={styles.orderDescription} numberOfLines={2}>
-        {item.description}
-      </Text>
-
-      <View style={styles.orderFooter}>
-        <View style={styles.technicianInfo}>
-          {(item.technician?.firstName || item.technicianName) ? (
-            <>
-              <MaterialCommunityIcons name="account-wrench" size={20} color="#3B82F6" />
-              <Text style={styles.technicianName}>
-                {item.technician
-                  ? `${item.technician.firstName} ${item.technician.lastName}`
-                  : item.technicianName}
-              </Text>
-            </>
-          ) : (
-            <Text style={styles.noTechnician}>Sin técnico asignado</Text>
-          )}
-        </View>
-        <Text style={styles.orderDate}>
-          {new Date(item.createdAt).toLocaleDateString()}
-        </Text>
-      </View>
+      </TouchableOpacity>
 
       <View style={styles.orderActions}>
         <TouchableOpacity
           style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
           onPress={() => router.push(`/orders/${item.id}/edit`)}
+          activeOpacity={0.7}
         >
           <MaterialCommunityIcons name="pencil" size={18} color="white" />
         </TouchableOpacity>
@@ -232,17 +239,19 @@ const OrdersScreen = () => {
               { text: 'Cancelar', style: 'cancel' },
             ]);
           }}
+          activeOpacity={0.7}
         >
           <MaterialCommunityIcons name="swap-horizontal" size={18} color="white" />
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionButton, { backgroundColor: '#EF4444' }]}
           onPress={() => handleDeleteOrder(item.id)}
+          activeOpacity={0.7}
         >
           <MaterialCommunityIcons name="delete" size={18} color="white" />
         </TouchableOpacity>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 
   const renderOrderDetails = () => {

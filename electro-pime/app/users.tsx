@@ -135,6 +135,18 @@ export default function UsersScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Header with title and add button */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Usuarios</Text>
+        <TouchableOpacity
+          style={styles.headerAddButton}
+          onPress={() => router.push('/users/new' as any)}
+        >
+          <MaterialCommunityIcons name="plus" size={18} color="#fff" />
+          <Text style={styles.headerAddButtonText}>Nuevo</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Header Stats */}
       <View style={styles.statsContainer}>
         <View style={styles.statItem}>
@@ -170,16 +182,6 @@ export default function UsersScreen() {
           </View>
         }
       />
-
-      <TouchableOpacity
-        style={styles.addButton}
-        onPress={() => router.push({
-          pathname: '/users/new' as any,
-          params: { title: 'Nuevo Usuario' }
-        })}
-      >
-        <MaterialCommunityIcons name="plus" size={24} color="#fff" />
-      </TouchableOpacity>
     </View>
   );
 }
@@ -188,6 +190,35 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  headerAddButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 4,
+  },
+  headerAddButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 14,
   },
   centered: {
     flex: 1,
@@ -316,22 +347,6 @@ const styles = StyleSheet.create({
   },
   menuButton: {
     padding: 8,
-  },
-  addButton: {
-    position: 'absolute',
-    bottom: 90,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#2563eb',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
   },
   emptyContainer: {
     flex: 1,

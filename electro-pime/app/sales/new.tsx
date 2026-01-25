@@ -11,6 +11,7 @@ import {
     Alert,
     ActivityIndicator,
     SafeAreaView,
+    Platform,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -134,14 +135,19 @@ export default function NewSaleScreen() {
             };
 
             await api.createSale(saleData);
-            Alert.alert(
-                '¡Venta Registrada!',
-                `Total: S/ ${calculateTotal().toFixed(2)}`,
-                [
-                    { text: 'Nueva Venta', onPress: () => resetForm() },
-                    { text: 'Ver Ventas', onPress: () => router.replace('/sales') },
-                ]
-            );
+
+            if (Platform.OS === 'web') {
+                window.alert(`¡Venta Registrada!\nTotal: S/ ${calculateTotal().toFixed(2)}`);
+                router.replace('/sales');
+            } else {
+                Alert.alert(
+                    '¡Venta Registrada!',
+                    `Total: S/ ${calculateTotal().toFixed(2)}`,
+                    [
+                        { text: 'OK', onPress: () => router.replace('/sales') }
+                    ]
+                );
+            }
         } catch (err: any) {
             Alert.alert('Error', err.message || 'No se pudo registrar la venta');
         } finally {

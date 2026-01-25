@@ -101,10 +101,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = async () => {
     try {
       await secureStorage.deleteItem(TOKEN_KEY);
+    } catch (error) {
+      console.error('Failed to logout token removal', error);
+    } finally {
       api.setToken('');
       setUser(null);
-    } catch (error) {
-      console.error('Failed to logout', error);
     }
   };
 

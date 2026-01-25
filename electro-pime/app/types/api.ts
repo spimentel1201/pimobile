@@ -32,6 +32,15 @@ export interface User {
   updatedAt: string;
 }
 
+export interface CreateUserDto {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  role: 'ADMIN' | 'TECHNICIAN';
+}
+
 // ==================== Customer ====================
 
 export interface Customer {
@@ -175,14 +184,13 @@ export interface Quote {
 }
 
 export interface CreateQuoteDto {
-  repairOrderId?: string;
+  repairOrderId: string;
   customerId: string;
-  technicianId?: string;
+  technicianId: string;
   status?: QuoteStatus;
-  laborCost?: number;
+  totalAmount: number;
   notes?: string;
-  validDays?: number;
-  items: { description: string; quantity: number; unitPrice: number }[];
+  items: { quantity: number; price: number; description?: string }[];
 }
 
 // ==================== Sale ====================

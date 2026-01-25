@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from './contexts/AuthContext';
@@ -7,22 +7,36 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
 
+  const performLogout = async () => {
+    try {
+      await logout();
+      router.replace('/login');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Redirigir de todos modos
+      router.replace('/login');
+    }
+  };
+
   const handleLogout = () => {
-    Alert.alert(
-      'Cerrar Sesión',
-      '¿Está seguro que desea cerrar sesión?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Cerrar Sesión',
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-            router.replace('/login');
+    if (Platform.OS === 'web') {
+      if (window.confirm('¿Está seguro que desea cerrar sesión?')) {
+        performLogout();
+      }
+    } else {
+      Alert.alert(
+        'Cerrar Sesión',
+        '¿Está seguro que desea cerrar sesión?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Cerrar Sesión',
+            style: 'destructive',
+            onPress: performLogout,
           },
-        },
-      ]
-    );
+        ]
+      );
+    }
   };
 
   const menuItems = [
@@ -34,7 +48,7 @@ export default function ProfileScreen() {
   ];
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       <View style={styles.header}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
@@ -75,7 +89,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         ))}
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -83,6 +97,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
+  },
+  scrollContent: {
+    paddingBottom: 120,
   },
   header: {
     backgroundColor: '#3B82F6',
@@ -142,24 +159,27 @@ const styles = StyleSheet.create({
   },
   menuItemLogout: {
     borderBottomWidth: 0,
-    marginTop: 16,
-    backgroundColor: '#FEF2F2',
-    borderRadius: 12,
-    paddingHorizontal: 8,
+    marginTop: 20,
   },
   menuIcon: {
     width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 16,
   },
-  menuIconLogout: {},
+  menuIconLogout: {
+    backgroundColor: '#FEE2E2',
+  },
   menuText: {
     flex: 1,
     fontSize: 16,
     color: '#1f2937',
-    marginLeft: 12,
+    fontWeight: '500',
   },
   menuTextLogout: {
     color: '#EF4444',
-    fontWeight: '600',
   },
 });

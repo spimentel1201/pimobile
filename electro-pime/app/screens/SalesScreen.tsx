@@ -75,7 +75,11 @@ const SalesScreen = () => {
       }
 
       const data = await api.getSales(params);
-      setSales(data);
+      // Sort sales by createdAt descending (newest first)
+      const sortedData = data.sort((a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      setSales(sortedData);
     } catch (err: any) {
       console.error('Error fetching sales:', err);
       setError(err.message || 'Error al cargar las ventas');

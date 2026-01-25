@@ -28,7 +28,7 @@ const QUOTE_STATUS = {
 interface QuoteItem {
   description: string;
   quantity: number;
-  unitPrice: number;
+  price: number;
 }
 
 const BudgetsScreen = () => {
@@ -46,9 +46,7 @@ const BudgetsScreen = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedRepairOrder, setSelectedRepairOrder] = useState<RepairOrder | null>(null);
   const [quoteItems, setQuoteItems] = useState<QuoteItem[]>([]);
-  const [laborCost, setLaborCost] = useState('');
   const [notes, setNotes] = useState('');
-  const [validDays, setValidDays] = useState('30');
 
   // New item state
   const [newItemDescription, setNewItemDescription] = useState('');
@@ -117,7 +115,7 @@ const BudgetsScreen = () => {
     const item: QuoteItem = {
       description: newItemDescription.trim(),
       quantity: parseInt(newItemQuantity) || 1,
-      unitPrice: parseFloat(newItemPrice) || 0,
+      price: parseFloat(newItemPrice) || 0,
     };
 
     setQuoteItems([...quoteItems, item]);
@@ -131,18 +129,14 @@ const BudgetsScreen = () => {
   };
 
   const calculateTotal = () => {
-    const itemsTotal = quoteItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-    const labor = parseFloat(laborCost) || 0;
-    return itemsTotal + labor;
+    return quoteItems.reduce((sum, item) => sum + (item.quantity * item.price), 0);
   };
 
   const resetForm = () => {
     setSelectedCustomer(null);
     setSelectedRepairOrder(null);
     setQuoteItems([]);
-    setLaborCost('');
     setNotes('');
-    setValidDays('30');
     setNewItemDescription('');
     setNewItemQuantity('1');
     setNewItemPrice('');
@@ -154,24 +148,36 @@ const BudgetsScreen = () => {
       return;
     }
 
-    if (quoteItems.length === 0 && !laborCost) {
-      Alert.alert('Error', 'Agregue al menos un item o costo de mano de obra');
+    if (!selectedRepairOrder) {
+      Alert.alert('Error', 'Seleccione una orden de reparación');
+      return;
+    }
+
+    if (quoteItems.length === 0) {
+      Alert.alert('Error', 'Agregue al menos un item al presupuesto');
+      return;
+    }
+
+    if (!user?.id) {
+      Alert.alert('Error', 'No se pudo identificar al técnico');
       return;
     }
 
     setSaving(true);
     try {
+      const totalAmount = calculateTotal();
+
       const quoteData: CreateQuoteDto = {
+        repairOrderId: selectedRepairOrder.id,
         customerId: selectedCustomer.id,
-        repairOrderId: selectedRepairOrder?.id,
-        items: quoteItems.map(item => ({
-          description: item.description,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-        })),
-        laborCost: parseFloat(laborCost) || 0,
+        technicianId: user.id,
+        totalAmount,
         notes: notes.trim() || undefined,
-        validDays: parseInt(validDays) || 30,
+        items: quoteItems.map(item => ({
+          quantity: item.quantity,
+          price: item.price,
+          description: item.description || undefined,
+        })),
       };
 
       await api.createQuote(quoteData);
@@ -315,7 +321,7 @@ const BudgetsScreen = () => {
                 <View style={styles.itemInfo}>
                   <Text style={styles.itemDescription}>{item.description}</Text>
                   <Text style={styles.itemPrice}>
-                    {item.quantity} x S/ {item.unitPrice.toFixed(2)} = S/ {(item.quantity * item.unitPrice).toFixed(2)}
+                    {item.quantity} x S/ {item.price.toFixed(2)} = S/ {(item.quantity * item.price).toFixed(2)}
                   </Text>
                 </View>
                 <TouchableOpacity onPress={() => removeItem(index)}>
@@ -353,18 +359,6 @@ const BudgetsScreen = () => {
             </View>
           </View>
 
-          {/* Labor Cost */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Mano de Obra</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Costo de mano de obra"
-              value={laborCost}
-              onChangeText={setLaborCost}
-              keyboardType="decimal-pad"
-            />
-          </View>
-
           {/* Notes */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Notas</Text>
@@ -375,18 +369,6 @@ const BudgetsScreen = () => {
               onChangeText={setNotes}
               multiline
               numberOfLines={3}
-            />
-          </View>
-
-          {/* Valid Days */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Validez (días)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="30"
-              value={validDays}
-              onChangeText={setValidDays}
-              keyboardType="numeric"
             />
           </View>
 

@@ -10,13 +10,10 @@ import {
   Dimensions,
 } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
-import { LineChart, PieChart } from 'react-native-chart-kit';
 import { useRouter } from 'expo-router';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { RepairOrder, RepairOrderStatus, Sale, Product } from '../types/api';
-
-const { width } = Dimensions.get('window');
+import { RepairOrder, RepairOrderStatus } from '../types/api';
 
 const STATUS_COLORS: Record<RepairOrderStatus, string> = {
   RECEIVED: '#9CA3AF',
@@ -38,45 +35,15 @@ const STATUS_LABELS: Record<RepairOrderStatus, string> = {
   CANCELLED: 'Cancelado',
 };
 
-// Mock data for charts
-const MOCK_WEEKLY_SALES = {
-  labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
-  datasets: [
-    {
-      data: [1200, 1900, 1500, 2200, 1800, 2500, 1100],
-      color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-      strokeWidth: 2,
-    },
-  ],
-};
-
-const MOCK_ORDER_DISTRIBUTION = [
-  { name: 'Laptops', count: 35, color: '#3B82F6', legendFontColor: '#4B5563', legendFontSize: 12 },
-  { name: 'Celulares', count: 28, color: '#10B981', legendFontColor: '#4B5563', legendFontSize: 12 },
-  { name: 'TV/Monitores', count: 20, color: '#F59E0B', legendFontColor: '#4B5563', legendFontSize: 12 },
-  { name: 'Otros', count: 17, color: '#8B5CF6', legendFontColor: '#4B5563', legendFontSize: 12 },
-];
-
-interface DashboardData {
-  orders: RepairOrder[];
-  sales: Sale[];
-  products: Product[];
-}
-
 const DashboardScreen = () => {
   const router = useRouter();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<DashboardData>({
-    orders: [],
-    sales: [],
-    products: [],
-  });
+  const [recentOrders, setRecentOrders] = useState<RepairOrder[]>([]);
 
   const fetchDashboardData = useCallback(async () => {
-    // Only fetch if user is authenticated
     if (!user) {
       setLoading(false);
       return;
@@ -84,15 +51,17 @@ const DashboardScreen = () => {
 
     try {
       setError(null);
-      const [orders, sales, products] = await Promise.all([
-        api.getRepairOrders().catch(() => []),
-        api.getSales().catch(() => []),
-        api.getProducts().catch(() => []),
-      ]);
-      setData({ orders, sales, products });
+      // Fetch only orders to show recent ones
+      const orders = await api.getRepairOrders();
+      // Sort by newest and take 5
+      const sorted = orders.sort((a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      ).slice(0, 5);
+
+      setRecentOrders(sorted);
     } catch (err: any) {
       console.error('Error fetching dashboard data:', err);
-      setError(err.message || 'Error al cargar el dashboard');
+      // Don't show error if it fails, just show empty list
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -111,26 +80,6 @@ const DashboardScreen = () => {
     setRefreshing(true);
     fetchDashboardData();
   }, [fetchDashboardData]);
-
-  // Calculate metrics from real data
-  const pendingOrders = data.orders.filter(o =>
-    o.status === 'RECEIVED' || o.status === 'DIAGNOSED'
-  ).length;
-  const inProgressOrders = data.orders.filter(o =>
-    o.status === 'IN_PROGRESS' || o.status === 'WAITING_FOR_PARTS'
-  ).length;
-  const completedToday = data.orders.filter(o => {
-    const today = new Date().toISOString().split('T')[0];
-    return o.status === 'COMPLETED' && o.updatedAt.startsWith(today);
-  }).length;
-
-  const todaySales = data.sales.filter(s => {
-    const today = new Date().toISOString().split('T')[0];
-    return s.createdAt.startsWith(today);
-  });
-  const todayRevenue = todaySales.reduce((sum, s) => sum + s.totalAmount, 0);
-
-  const recentOrders = data.orders.slice(0, 5);
 
   const renderHeader = () => (
     <View style={styles.header}>
@@ -154,46 +103,6 @@ const DashboardScreen = () => {
         <Ionicons name="notifications-outline" size={24} color="#374151" />
       </TouchableOpacity>
     </View>
-  );
-
-  const renderMetrics = () => (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.metricsContainer}>
-      <TouchableOpacity
-        style={[styles.metricCard, { backgroundColor: '#FEF3C7' }]}
-        onPress={() => router.push('/orders')}
-      >
-        <MaterialCommunityIcons name="clipboard-clock" size={28} color="#F59E0B" />
-        <Text style={styles.metricValue}>{pendingOrders}</Text>
-        <Text style={styles.metricLabel}>Órdenes Pendientes</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.metricCard, { backgroundColor: '#DBEAFE' }]}
-        onPress={() => router.push('/orders')}
-      >
-        <MaterialCommunityIcons name="progress-wrench" size={28} color="#3B82F6" />
-        <Text style={styles.metricValue}>{inProgressOrders}</Text>
-        <Text style={styles.metricLabel}>En Progreso</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.metricCard, { backgroundColor: '#D1FAE5' }]}
-        onPress={() => router.push('/orders')}
-      >
-        <MaterialCommunityIcons name="check-circle" size={28} color="#10B981" />
-        <Text style={styles.metricValue}>{completedToday}</Text>
-        <Text style={styles.metricLabel}>Completados Hoy</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.metricCard, { backgroundColor: '#E0E7FF' }]}
-        onPress={() => router.push('/sales')}
-      >
-        <MaterialCommunityIcons name="cash-multiple" size={28} color="#6366F1" />
-        <Text style={styles.metricValue}>S/ {todayRevenue.toFixed(0)}</Text>
-        <Text style={styles.metricLabel}>Ventas Hoy</Text>
-      </TouchableOpacity>
-    </ScrollView>
   );
 
   const renderQuickActions = () => (
@@ -255,60 +164,6 @@ const DashboardScreen = () => {
     </View>
   );
 
-  const renderCharts = () => (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Estadísticas</Text>
-
-      {/* Weekly Sales Chart */}
-      <View style={styles.chartCard}>
-        <Text style={styles.chartTitle}>Ventas de la Semana</Text>
-        <LineChart
-          data={MOCK_WEEKLY_SALES}
-          width={width - 64}
-          height={180}
-          chartConfig={{
-            backgroundColor: '#FFFFFF',
-            backgroundGradientFrom: '#FFFFFF',
-            backgroundGradientTo: '#FFFFFF',
-            decimalPlaces: 0,
-            color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-            labelColor: (opacity = 1) => `rgba(107, 114, 128, ${opacity})`,
-            style: {
-              borderRadius: 12,
-            },
-            propsForDots: {
-              r: '4',
-              strokeWidth: '2',
-              stroke: '#3B82F6',
-            },
-          }}
-          bezier
-          style={styles.chart}
-        />
-      </View>
-
-      {/* Orders Distribution */}
-      <View style={styles.chartCard}>
-        <Text style={styles.chartTitle}>Distribución por Tipo</Text>
-        <PieChart
-          data={MOCK_ORDER_DISTRIBUTION}
-          width={width - 64}
-          height={180}
-          chartConfig={{
-            backgroundColor: '#FFFFFF',
-            backgroundGradientFrom: '#FFFFFF',
-            backgroundGradientTo: '#FFFFFF',
-            color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-          }}
-          accessor="count"
-          backgroundColor="transparent"
-          paddingLeft="15"
-          absolute
-        />
-      </View>
-    </View>
-  );
-
   const renderRecentOrders = () => (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
@@ -321,7 +176,7 @@ const DashboardScreen = () => {
       {recentOrders.length === 0 ? (
         <View style={styles.emptyState}>
           <MaterialCommunityIcons name="clipboard-text-outline" size={48} color="#D1D5DB" />
-          <Text style={styles.emptyText}>No hay órdenes</Text>
+          <Text style={styles.emptyText}>No hay órdenes recientes</Text>
         </View>
       ) : (
         recentOrders.map((order) => (
@@ -355,19 +210,6 @@ const DashboardScreen = () => {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={styles.loadingText}>Cargando dashboard...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.centered}>
-        <MaterialCommunityIcons name="alert-circle" size={48} color="#EF4444" />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchDashboardData}>
-          <Text style={styles.retryButtonText}>Reintentar</Text>
-        </TouchableOpacity>
       </View>
     );
   }
@@ -380,11 +222,8 @@ const DashboardScreen = () => {
       }
     >
       {renderHeader()}
-      {renderMetrics()}
       {renderQuickActions()}
-      {renderCharts()}
       {renderRecentOrders()}
-      <View style={styles.bottomPadding} />
     </ScrollView>
   );
 };
@@ -398,36 +237,15 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  errorText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#EF4444',
-    textAlign: 'center',
-  },
-  retryButton: {
-    marginTop: 16,
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: 'white',
-    fontWeight: '600',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'white',
+    padding: 20,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
   greeting: {
     fontSize: 20,
@@ -441,40 +259,12 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   notificationButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    padding: 8,
     backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  metricsContainer: {
-    padding: 16,
-    backgroundColor: 'white',
-  },
-  metricCard: {
-    width: 140,
-    padding: 16,
-    borderRadius: 12,
-    marginRight: 12,
-    alignItems: 'center',
-  },
-  metricValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginTop: 8,
-  },
-  metricLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
-    textAlign: 'center',
+    borderRadius: 8,
   },
   section: {
-    padding: 16,
-    backgroundColor: 'white',
-    marginTop: 8,
+    padding: 20,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -484,7 +274,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: 'bold',
     color: '#111827',
     marginBottom: 16,
   },
@@ -496,15 +286,20 @@ const styles = StyleSheet.create({
   actionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    gap: 16,
   },
   actionCard: {
-    width: '48%',
-    backgroundColor: '#F9FAFB',
+    width: '30%',
+    backgroundColor: '#FFFFFF',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
-    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+    marginBottom: 8,
   },
   actionIcon: {
     width: 48,
@@ -515,30 +310,35 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   actionText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '500',
     color: '#374151',
+    textAlign: 'center',
   },
-  chartCard: {
-    backgroundColor: '#F9FAFB',
-    padding: 16,
+  emptyState: {
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderStyle: 'dashed',
   },
-  chartTitle: {
+  emptyText: {
+    marginTop: 8,
+    color: '#9CA3AF',
     fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 12,
-  },
-  chart: {
-    borderRadius: 12,
   },
   orderCard: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFFFF',
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   orderHeader: {
     flexDirection: 'row',
@@ -549,44 +349,32 @@ const styles = StyleSheet.create({
   orderId: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#3B82F6',
+    color: '#374151',
   },
   statusBadge: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
   },
   statusText: {
-    color: 'white',
     fontSize: 10,
-    fontWeight: '600',
+    color: '#FFFFFF',
+    fontWeight: 'bold',
   },
   orderCustomer: {
     fontSize: 16,
     fontWeight: '500',
     color: '#111827',
+    marginBottom: 4,
   },
   orderDevice: {
     fontSize: 14,
-    color: '#6B7280',
-    marginTop: 4,
+    color: '#4B5563',
+    marginBottom: 8,
   },
   orderDate: {
     fontSize: 12,
     color: '#9CA3AF',
-    marginTop: 4,
-  },
-  emptyState: {
-    alignItems: 'center',
-    padding: 32,
-  },
-  emptyText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#9CA3AF',
-  },
-  bottomPadding: {
-    height: 32,
   },
 });
 

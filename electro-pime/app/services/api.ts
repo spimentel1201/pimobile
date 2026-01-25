@@ -114,6 +114,13 @@ class ApiService {
     return this.request<User>(`/users/${id}`);
   }
 
+  async createUser(data: { email: string; password: string; firstName: string; lastName: string; phone?: string; role: 'ADMIN' | 'TECHNICIAN' }): Promise<User> {
+    return this.request<User>('/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   async updateUser(id: string, data: Partial<User>): Promise<User> {
     return this.request<User>(`/users/${id}`, {
       method: 'PATCH',
