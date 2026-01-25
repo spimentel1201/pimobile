@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import * as SecureStore from 'expo-secure-store';
+import { secureStorage } from '../utils/storage';
 import { api } from '../services/api';
 import { User, LoginCredentials, RegisterData } from '../types/api';
 
 interface AuthContextData {
   user: User | null;
   loading: boolean;
+  isAuthenticated: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
@@ -30,15 +31,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const loadUserFromStorage = async () => {
     try {
-      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      const token = await secureStorage.getItem(TOKEN_KEY);
       if (token) {
         api.setToken(token);
-        const userData = await api.getCurrentUser();
-        setUser(userData);
+        try {
+          const userData = await api.getProfile();
+          setUser(userData);
+        } catch (profileError) {
+          console.error('Token invalid or expired:', profileError);
+          // Token is invalid, clear it
+          await secureStorage.deleteItem(TOKEN_KEY);
+          api.setToken('');
+        }
       }
     } catch (error) {
       console.error('Failed to load user from storage', error);
-      await SecureStore.deleteItemAsync(TOKEN_KEY);
+      await secureStorage.deleteItem(TOKEN_KEY);
+      api.setToken('');
     } finally {
       setLoading(false);
     }
@@ -46,10 +55,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (credentials: LoginCredentials) => {
     try {
-      const { token, user } = await api.login(credentials);
-      await SecureStore.setItemAsync(TOKEN_KEY, token);
+      const response = await api.login(credentials);
+      const token = response.access_token;
+
+      // Store token
+      await secureStorage.setItem(TOKEN_KEY, token);
       api.setToken(token);
-      setUser(user);
+
+      // If response includes user, use it; otherwise fetch profile
+      if (response.user) {
+        setUser(response.user);
+      } else {
+        // Fetch user profile with the new token
+        const userData = await api.getProfile();
+        setUser(userData);
+      }
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
@@ -58,10 +78,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const register = async (data: RegisterData) => {
     try {
-      const { token, user } = await api.register(data);
-      await SecureStore.setItemAsync(TOKEN_KEY, token);
+      const response = await api.register(data);
+      const token = response.access_token;
+
+      // Store token
+      await secureStorage.setItem(TOKEN_KEY, token);
       api.setToken(token);
-      setUser(user);
+
+      // If response includes user, use it; otherwise fetch profile
+      if (response.user) {
+        setUser(response.user);
+      } else {
+        const userData = await api.getProfile();
+        setUser(userData);
+      }
     } catch (error) {
       console.error('Registration failed:', error);
       throw error;
@@ -70,11 +100,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
-      await SecureStore.deleteItemAsync(TOKEN_KEY);
+      await secureStorage.deleteItem(TOKEN_KEY);
+    } catch (error) {
+      console.error('Failed to logout token removal', error);
+    } finally {
       api.setToken('');
       setUser(null);
-    } catch (error) {
-      console.error('Failed to logout', error);
     }
   };
 
@@ -83,7 +114,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{
+      user,
+      loading,
+      isAuthenticated: !!user,
+      login,
+      register,
+      logout,
+      updateUser
+    }}>
       {!loading && children}
     </AuthContext.Provider>
   );

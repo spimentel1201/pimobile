@@ -1,921 +1,382 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
-  Dimensions,
   RefreshControl,
-  StatusBar,
+  ActivityIndicator,
+  Dimensions,
 } from 'react-native';
-import { MaterialCommunityIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
-import { LineChart, PieChart } from 'react-native-chart-kit';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { api } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { RepairOrder, RepairOrderStatus } from '../types/api';
+
+const STATUS_COLORS: Record<RepairOrderStatus, string> = {
+  RECEIVED: '#9CA3AF',
+  DIAGNOSED: '#3B82F6',
+  IN_PROGRESS: '#F59E0B',
+  WAITING_FOR_PARTS: '#8B5CF6',
+  COMPLETED: '#10B981',
+  DELIVERED: '#059669',
+  CANCELLED: '#EF4444',
+};
+
+const STATUS_LABELS: Record<RepairOrderStatus, string> = {
+  RECEIVED: 'Recibido',
+  DIAGNOSED: 'Diagnosticado',
+  IN_PROGRESS: 'En Progreso',
+  WAITING_FOR_PARTS: 'Esperando',
+  COMPLETED: 'Completado',
+  DELIVERED: 'Entregado',
+  CANCELLED: 'Cancelado',
+};
 
 const DashboardScreen = () => {
-  const [loading, setLoading] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [activeTab, setActiveTab] = useState('day');
   const router = useRouter();
-  
-  // Mock data for dashboard
-  const dashboardData = {
-    metrics: {
-      pendingOrders: 12,
-      salesTotal: 2850,
-      incomesTotal: 3450,
-      expensesTotal: 980,
-    },
-    alerts: [
-      {
-        id: '1',
-        type: 'inventory',
-        message: 'Pantalla iPhone 13 tiene stock bajo (2 unidades)',
-        priority: 'high',
-        time: '1h',
-      },
-      {
-        id: '2',
-        type: 'order',
-        message: 'Reparación urgente pendiente: Miguel Ángel (iPhone 12)',
-        priority: 'high',
-        time: '3h',
-      },
-      {
-        id: '3',
-        type: 'payment',
-        message: 'Factura #F-2023-089 vencida hace 2 días',
-        priority: 'medium',
-        time: '12h',
-      },
-      {
-        id: '4',
-        type: 'inventory',
-        message: 'Batería Samsung S21 por debajo del stock mínimo',
-        priority: 'medium',
-        time: '1d',
-      },
-    ],
-    recentOrders: [
-      {
-        id: '1',
-        customer: 'Carlos Rodríguez',
-        device: 'iPhone 12 Pro',
-        service: 'Cambio de pantalla',
-        status: 'pending',
-        date: '05/03/2024',
-        priority: 'high',
-        image: 'https://api.a0.dev/assets/image?text=iphone%2012%20pro%20screen%20repair&aspect=1:1&seed=123',
-      },
-      {
-        id: '2',
-        customer: 'Ana Martínez',
-        device: 'Samsung S21',
-        service: 'Cambio de batería',
-        status: 'in_progress',
-        date: '04/03/2024',
-        priority: 'medium',
-        image: 'https://api.a0.dev/assets/image?text=samsung%20s21%20battery%20replacement&aspect=1:1&seed=456',
-      },
-      {
-        id: '3',
-        customer: 'Pablo Gómez',
-        device: 'Xiaomi Redmi Note 11',
-        service: 'Reparación de puerto de carga',
-        status: 'completed',
-        date: '03/03/2024',
-        priority: 'low',
-        image: 'https://api.a0.dev/assets/image?text=xiaomi%20phone%20charging%20port%20repair&aspect=1:1&seed=789',
-      },
-    ],
-    salesData: {
-      day: {
-        labels: ['9am', '12pm', '3pm', '6pm', '9pm'],
-        datasets: [
-          {
-            data: [420, 680, 540, 790, 420],
-          }
-        ]
-      },
-      week: {
-        labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
-        datasets: [
-          {
-            data: [1890, 2100, 1750, 2400, 2850, 1950, 1200],
-          }
-        ]
-      },
-      month: {
-        labels: ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'],
-        datasets: [
-          {
-            data: [7500, 8900, 9600, 8200],
-          }
-        ]
-      }
-    },
-    servicesData: [
-      {
-        name: 'Pantallas',
-        count: 45,
-        color: '#0056b3',
-        legendFontColor: '#7F7F7F',
-        legendFontSize: 12
-      },
-      {
-        name: 'Baterías',
-        count: 28,
-        color: '#28a745',
-        legendFontColor: '#7F7F7F',
-        legendFontSize: 12
-      },
-      {
-        name: 'Software',
-        count: 17,
-        color: '#ffc107',
-        legendFontColor: '#7F7F7F',
-        legendFontSize: 12
-      },
-      {
-        name: 'Otros',
-        count: 10,
-        color: '#6c757d',
-        legendFontColor: '#7F7F7F',
-        legendFontSize: 12
-      }
-    ]
-  };
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [recentOrders, setRecentOrders] = useState<RepairOrder[]>([]);
 
-  const modules = [
-    {
-      id: 'orders',
-      name: 'Órdenes',
-      icon: 'clipboard-text',
-      color: '#0056b3',
-      count: 15,
-      route: '/orders'
-    },
-    {
-      id: 'budgets',
-      name: 'Presupuestos',
-      icon: 'cash-multiple',
-      color: '#6610f2',
-      count: 10,
-      route: '/budgets'
-    },
-    {
-      id: 'inventory',
-      name: 'Inventario',
-      icon: 'package-variant',
-      color: '#28a745',
-      count: 168,
-      route: '/products'
-    },
-    {
-      id: 'customers',
-      name: 'Clientes',
-      icon: 'account-group',
-      color: '#ffc107',
-      count: 87,
-      route: '/customers'
-    },
-    {
-      id: 'sales',
-      name: 'Ventas',
-      icon: 'cash-register',
-      color: '#dc3545',
-      count: 8,
-      route: '/sales'
-    },
-    {
-      id: 'users',
-      name: 'Usuarios',
-      icon: 'account-cog',
-      color: '#6c757d',
-      count: 12,
-      route: '/users'
-    }
-  ];
-  const getStatusColor = (status: 'pending' | 'in_progress' | 'completed' | string): string => {
-    switch (status) {
-      case 'pending': return '#ffc107';
-      case 'in_progress': return '#0056b3';
-      case 'completed': return '#28a745';
-      default: return '#6c757d';
-    }
-  };
-
-  const getStatusText = (status: 'pending' | 'in_progress' | 'completed' | string): string => {
-    switch (status) {
-      case 'pending': return 'Pendiente';
-      case 'in_progress': return 'En Proceso';
-      case 'completed': return 'Completado';
-      default: return 'Desconocido';
-    }
-  };
-
-  const getPriorityIcon = (priority: 'high' | 'medium' | 'low' | string) => {
-    switch (priority) {
-      case 'high': return { name: 'alert-circle', color: '#dc3545' };
-      case 'medium': return { name: 'alert', color: '#ffc107' };
-      case 'low': return { name: 'information', color: '#17a2b8' };
-      default: return { name: 'information-outline', color: '#6c757d' };
-    }
-  };
-
-  const getAlertIcon = (type: 'inventory' | 'order' | 'payment' | string) => {
-    switch (type) {
-      case 'inventory': return { name: 'package-variant-closed-alert', color: '#ffc107' };
-      case 'order': return { name: 'alert-circle', color: '#dc3545' };
-      case 'payment': return { name: 'cash-alert', color: '#6c757d' };
-      default: return { name: 'alert', color: '#6c757d' };
-    }
-  };
-
-  const onRefresh = () => {
-    setLoading(true);
-    // Simulate data fetching
-    setTimeout(() => {
+  const fetchDashboardData = useCallback(async () => {
+    if (!user) {
       setLoading(false);
-    }, 1500);
-  };
+      return;
+    }
+
+    try {
+      setError(null);
+      // Fetch only orders to show recent ones
+      const orders = await api.getRepairOrders();
+      // Sort by newest and take 5
+      const sorted = orders.sort((a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      ).slice(0, 5);
+
+      setRecentOrders(sorted);
+    } catch (err: any) {
+      console.error('Error fetching dashboard data:', err);
+      // Don't show error if it fails, just show empty list
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      fetchDashboardData();
+    } else {
+      setLoading(false);
+    }
+  }, [user, fetchDashboardData]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <View style={styles.headerLeft}>
-        <Text style={styles.headerTitle}>Dashboard</Text>
-        <Text style={styles.headerDate}>5 de Marzo, 2024</Text>
+      <View>
+        <Text style={styles.companyName}>Electrónica Pimentel</Text>
+        <Text style={styles.greeting}>
+          ¡Hola, {user?.firstName || 'Usuario'}!
+        </Text>
+        <Text style={styles.date}>
+          {new Date().toLocaleDateString('es-ES', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          })}
+        </Text>
       </View>
-      <View style={styles.headerRight}>
-        <TouchableOpacity 
-          style={styles.notificationButton}
-          onPress={() => setShowNotifications(!showNotifications)}
+    </View>
+  );
+
+  const renderQuickActions = () => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Acciones Rápidas</Text>
+      <View style={styles.actionsGrid}>
+        <TouchableOpacity
+          style={styles.actionCard}
+          onPress={() => router.push('/orders/new')}
         >
-          <MaterialCommunityIcons name="bell-outline" size={24} color="#0056b3" />
-          {dashboardData.alerts.length > 0 && (
-            <View style={styles.notificationBadge}>
-              <Text style={styles.notificationBadgeText}>{dashboardData.alerts.length}</Text>
-            </View>
-          )}
+          <View style={[styles.actionIcon, { backgroundColor: '#DBEAFE' }]}>
+            <MaterialCommunityIcons name="plus-circle" size={24} color="#3B82F6" />
+          </View>
+          <Text style={styles.actionText}>Nueva Orden</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.userAvatar}>
-          <MaterialCommunityIcons name="account-circle" size={36} color="#0056b3" />
+
+        <TouchableOpacity
+          style={styles.actionCard}
+          onPress={() => router.push('/customers')}
+        >
+          <View style={[styles.actionIcon, { backgroundColor: '#D1FAE5' }]}>
+            <MaterialCommunityIcons name="account-plus" size={24} color="#10B981" />
+          </View>
+          <Text style={styles.actionText}>Clientes</Text>
         </TouchableOpacity>
-      </View>
-    </View>
-  );
 
-  const renderMetrics = () => (
-    <View style={styles.metricsContainer}>
-      <View style={styles.metricCard}>
-        <View style={styles.metricIconContainer}>
-          <MaterialCommunityIcons name="clipboard-text" size={24} color="#0056b3" />
-        </View>
-        <View style={styles.metricContent}>
-          <Text style={styles.metricValue}>{dashboardData.metrics.pendingOrders}</Text>
-          <Text style={styles.metricLabel}>Órdenes Pendientes</Text>
-        </View>
-      </View>
+        <TouchableOpacity
+          style={styles.actionCard}
+          onPress={() => router.push('/products')}
+        >
+          <View style={[styles.actionIcon, { backgroundColor: '#FEF3C7' }]}>
+            <MaterialCommunityIcons name="package-variant" size={24} color="#F59E0B" />
+          </View>
+          <Text style={styles.actionText}>Productos</Text>
+        </TouchableOpacity>
 
-      <View style={styles.metricCard}>
-        <View style={[styles.metricIconContainer, {backgroundColor: 'rgba(40, 167, 69, 0.12)'}]}>
-          <MaterialCommunityIcons name="cash-multiple" size={24} color="#28a745" />
-        </View>
-        <View style={styles.metricContent}>
-          <Text style={styles.metricValue}>${dashboardData.metrics.salesTotal}</Text>
-          <Text style={styles.metricLabel}>Ventas Hoy</Text>
-        </View>
-      </View>
+        <TouchableOpacity
+          style={styles.actionCard}
+          onPress={() => router.push('/budgets')}
+        >
+          <View style={[styles.actionIcon, { backgroundColor: '#E0E7FF' }]}>
+            <MaterialCommunityIcons name="file-document" size={24} color="#6366F1" />
+          </View>
+          <Text style={styles.actionText}>Presupuestos</Text>
+        </TouchableOpacity>
 
-      <View style={styles.metricCard}>
-        <View style={[styles.metricIconContainer, {backgroundColor: 'rgba(0, 123, 255, 0.12)'}]}>
-          <MaterialCommunityIcons name="trending-up" size={24} color="#007bff" />
-        </View>
-        <View style={styles.metricContent}>
-          <Text style={styles.metricValue}>${dashboardData.metrics.incomesTotal}</Text>
-          <Text style={styles.metricLabel}>Ingresos</Text>
-        </View>
-      </View>
-
-      <View style={styles.metricCard}>
-        <View style={[styles.metricIconContainer, {backgroundColor: 'rgba(220, 53, 69, 0.12)'}]}>
-          <MaterialCommunityIcons name="trending-down" size={24} color="#dc3545" />
-        </View>
-        <View style={styles.metricContent}>
-          <Text style={styles.metricValue}>${dashboardData.metrics.expensesTotal}</Text>
-          <Text style={styles.metricLabel}>Gastos</Text>
-        </View>
-      </View>
-    </View>
-  );
-
-  const renderModules = () => (
-    <View style={styles.modulesContainer}>
-      <View style={styles.modulesGridContainer}>
-        {modules.map((module) => (
-          <TouchableOpacity 
-            key={module.id} 
-            style={styles.moduleCard}
-            onPress={() => router.push(module.route as any)}
+        {user?.role === 'ADMIN' && (
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => router.push('/users')}
           >
-            <View style={[styles.moduleIconContainer, {backgroundColor: module.color}]}>
-              <MaterialCommunityIcons name={module.icon as keyof typeof MaterialCommunityIcons.glyphMap} size={24} color="white" />
+            <View style={[styles.actionIcon, { backgroundColor: '#FCE7F3' }]}>
+              <MaterialCommunityIcons name="account-group" size={24} color="#EC4899" />
             </View>
-            <Text style={styles.moduleName}>{module.name}</Text>
-            {module.count !== null && (
-              <View style={styles.moduleCountBadge}>
-                <Text style={styles.moduleCountText}>{module.count}</Text>
-              </View>
-            )}
+            <Text style={styles.actionText}>Usuarios</Text>
           </TouchableOpacity>
-        ))}
+        )}
       </View>
-    </View>
-  );
-
-  const renderAlerts = () => (
-    <View style={styles.alertsContainer}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Alertas</Text>
-        <TouchableOpacity>
-          <Text style={styles.sectionLink}>Ver Todas</Text>
-        </TouchableOpacity>
-      </View>
-
-      {dashboardData.alerts.map((alert) => (
-        <TouchableOpacity key={alert.id} style={styles.alertCard}>
-          <View style={[styles.alertIconContainer, {backgroundColor: `${getAlertIcon(alert.type).color}20`}]}>
-            <MaterialCommunityIcons 
-              name={getAlertIcon(alert.type).name as keyof typeof MaterialCommunityIcons.glyphMap}
-              size={24} 
-              color={getAlertIcon(alert.type).color} 
-            />
-          </View>
-          <View style={styles.alertContent}>
-            <Text style={styles.alertMessage}>{alert.message}</Text>
-            <Text style={styles.alertTime}>Hace {alert.time}</Text>
-          </View>
-          <View style={styles.alertActionContainer}>
-            <MaterialCommunityIcons name="chevron-right" size={24} color="#6c757d" />
-          </View>
-        </TouchableOpacity>
-      ))}
     </View>
   );
 
   const renderRecentOrders = () => (
-    <View style={styles.recentOrdersContainer}>
+    <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Órdenes Recientes</Text>
-        <TouchableOpacity>
-          <Text style={styles.sectionLink}>Ver Todas</Text>
+        <TouchableOpacity onPress={() => router.push('/orders')}>
+          <Text style={styles.seeAll}>Ver todas</Text>
         </TouchableOpacity>
       </View>
 
-      {dashboardData.recentOrders.map((order) => (
-        <TouchableOpacity key={order.id} style={styles.orderCard}>
-          <Image 
-            source={{ uri: order.image }} 
-            style={styles.orderImage} 
-            resizeMode="cover"
-          />
-          <View style={styles.orderContent}>
-            <View style={styles.orderHeader}>
-              <Text style={styles.orderCustomer}>{order.customer}</Text>
-              <MaterialCommunityIcons 
-                name={getPriorityIcon(order.priority).name as keyof typeof MaterialCommunityIcons.glyphMap}
-                size={16} 
-                color={getPriorityIcon(order.priority).color} 
-              />
-            </View>
-            <Text style={styles.orderDevice}>{order.device}</Text>
-            <Text style={styles.orderService}>{order.service}</Text>
-            <View style={styles.orderFooter}>
-              <View style={[styles.orderStatus, {backgroundColor: `${getStatusColor(order.status)}20`}]}>
-                <Text style={[styles.orderStatusText, {color: getStatusColor(order.status)}]}>
-                  {getStatusText(order.status)}
-                </Text>
-              </View>
-              <Text style={styles.orderDate}>{order.date}</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-
-  const renderCharts = () => (
-    <View style={styles.chartsContainer}>
-      {/* Sales Chart */}
-      <View style={styles.chartCard}>
-        <View style={styles.chartHeader}>
-          <Text style={styles.chartTitle}>Ventas</Text>
-          <View style={styles.chartTabs}>
-            <TouchableOpacity 
-              style={[styles.chartTab, activeTab === 'day' && styles.chartTabActive]}
-              onPress={() => setActiveTab('day')}
-            >
-              <Text style={[styles.chartTabText, activeTab === 'day' && styles.chartTabTextActive]}>Día</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.chartTab, activeTab === 'week' && styles.chartTabActive]}
-              onPress={() => setActiveTab('week')}
-            >
-              <Text style={[styles.chartTabText, activeTab === 'week' && styles.chartTabTextActive]}>Semana</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.chartTab, activeTab === 'month' && styles.chartTabActive]}
-              onPress={() => setActiveTab('month')}
-            >
-              <Text style={[styles.chartTabText, activeTab === 'month' && styles.chartTabTextActive]}>Mes</Text>
-            </TouchableOpacity>
-          </View>
+      {recentOrders.length === 0 ? (
+        <View style={styles.emptyState}>
+          <MaterialCommunityIcons name="clipboard-text-outline" size={48} color="#D1D5DB" />
+          <Text style={styles.emptyText}>No hay órdenes recientes</Text>
         </View>
-        
-        <LineChart
-          data={dashboardData.salesData[activeTab as keyof typeof dashboardData.salesData]}
-          width={Dimensions.get('window').width - 40}
-          height={220}
-          chartConfig={{
-            backgroundColor: '#ffffff',
-            backgroundGradientFrom: '#ffffff',
-            backgroundGradientTo: '#ffffff',
-            decimalPlaces: 0,
-            color: (opacity = 1) => `rgba(0, 86, 179, ${opacity})`,
-            labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-            propsForDots: {
-              r: '6',
-              strokeWidth: '2',
-              stroke: '#0056b3'
-            },
-            propsForBackgroundLines: {
-              strokeDasharray: '', // Solid background lines
-            },
-            style: {
-              borderRadius: 16,
-            },
-          }}
-          bezier
-          style={styles.chart}
-        />
-      </View>
-
-      {/* Service Distribution Chart */}
-      <View style={styles.chartCard}>
-        <Text style={styles.chartTitle}>Distribución de Servicios</Text>
-        <PieChart
-          data={dashboardData.servicesData}
-          width={Dimensions.get('window').width - 40}
-          height={220}
-          chartConfig={{
-            backgroundColor: '#ffffff',
-            backgroundGradientFrom: '#ffffff',
-            backgroundGradientTo: '#ffffff',
-            color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-          }}
-          accessor="count"
-          backgroundColor="transparent"
-          paddingLeft="15"
-          absolute
-        />
-      </View>
-    </View>
-  );
-
-  const renderNotifications = () => (
-    <View style={styles.notificationsPanel}>
-      <View style={styles.notificationsHeader}>
-        <Text style={styles.notificationsTitle}>Notificaciones</Text>
-        <TouchableOpacity onPress={() => setShowNotifications(false)}>
-          <MaterialCommunityIcons name="close" size={24} color="#0056b3" />
-        </TouchableOpacity>
-      </View>
-      <ScrollView style={styles.notificationsList}>
-        {dashboardData.alerts.map((alert) => (
-          <TouchableOpacity key={alert.id} style={styles.notificationItem}>
-            <View style={[styles.notificationIcon, {backgroundColor: `${getAlertIcon(alert.type).color}20`}]}>
-              <MaterialCommunityIcons 
-                name={getAlertIcon(alert.type).name as keyof typeof MaterialCommunityIcons.glyphMap}
-                size={20} 
-                color={getAlertIcon(alert.type).color} 
-              />
+      ) : (
+        recentOrders.map((order) => (
+          <TouchableOpacity
+            key={order.id}
+            style={styles.orderCard}
+            onPress={() => router.push(`/orders?openOrderId=${order.id}` as any)}
+          >
+            <View style={styles.orderHeader}>
+              <Text style={styles.orderId}>#{order.id.slice(0, 8)}</Text>
+              <View style={[styles.statusBadge, { backgroundColor: STATUS_COLORS[order.status] }]}>
+                <Text style={styles.statusText}>{STATUS_LABELS[order.status]}</Text>
+              </View>
             </View>
-            <View style={styles.notificationContent}>
-              <Text style={styles.notificationMessage}>{alert.message}</Text>
-              <Text style={styles.notificationTime}>Hace {alert.time}</Text>
-            </View>
+            <Text style={styles.orderCustomer}>{order.customerName}</Text>
+            {order.items && order.items[0] && (
+              <Text style={styles.orderDevice}>
+                {order.items[0].brand} {order.items[0].model}
+              </Text>
+            )}
+            <Text style={styles.orderDate}>
+              {new Date(order.createdAt).toLocaleDateString()}
+            </Text>
           </TouchableOpacity>
-        ))}
-      </ScrollView>
+        ))
+      )}
     </View>
   );
+
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
+    <ScrollView
+      style={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
       {renderHeader()}
-      
-      <ScrollView 
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={onRefresh} colors={['#0056b3']} />
-        }
-      >
-        {renderMetrics()}
-        {renderModules()}
-        {renderAlerts()}
-        {renderRecentOrders()}
-        {renderCharts()}
-      </ScrollView>
-      
-      {showNotifications && renderNotifications()}
-    </View>
+      {renderQuickActions()}
+      {renderRecentOrders()}
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F3F4F6',
   },
-  scrollView: {
+  centered: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'white',
+    padding: 20,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: '#E5E7EB',
   },
-  headerLeft: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 24,
+  greeting: {
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#0056b3',
+    color: '#111827',
   },
-  headerDate: {
+  companyName: {
     fontSize: 14,
-    color: '#6c757d',
-    marginTop: 4,
+    fontWeight: '600',
+    color: '#3B82F6',
+    marginBottom: 2,
+    textTransform: 'uppercase',
   },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  date: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 4,
+    textTransform: 'capitalize',
   },
   notificationButton: {
     padding: 8,
-    marginRight: 8,
-    position: 'relative',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
   },
-  notificationBadge: {
-    position: 'absolute',
-    right: 4,
-    top: 4,
-    backgroundColor: '#dc3545',
-    borderRadius: 10,
-    width: 18,
-    height: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  notificationBadgeText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  userAvatar: {
-    padding: 4,
-  },
-  metricsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 8,
-    justifyContent: 'space-between',
-  },
-  metricCard: {
-    width: '48%',
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  metricIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0, 86, 179, 0.12)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  metricContent: {
-    flex: 1,
-  },
-  metricValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#212529',
-    marginBottom: 4,
-  },
-  metricLabel: {
-    fontSize: 12,
-    color: '#6c757d',
-  },
-  modulesContainer: {
-    padding: 16,
-  },
-  modulesGridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  moduleCard: {
-    width: '31%',
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    alignItems: 'center',
-    position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  moduleIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  moduleName: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#212529',
-    textAlign: 'center',
-  },
-  moduleCountBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: '#dc3545',
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  moduleCountText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: 'bold',
+  section: {
+    padding: 20,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#212529',
+    color: '#111827',
+    marginBottom: 16,
   },
-  sectionLink: {
+  seeAll: {
     fontSize: 14,
-    color: '#0056b3',
+    color: '#3B82F6',
     fontWeight: '500',
   },
-  alertsContainer: {
-    padding: 16,
-  },
-  alertCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
+  actionsGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  actionCard: {
+    width: '30%',
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 12,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
+    marginBottom: 8,
   },
-  alertIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
+  actionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginBottom: 8,
   },
-  alertContent: {
-    flex: 1,
-  },
-  alertMessage: {
-    fontSize: 14,
-    color: '#212529',
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  alertTime: {
+  actionText: {
     fontSize: 12,
-    color: '#6c757d',
+    fontWeight: '500',
+    color: '#374151',
+    textAlign: 'center',
   },
-  alertActionContainer: {
-    padding: 8,
+  emptyState: {
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderStyle: 'dashed',
   },
-  recentOrdersContainer: {
-    padding: 16,
+  emptyText: {
+    marginTop: 8,
+    color: '#9CA3AF',
+    fontSize: 14,
   },
   orderCard: {
-    backgroundColor: 'white',
+    backgroundColor: '#FFFFFF',
+    padding: 16,
     borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
-  },
-  orderImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 10,
-    marginRight: 12,
-  },
-  orderContent: {
-    flex: 1,
   },
   orderHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 8,
+  },
+  orderId: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: 10,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
   },
   orderCustomer: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#212529',
+    fontWeight: '500',
+    color: '#111827',
+    marginBottom: 4,
   },
   orderDevice: {
     fontSize: 14,
-    color: '#495057',
-    marginBottom: 2,
-  },
-  orderService: {
-    fontSize: 13,
-    color: '#6c757d',
+    color: '#4B5563',
     marginBottom: 8,
-  },
-  orderFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  orderStatus: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  orderStatusText: {
-    fontSize: 12,
-    fontWeight: '500',
   },
   orderDate: {
     fontSize: 12,
-    color: '#6c757d',
-  },
-  chartsContainer: {
-    padding: 16,
-    paddingBottom: 24,
-  },
-  chartCard: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  chartHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  chartTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#212529',
-    marginBottom: 16,
-  },
-  chartTabs: {
-    flexDirection: 'row',
-    backgroundColor: '#f1f3f5',
-    borderRadius: 8,
-  },
-  chartTab: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  chartTabActive: {    backgroundColor: '#0056b3',
-  },
-  chartTabText: {
-    fontSize: 12,
-    color: '#6c757d',
-    fontWeight: '500',
-  },
-  chartTabTextActive: {
-    color: 'white',
-  },
-  chart: {
-    borderRadius: 16,
-    marginVertical: 8,
-  },
-  notificationsPanel: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    width: '80%',
-    backgroundColor: 'white',
-    shadowColor: '#000',
-    shadowOffset: { width: -2, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    zIndex: 1000,
-  },
-  notificationsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-  },
-  notificationsTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#212529',
-  },
-  notificationsList: {
-    flex: 1,
-  },
-  notificationItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-  },
-  notificationIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  notificationContent: {
-    flex: 1,
-  },
-  notificationMessage: {
-    fontSize: 14,
-    color: '#212529',
-    marginBottom: 4,
-  },
-  notificationTime: {
-    fontSize: 12,
-    color: '#6c757d',
+    color: '#9CA3AF',
   },
 });
 

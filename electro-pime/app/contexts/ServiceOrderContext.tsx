@@ -45,7 +45,7 @@ export const ServiceOrderProvider: React.FC<{ children: ReactNode }> = ({ childr
       // First try to find in local state
       const localOrder = orders.find(order => order.id === id);
       if (localOrder) return localOrder;
-      
+
       // If not found, fetch from API
       return await api.getServiceOrderById(id);
     } catch (err) {
@@ -68,7 +68,7 @@ export const ServiceOrderProvider: React.FC<{ children: ReactNode }> = ({ childr
   const updateOrder = async (id: string, updates: Partial<ServiceOrderInput>): Promise<ServiceOrder> => {
     try {
       const updatedOrder = await api.updateServiceOrder(id, updates);
-      setOrders(prev => prev.map(order => 
+      setOrders(prev => prev.map(order =>
         order.id === id ? { ...order, ...updatedOrder } : order
       ));
       return updatedOrder;
@@ -91,7 +91,7 @@ export const ServiceOrderProvider: React.FC<{ children: ReactNode }> = ({ childr
   const updateOrderStatus = async (id: string, status: ServiceOrderStatus, notes?: string): Promise<ServiceOrder> => {
     try {
       const updatedOrder = await api.updateServiceOrderStatus(id, status, notes);
-      setOrders(prev => prev.map(order => 
+      setOrders(prev => prev.map(order =>
         order.id === id ? { ...order, status: updatedOrder.status } : order
       ));
       return updatedOrder;
@@ -126,10 +126,8 @@ export const ServiceOrderProvider: React.FC<{ children: ReactNode }> = ({ childr
     });
   };
 
-  // Load orders on mount
-  useEffect(() => {
-    fetchOrders();
-  }, []);
+  // Note: Orders are fetched on-demand by components, not automatically on mount
+  // This prevents API errors when user is not authenticated
 
   return (
     <ServiceOrderContext.Provider

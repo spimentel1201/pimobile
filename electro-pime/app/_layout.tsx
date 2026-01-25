@@ -28,19 +28,18 @@ function RootLayoutNav() {
   useEffect(() => {
     const path = `/${segments.join('/')}`;
     const isAuthRoute = HIDDEN_ROUTES.includes(path) || path.startsWith('/auth/');
-    
+
     // Redirect logic
     if (!loading) {
       if (!user && !isAuthRoute) {
         // User not logged in and not on auth route, redirect to login
-        // Using router.navigate with type assertion
-        (router as any).navigate('login');
+        router.replace('/login');
       } else if (user && isAuthRoute) {
         // User logged in but on auth route, redirect to home
         (router as any).navigate('dashboard');
       }
     }
-    
+
     // Show/hide tab bar based on route
     setIsTabBarVisible(!isAuthRoute);
   }, [user, loading, segments, router]);
@@ -56,7 +55,7 @@ function RootLayoutNav() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <View style={styles.container}>
-        <Stack 
+        <Stack
           screenOptions={{
             header: (props) => <CustomHeader {...props} />,
             contentStyle: { backgroundColor: '#f8fafc' },
@@ -78,7 +77,7 @@ function RootLayoutNav() {
           <StackScreenWithCustomHeader name="users/new" options={{ title: 'Nuevo Usuario' }} />
           <StackScreenWithCustomHeader name="+not-found" options={{ title: 'No encontrado' }} />
         </Stack>
-        
+
         {isTabBarVisible && <BottomTabBar />}
         <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
       </View>

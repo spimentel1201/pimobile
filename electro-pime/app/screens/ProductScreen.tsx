@@ -1,1021 +1,867 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  FlatList, 
-  Image, 
-  Modal, 
-  Switch, 
-  ScrollView, 
-  StyleSheet, 
-  ViewStyle, 
-  TextStyle, 
-  ImageStyle,
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+  Modal,
+  Switch,
+  ScrollView,
+  StyleSheet,
   Alert,
-  Dimensions,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  TouchableWithoutFeedback,
-  Keyboard
+  RefreshControl,
 } from 'react-native';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { LineChart } from 'react-native-chart-kit';
-
-type ProductCategory = {
-  id: string;
-  name: string;
-};
-
-type PriceHistory = {
-  date: string;
-  price: number;
-};
-
-type Product = {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  cost: number;
-  stock: number;
-  minStock: number;
-  category: string;
-  isActive: boolean;
-  imageUrl: string;
-  priceHistory: PriceHistory[];
-};
-
-type FormData = Omit<Product, 'id' | 'priceHistory'>;
-
-type FormErrors = {
-  [key in keyof FormData]?: string;
-};
-
-// Mock data
-const mockProducts: Product[] = [
-  {
-    id: '1',
-    name: 'Smartphone',
-    description: 'Latest model with advanced features',
-    price: 699.99,
-    cost: 450.00,
-    stock: 50,
-    minStock: 10,
-    category: 'electronics',
-    isActive: true,
-    imageUrl: 'https://via.placeholder.com/150',
-    priceHistory: [
-      { date: '2023-01-01', price: 749.99 },
-      { date: '2023-03-01', price: 699.99 },
-    ],
-  },
-  {
-    id: '2',
-    name: 'Laptop',
-    description: 'High-performance laptop for professionals',
-    price: 1299.99,
-    cost: 950.00,
-    stock: 30,
-    minStock: 5,
-    category: 'computers',
-    isActive: true,
-    imageUrl: 'https://via.placeholder.com/150',
-    priceHistory: [
-      { date: '2023-01-01', price: 1399.99 },
-      { date: '2023-03-01', price: 1299.99 },
-    ],
-  },
-];
-
-const productCategories: ProductCategory[] = [
-  { id: 'electronics', name: 'Electrónica' },
-  { id: 'computers', name: 'Computadoras' },
-  { id: 'phones', name: 'Teléfonos' },
-  { id: 'accessories', name: 'Accesorios' },
-  { id: 'other', name: 'Otros' },
-];
+import { api } from '../services/api';
+import { Product, CreateProductDto } from '../types/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const ProductsScreen = () => {
-  // State for products list and form visibility
-  const [products, setProducts] = useState<Product[]>(mockProducts);
-  const [showAddProduct, setShowAddProduct] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const { user } = useAuth();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isGridView, setIsGridView] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [showModal, setShowModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [saving, setSaving] = useState(false);
+
   // Form state
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState<CreateProductDto>({
     name: '',
     description: '',
     price: 0,
     cost: 0,
     stock: 0,
-    minStock: 0,
     category: '',
     isActive: true,
     imageUrl: '',
   });
-  
-  const [errors, setErrors] = useState<FormErrors>({});
 
-  // Filter products based on search query
-  const filteredProducts = products.filter(product => 
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (product.description && product.description.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
-
-  // Handle form input changes
-  const handleInputChange = (field: keyof FormData, value: string | number | boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    // Clear error when user types
-    if (errors[field]) {
-      setErrors(prev => ({
-        ...prev,
-        [field]: undefined
-      }));
-    }
-  };
-
-  // Handle form submission
-  const handleSubmit = () => {
-    const newErrors: FormErrors = {};
-    
-    // Basic validation
-    if (!formData.name.trim()) newErrors.name = 'El nombre es requerido';
-    if (formData.price <= 0) newErrors.price = 'El precio debe ser mayor a 0';
-    if (formData.cost < 0) newErrors.cost = 'El costo no puede ser negativo';
-    if (formData.stock < 0) newErrors.stock = 'El stock no puede ser negativo';
-    if (formData.minStock < 0) newErrors.minStock = 'El stock mínimo no puede ser negativo';
-    if (!formData.category) newErrors.category = 'La categoría es requerida';
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
+  const fetchProducts = useCallback(async () => {
+    if (!user) {
+      setLoading(false);
       return;
     }
 
-    if (editingProduct) {
-      // Update existing product
-      setProducts(prev => 
-        prev.map(p => 
-          p.id === editingProduct.id 
-            ? { ...formData, id: editingProduct.id, priceHistory: editingProduct.priceHistory }
-            : p
-        )
-      );
-    } else {
-      // Add new product
-      const newProduct: Product = {
-        ...formData,
-        id: Date.now().toString(),
-        priceHistory: [{ date: new Date().toISOString().split('T')[0], price: formData.price }]
-      };
-      setProducts(prev => [...prev, newProduct]);
+    try {
+      setError(null);
+      const [productsData, categoriesData] = await Promise.all([
+        api.getProducts(),
+        api.getProductCategories().catch(() => []),
+      ]);
+      setProducts(productsData);
+      setCategories(categoriesData);
+    } catch (err: any) {
+      console.error('Error fetching products:', err);
+      setError(err.message || 'Error al cargar los productos');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
+  }, [user]);
 
-    // Reset form and close modal
+  useEffect(() => {
+    if (user) {
+      fetchProducts();
+    } else {
+      setLoading(false);
+    }
+  }, [user, fetchProducts]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchProducts();
+  }, [fetchProducts]);
+
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    if (query.length >= 2) {
+      try {
+        const results = await api.searchProducts(query);
+        setProducts(results);
+      } catch (err) {
+        console.error('Search error:', err);
+      }
+    } else if (query.length === 0) {
+      fetchProducts();
+    }
+  };
+
+  const filteredProducts = selectedCategory === 'all'
+    ? products
+    : products.filter(p => p.category === selectedCategory);
+
+  const openNewProductModal = () => {
+    setEditingProduct(null);
     setFormData({
       name: '',
       description: '',
       price: 0,
       cost: 0,
       stock: 0,
-      minStock: 0,
-      category: '',
+      category: categories[0] || '',
       isActive: true,
-      imageUrl: 'https://via.placeholder.com/150',
+      imageUrl: '',
     });
-    setShowAddProduct(false);
-    setEditingProduct(null);
+    setShowModal(true);
   };
 
-  // Handle product edit
-  const handleEdit = (product: Product) => {
+  const openEditProductModal = (product: Product) => {
+    setEditingProduct(product);
     setFormData({
       name: product.name,
-      description: product.description,
+      description: product.description || '',
       price: product.price,
       cost: product.cost,
       stock: product.stock,
-      minStock: product.minStock,
       category: product.category,
       isActive: product.isActive,
-      imageUrl: product.imageUrl,
+      imageUrl: product.imageUrl || '',
     });
-    setEditingProduct(product);
-    setShowAddProduct(true);
+    setShowModal(true);
   };
 
-  // Handle product deletion
-  const handleDelete = useCallback((productId: string) => {
+  const handleSaveProduct = async () => {
+    if (!formData.name || !formData.category) {
+      Alert.alert('Error', 'Por favor complete los campos requeridos');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      if (editingProduct) {
+        await api.updateProduct(editingProduct.id, formData);
+        Alert.alert('Éxito', 'Producto actualizado correctamente');
+      } else {
+        await api.createProduct(formData);
+        Alert.alert('Éxito', 'Producto creado correctamente');
+      }
+      setShowModal(false);
+      fetchProducts();
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'No se pudo guardar el producto');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteProduct = (product: Product) => {
     Alert.alert(
-      'Eliminar producto',
-      '¿Estás seguro de que quieres eliminar este producto?',
+      'Confirmar eliminación',
+      `¿Está seguro que desea eliminar "${product.name}"?`,
       [
-        { text: 'Cancelar', style: 'cancel' as const },
+        { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Eliminar',
-          style: 'destructive' as const,
-          onPress: () => {
-            setProducts(prev => prev.filter(p => p.id !== productId));
-            if (editingProduct?.id === productId) {
-              setEditingProduct(null);
-              setShowAddProduct(false);
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.deleteProduct(product.id);
+              Alert.alert('Éxito', 'Producto eliminado correctamente');
+              fetchProducts();
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'No se pudo eliminar el producto');
             }
           },
         },
       ]
     );
-  }, [editingProduct]);
-
-
-
-  const handleNumericInputChange = (field: 'price' | 'cost' | 'stock' | 'minStock', text: string) => {
-    const numericValue = text.replace(/[^0-9.]/g, '');
-    const parts = numericValue.split('.');
-    if (parts.length > 2) {
-      return;
-    }
-    if (parts[1]?.length > 2 && (field === 'price' || field === 'cost')) {
-      return;
-    }
-    const value = numericValue === '' ? 0 : parseFloat(numericValue);
-    handleInputChange(field, isNaN(value) ? 0 : value);
   };
 
-  const handleDeleteProduct = (productId: string) => {
-    setProducts(prev => prev.filter(p => p.id !== productId));
-    if (editingProduct?.id === productId) {
-      setEditingProduct(null);
-      setShowAddProduct(false);
-    }
-  };
-
-  // Add missing style definitions
-  const formStyles = StyleSheet.create({
-    formScroll: {
-      flexGrow: 1,
-    },
-    closeButton: {
-      position: 'absolute',
-      top: 10,
-      right: 10,
-      zIndex: 1,
-    },
-    multilineInput: {
-      minHeight: 100,
-      textAlignVertical: 'top',
-    },
-    toggleContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 15,
-    },
-  });
-
-  const ProductForm = () => {
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    
-    const handleSubmit = async () => {
-      const validationErrors = validateForm(formData);
-      if (Object.keys(validationErrors).length > 0) {
-        setErrors(validationErrors);
-        return;
-      }
-      
-      try {
-        setIsSubmitting(true);
-        if (editingProduct) {
-          setProducts(prev => 
-            prev.map(p => 
-              p.id === editingProduct.id 
-                ? { ...formData, id: editingProduct.id, priceHistory: editingProduct.priceHistory }
-                : p
-            )
-          );
-        } else {
-          const newProduct: Product = {
-            ...formData,
-            id: Date.now().toString(),
-            priceHistory: [{ date: new Date().toISOString().split('T')[0], price: formData.price }]
-          };
-          setProducts(prev => [...prev, newProduct]);
-        }
-        setFormData({
-          name: '',
-          description: '',
-          price: 0,
-          cost: 0,
-          stock: 0,
-          minStock: 0,
-          category: '',
-          isActive: true,
-          imageUrl: 'https://via.placeholder.com/150',
-        });
-        setShowAddProduct(false);
-        setEditingProduct(null);
-      } catch (error) {
-        console.error('Error:', error);
-        Alert.alert('Error', 'No se pudo guardar el producto. Por favor, intente de nuevo.');
-      } finally {
-        setIsSubmitting(false);
-      }
-    };
-
-    const validateForm = (data: FormData): FormErrors => {
-      const errors: FormErrors = {};
-      if (!data.name.trim()) errors.name = 'El nombre es requerido';
-      if (!data.category) errors.category = 'La categoría es requerida';
-      if (isNaN(data.price) || data.price < 0) errors.price = 'Precio inválido';
-      if (isNaN(data.cost) || data.cost < 0) errors.cost = 'Costo inválido';
-      if (isNaN(data.stock) || data.stock < 0) errors.stock = 'Stock inválido';
-      return errors;
-    };
-
-    return (
-      <View style={styles.formContainer}>
-        <View style={styles.formHeader}>
-          <Text style={styles.formTitle}>
-            {editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
-          </Text>
-          <TouchableOpacity 
-            onPress={() => setShowAddProduct(false)}
-            style={{
-              position: 'absolute',
-              top: 10,
-              right: 10,
-              zIndex: 1,
-            }}
-            disabled={isSubmitting}
-          >
-            <MaterialCommunityIcons name="close" size={24} color="#666" />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
-          {/* Name Field */}
-          <View style={styles.formGroup}>
-            <Text style={styles.formLabel}>Nombre del Producto *</Text>
-            <TextInput
-              style={[styles.formInput, errors.name && styles.inputError]}
-              value={formData.name}
-              onChangeText={(text) => handleInputChange('name', text)}
-              placeholder="Ingrese nombre del producto"
-              editable={!isSubmitting}
-            />
-            {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
-          </View>
-
-          {/* Description Field */}
-          <View style={styles.formGroup}>
-            <Text style={styles.formLabel}>Descripción</Text>
-            <TextInput
-              style={[
-                styles.formInput, 
-                { 
-                  minHeight: 100,
-                  textAlignVertical: 'top' 
-                }, 
-                errors.description && styles.inputError
-              ]}
-              value={formData.description}
-              onChangeText={(text) => handleInputChange('description', text)}
-              placeholder="Ingrese una descripción del producto"
-              multiline
-              numberOfLines={3}
-              editable={!isSubmitting}
-            />
-          </View>
-
-          {/* Price and Cost Row */}
-          <View style={styles.row}>
-            <View style={[styles.formGroup, {flex: 1, marginRight: 8}]}>
-              <Text style={styles.formLabel}>Precio de Venta *</Text>
-              <View style={styles.inputWithIcon}>
-                <Text style={styles.currencySymbol}>$</Text>
-                <TextInput
-                  style={[styles.formInput, styles.currencyInput, errors.price && styles.inputError]}
-                  value={formData.price.toString()}
-                  onChangeText={(text) => handleNumericInputChange('price', text)}
-                  placeholder="0.00"
-                  keyboardType="numeric"
-                  editable={!isSubmitting}
-                />
-              </View>
-              {errors.price && <Text style={styles.errorText}>{errors.price}</Text>}
-            </View>
-
-            <View style={[styles.formGroup, {flex: 1, marginLeft: 8}]}>
-              <Text style={styles.formLabel}>Costo *</Text>
-              <View style={styles.inputWithIcon}>
-                <Text style={styles.currencySymbol}>$</Text>
-                <TextInput
-                  style={[styles.formInput, styles.currencyInput, errors.cost && styles.inputError]}
-                  value={formData.cost.toString()}
-                  onChangeText={(text) => handleNumericInputChange('cost', text)}
-                  placeholder="0.00"
-                  keyboardType="numeric"
-                  editable={!isSubmitting}
-                />
-              </View>
-              {errors.cost && <Text style={styles.errorText}>{errors.cost}</Text>}
-            </View>
-          </View>
-
-          {/* Stock Field */}
-          <View style={styles.formGroup}>
-            <Text style={styles.formLabel}>Stock Inicial *</Text>
-            <TextInput
-              style={[styles.formInput, errors.stock && styles.inputError]}
-              value={formData.stock.toString()}
-              onChangeText={(text) => handleNumericInputChange('stock', text)}
-              placeholder="0"
-              keyboardType="numeric"
-              editable={!isSubmitting}
-            />
-            {errors.stock && <Text style={styles.errorText}>{errors.stock}</Text>}
-          </View>
-
-          {/* Category Selector */}
-          <View style={styles.formGroup}>
-            <Text style={styles.formLabel}>Categoría *</Text>
-            <View style={styles.categorySelector}>
-              {productCategories.map((category) => (
-                <TouchableOpacity
-                  key={category.id}
-                  style={[
-                    styles.categoryOption,
-                    formData.category === category.id && styles.categoryOptionSelected
-                  ]}
-                  onPress={() => handleInputChange('category', category.id)}
-                >
-                  <Text style={[
-                    styles.categoryOptionText,
-                    formData.category === category.id && styles.categoryOptionTextSelected
-                  ]}>
-                    {category.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            {errors.category && <Text style={styles.errorText}>{errors.category}</Text>}
-          </View>
-
-          {/* Active Toggle */}
-          <View style={[
-            styles.formGroup, 
-            {
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: 15,
+  const handleUpdateStock = (product: Product, quantity: number) => {
+    Alert.alert(
+      'Actualizar Stock',
+      `Stock actual: ${product.stock}\n¿Cuántas unidades desea ${quantity > 0 ? 'agregar' : 'restar'}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Confirmar',
+          onPress: async () => {
+            try {
+              await api.updateProductStock(product.id, quantity);
+              Alert.alert('Éxito', 'Stock actualizado correctamente');
+              fetchProducts();
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'No se pudo actualizar el stock');
             }
-          ]}>
-            <Text style={styles.formLabel}>Producto Activo</Text>
-            <Switch
-              value={formData.isActive}
-              onValueChange={(value) => handleInputChange('isActive', value)}
-              trackColor={{ false: '#767577', true: '#81b0ff' }}
-              thumbColor={formData.isActive ? '#f5dd4b' : '#f4f3f4'}
-              ios_backgroundColor="#3e3e3e"
-              disabled={isSubmitting}
-            />
-          </View>
-
-          {/* Image URL */}
-          <View style={styles.formGroup}>
-            <Text style={styles.formLabel}>URL de la Imagen</Text>
-            <TextInput
-              style={styles.formInput}
-              value={formData.imageUrl}
-              onChangeText={(text) => handleInputChange('imageUrl', text)}
-              placeholder="https://ejemplo.com/imagen.jpg"
-              keyboardType="url"
-              editable={!isSubmitting}
-            />
-          </View>
-
-          <TouchableOpacity style={styles.submitButton}>
-            <Text style={styles.submitButtonText}>Guardar Producto</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
+          },
+        },
+      ]
     );
   };
 
   const renderHeader = () => (
     <View style={styles.header}>
       <Text style={styles.headerTitle}>Productos</Text>
-      <TouchableOpacity 
-        onPress={() => {
-          setFormData({
-            name: '',
-            description: '',
-            price: 0,
-            cost: 0,
-            stock: 0,
-            minStock: 0,
-            category: '',
-            isActive: true,
-            imageUrl: '',
-          });
-          setErrors({});
-          setEditingProduct(null);
-          setShowAddProduct(true);
-        }}
-        style={styles.addButton}
-      >
-        <MaterialCommunityIcons name="plus" size={24} color="white" />
-        <Text style={styles.addButtonText}>Nuevo Producto</Text>
+      <TouchableOpacity style={styles.addButton} onPress={openNewProductModal}>
+        <MaterialIcons name="add" size={20} color="white" />
+        <Text style={styles.addButtonText}>Nuevo</Text>
       </TouchableOpacity>
     </View>
   );
 
-  const renderSearch = () => (
-    <View style={styles.searchContainer}>
-      <View style={styles.searchBar}>
-        <MaterialCommunityIcons name="magnify" size={24} color="#6c757d" />
+  const renderSearchAndFilters = () => (
+    <View style={styles.filtersSection}>
+      <View style={styles.searchContainer}>
+        <MaterialIcons name="search" size={20} color="#9CA3AF" />
         <TextInput
           style={styles.searchInput}
-          placeholder="Buscar productos"
+          placeholder="Buscar productos..."
+          placeholderTextColor="#9CA3AF"
           value={searchQuery}
-          onChangeText={setSearchQuery}
+          onChangeText={handleSearch}
         />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => handleSearch('')}>
+            <MaterialIcons name="close" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
+        )}
       </View>
-      <TouchableOpacity
-        style={styles.viewModeButton}
-        onPress={() => setIsGridView(!isGridView)}>
-        <MaterialCommunityIcons
-          name={isGridView ? 'view-list' : 'view-grid'}
-          size={24}
-          color="#0056b3"
-        />
-      </TouchableOpacity>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesContainer}>
+        <TouchableOpacity
+          style={[styles.categoryChip, selectedCategory === 'all' && styles.categoryChipActive]}
+          onPress={() => setSelectedCategory('all')}
+        >
+          <Text style={[styles.categoryChipText, selectedCategory === 'all' && styles.categoryChipTextActive]}>
+            Todas
+          </Text>
+        </TouchableOpacity>
+        {categories.map((category) => (
+          <TouchableOpacity
+            key={category}
+            style={[styles.categoryChip, selectedCategory === category && styles.categoryChipActive]}
+            onPress={() => setSelectedCategory(category)}
+          >
+            <Text style={[styles.categoryChipText, selectedCategory === category && styles.categoryChipTextActive]}>
+              {category}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
     </View>
   );
 
-  const renderProductCard = (product: Product) => {
-    const handleEdit = () => {
-      setFormData({
-        name: product.name,
-        description: product.description,
-        price: product.price,
-        cost: product.cost,
-        stock: product.stock,
-        minStock: product.minStock,
-        category: product.category,
-        isActive: product.isActive,
-        imageUrl: product.imageUrl,
-      });
-      setEditingProduct(product);
-      setShowAddProduct(true);
-    };
-
-    const handleDelete = () => {
-      Alert.alert(
-        'Eliminar Producto',
-        `¿Está seguro de eliminar ${product.name}?`,
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { 
-            text: 'Eliminar',
-            style: 'destructive',
-            onPress: () => {
-              setProducts(prev => prev.filter(p => p.id !== product.id));
-              if (editingProduct?.id === product.id) {
-                setEditingProduct(null);
-                setShowAddProduct(false);
-              }
-            },
-          },
-        ]
-      );
-    };
+  const renderProductCard = ({ item }: { item: Product }) => {
+    const profit = item.price - item.cost;
+    const profitMargin = item.cost > 0 ? ((profit / item.cost) * 100).toFixed(1) : '0';
 
     return (
-      <TouchableOpacity
-        key={product.id}
-        style={[
-          styles.productCard,
-          isGridView && styles.productCardGrid,
-        ]}
-      >
-        <Image
-          source={{ uri: product.imageUrl }}
-          style={[
-            styles.productImage,
-            isGridView && styles.productImageGrid,
-          ]}
-        />
-        <View style={styles.productInfo}>
-          <Text style={styles.productName}>{product.name}</Text>
-          <Text style={styles.productPrice}>${product.price.toFixed(2)}</Text>
-          <View style={styles.stockContainer}>
-            <MaterialCommunityIcons
-              name="package-variant"
-              size={16}
-              color={product.stock <= product.minStock ? '#dc3545' : '#28a745'}
-            />
-            <Text
-              style={[
-                styles.stockText,
-                { color: product.stock <= product.minStock ? '#dc3545' : '#28a745' },
-              ]}
-            >
-              Stock: {product.stock}
+      <View style={[styles.productCard, !item.isActive && styles.productCardInactive]}>
+        <View style={styles.productHeader}>
+          <View style={styles.productInfo}>
+            <Text style={styles.productName}>{item.name}</Text>
+            <Text style={styles.productCategory}>{item.category}</Text>
+          </View>
+          <View style={[styles.statusBadge, { backgroundColor: item.isActive ? '#10B981' : '#9CA3AF' }]}>
+            <Text style={styles.statusBadgeText}>{item.isActive ? 'Activo' : 'Inactivo'}</Text>
+          </View>
+        </View>
+
+        {item.description && (
+          <Text style={styles.productDescription} numberOfLines={2}>{item.description}</Text>
+        )}
+
+        <View style={styles.priceRow}>
+          <View style={styles.priceItem}>
+            <Text style={styles.priceLabel}>Costo</Text>
+            <Text style={styles.priceValue}>S/ {item.cost.toFixed(2)}</Text>
+          </View>
+          <View style={styles.priceItem}>
+            <Text style={styles.priceLabel}>Precio</Text>
+            <Text style={[styles.priceValue, styles.priceValueHighlight]}>S/ {item.price.toFixed(2)}</Text>
+          </View>
+          <View style={styles.priceItem}>
+            <Text style={styles.priceLabel}>Margen</Text>
+            <Text style={[styles.priceValue, { color: profit > 0 ? '#10B981' : '#EF4444' }]}>
+              {profitMargin}%
             </Text>
           </View>
         </View>
-        {!isGridView && (
-          <View style={styles.listActions}>
-            <TouchableOpacity style={styles.actionButton} onPress={handleEdit}>
-              <MaterialCommunityIcons name="pencil" size={20} color="#0056b3" />
+
+        <View style={styles.stockRow}>
+          <View style={styles.stockInfo}>
+            <MaterialCommunityIcons name="package-variant" size={20} color="#6B7280" />
+            <Text style={[
+              styles.stockText,
+              item.stock <= 5 && styles.stockLow,
+              item.stock === 0 && styles.stockOut
+            ]}>
+              {item.stock} unidades
+            </Text>
+          </View>
+          <View style={styles.stockActions}>
+            <TouchableOpacity
+              style={styles.stockButton}
+              onPress={() => handleUpdateStock(item, 1)}
+            >
+              <MaterialIcons name="add" size={18} color="#3B82F6" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton} onPress={handleDelete}>
-              <MaterialCommunityIcons name="delete" size={20} color="#dc3545" />
+            <TouchableOpacity
+              style={styles.stockButton}
+              onPress={() => handleUpdateStock(item, -1)}
+            >
+              <MaterialIcons name="remove" size={18} color="#EF4444" />
             </TouchableOpacity>
           </View>
-        )}
-      </TouchableOpacity>
+        </View>
+
+        <View style={styles.productActions}>
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
+            onPress={() => openEditProductModal(item)}
+          >
+            <MaterialIcons name="edit" size={18} color="white" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: '#EF4444' }]}
+            onPress={() => handleDeleteProduct(item)}
+          >
+            <MaterialIcons name="delete" size={18} color="white" />
+          </TouchableOpacity>
+        </View>
+      </View>
     );
   };
 
-  const renderProductsGrid = () => (
-    <FlatList
-      data={filteredProducts}
-      keyExtractor={(item) => item.id}
-      renderItem={({ item }) => renderProductCard(item)}
-      numColumns={isGridView ? 2 : 1}
-      contentContainerStyle={[
-        isGridView ? styles.gridContainer : styles.listContainer,
-        { paddingBottom: 20, paddingHorizontal: 8 }
-      ]}
-      key={isGridView ? 'grid' : 'list'}
-      ListEmptyComponent={
-        <View style={styles.emptyContainer}>
-          <MaterialCommunityIcons name="package-variant" size={48} color="#bdc3c7" />
-          <Text style={styles.emptyText}>No hay productos para mostrar</Text>
+  const renderModal = () => (
+    <Modal
+      visible={showModal}
+      animationType="slide"
+      onRequestClose={() => setShowModal(false)}
+    >
+      <View style={styles.modalContainer}>
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle}>
+            {editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
+          </Text>
+          <TouchableOpacity onPress={() => setShowModal(false)}>
+            <MaterialIcons name="close" size={24} color="#374151" />
+          </TouchableOpacity>
         </View>
-      }
-    />
+
+        <ScrollView style={styles.modalContent}>
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Nombre *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Nombre del producto"
+              value={formData.name}
+              onChangeText={(text) => setFormData({ ...formData, name: text })}
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Descripción</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="Descripción del producto"
+              value={formData.description}
+              onChangeText={(text) => setFormData({ ...formData, description: text })}
+              multiline
+              numberOfLines={3}
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Categoría *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Ej: Repuestos, Accesorios..."
+              value={formData.category}
+              onChangeText={(text) => setFormData({ ...formData, category: text })}
+            />
+          </View>
+
+          <View style={styles.row}>
+            <View style={[styles.inputContainer, styles.halfWidth]}>
+              <Text style={styles.inputLabel}>Costo *</Text>
+              <View style={styles.currencyInput}>
+                <Text style={styles.currencySymbol}>S/</Text>
+                <TextInput
+                  style={styles.currencyField}
+                  placeholder="0.00"
+                  value={formData.cost?.toString() || ''}
+                  onChangeText={(text) => setFormData({ ...formData, cost: parseFloat(text) || 0 })}
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+            <View style={[styles.inputContainer, styles.halfWidth]}>
+              <Text style={styles.inputLabel}>Precio *</Text>
+              <View style={styles.currencyInput}>
+                <Text style={styles.currencySymbol}>S/</Text>
+                <TextInput
+                  style={styles.currencyField}
+                  placeholder="0.00"
+                  value={formData.price?.toString() || ''}
+                  onChangeText={(text) => setFormData({ ...formData, price: parseFloat(text) || 0 })}
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Stock inicial</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="0"
+              value={formData.stock?.toString() || ''}
+              onChangeText={(text) => setFormData({ ...formData, stock: parseInt(text) || 0 })}
+              keyboardType="numeric"
+            />
+          </View>
+
+          <View style={styles.switchContainer}>
+            <Text style={styles.inputLabel}>Producto activo</Text>
+            <Switch
+              value={formData.isActive}
+              onValueChange={(value) => setFormData({ ...formData, isActive: value })}
+              trackColor={{ false: '#D1D5DB', true: '#93C5FD' }}
+              thumbColor={formData.isActive ? '#3B82F6' : '#9CA3AF'}
+            />
+          </View>
+        </ScrollView>
+
+        <View style={styles.modalFooter}>
+          <TouchableOpacity
+            style={[styles.footerButton, styles.cancelButton]}
+            onPress={() => setShowModal(false)}
+          >
+            <Text style={styles.cancelButtonText}>Cancelar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.footerButton, styles.saveButton, saving && styles.buttonDisabled]}
+            onPress={handleSaveProduct}
+            disabled={saving}
+          >
+            {saving ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={styles.saveButtonText}>
+                {editingProduct ? 'Actualizar' : 'Guardar'}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
   );
+
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+        <Text style={styles.loadingText}>Cargando productos...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.centered}>
+        <MaterialIcons name="error" size={48} color="#EF4444" />
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={fetchProducts}>
+          <Text style={styles.retryButtonText}>Reintentar</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       {renderHeader()}
-      {showAddProduct ? (
-        <Modal
-          visible={showAddProduct}
-          animationType="slide"
-          onRequestClose={() => setShowAddProduct(false)}
-        >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <ProductForm />
-            </View>
+      {renderSearchAndFilters()}
+      <FlatList
+        data={filteredProducts}
+        renderItem={renderProductCard}
+        keyExtractor={item => item.id}
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <MaterialCommunityIcons name="package-variant-closed" size={64} color="#D1D5DB" />
+            <Text style={styles.emptyText}>No hay productos</Text>
+            <TouchableOpacity style={styles.emptyButton} onPress={openNewProductModal}>
+              <Text style={styles.emptyButtonText}>Agregar primer producto</Text>
+            </TouchableOpacity>
           </View>
-        </Modal>
-      ) : (
-        <>
-          {renderSearch()}
-          {renderProductsGrid()}
-        </>
-      )}
+        }
+      />
+      {renderModal()}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  errorText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#EF4444',
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 16,
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontWeight: '600',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  addButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  filtersSection: {
+    backgroundColor: 'white',
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  searchInput: {
+    flex: 1,
+    height: 44,
+    fontSize: 16,
+    color: '#111827',
+    marginLeft: 8,
+  },
+  categoriesContainer: {
+    paddingHorizontal: 16,
+    marginTop: 12,
+  },
+  categoryChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    marginRight: 8,
+  },
+  categoryChipActive: {
+    backgroundColor: '#3B82F6',
+  },
+  categoryChipText: {
+    fontSize: 14,
+    color: '#4B5563',
+  },
+  categoryChipTextActive: {
+    color: 'white',
+  },
+  listContent: {
+    padding: 16,
+  },
+  productCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  productCardInactive: {
+    opacity: 0.6,
+  },
+  productHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  productInfo: {
+    flex: 1,
+  },
+  productName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  productCategory: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  productDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 12,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  priceItem: {
+    alignItems: 'center',
+  },
+  priceLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  priceValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginTop: 4,
+  },
+  priceValueHighlight: {
+    color: '#3B82F6',
+  },
+  stockRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  stockInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  stockText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#4B5563',
+  },
+  stockLow: {
+    color: '#F59E0B',
+  },
+  stockOut: {
+    color: '#EF4444',
+  },
+  stockActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  stockButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  productActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  actionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 64,
+  },
+  emptyText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  emptyButton: {
+    marginTop: 16,
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  emptyButtonText: {
+    color: 'white',
+    fontWeight: '600',
+  },
   // Modal styles
   modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    padding: 20,
+    backgroundColor: '#F9FAFB',
   },
-  modalContent: {
-    backgroundColor: 'white',
-    borderRadius: 10,
-    padding: 20,
-    maxHeight: '90%',
-  },
-  
-  // Grid/List styles
-  gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    padding: 8,
-  },
-  listContainer: {
-    padding: 8,
-  },
-  flatListContent: {
-    paddingBottom: 20,
-    paddingHorizontal: 8,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  header: {
+  modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
     backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: '#E5E7EB',
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#0056b3',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    padding: 16,
-    backgroundColor: 'white',
-    alignItems: 'center',
-  },
-  searchBar: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f1f3f5',
-    borderRadius: 8,
-    padding: 8,
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 16,
-  },
-  filterButton: {
-    padding: 8,
-    marginRight: 8,
-  },
-  viewModeButton: {
-    padding: 8,
-  },
-  productCard: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 2,
-  },
-  productCardGrid: {
-    width: '48%',
-    margin: '1%',
-  },
-  productImage: {
-    width: '100%',
-    height: 150,
-    resizeMode: 'cover',
-  },
-  productImageGrid: {
-    height: 100,
-  },
-  productInfo: {
-    marginBottom: 8,
-  },
-  productName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#212529',
-    marginBottom: 4,
-  },
-  productPrice: {
+  modalTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#0056b3',
-    marginBottom: 8,
+    fontWeight: '600',
+    color: '#111827',
   },
-  stockContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  modalContent: {
+    flex: 1,
+    padding: 16,
   },
-  stockText: {
-    marginLeft: 4,
+  inputContainer: {
+    marginBottom: 16,
+  },
+  inputLabel: {
     fontSize: 14,
     fontWeight: '500',
-  },
-  listActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingLeft: 8,
-  },
-  actionButton: {
-    padding: 8,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 50,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#7f8c8d',
-    textAlign: 'center',
-    marginTop: 10,
-  },
-  formContainer: {
-    flex: 1,
-    padding: 16,
-  },
-  formHeader: {
-    marginBottom: 20,
-  },
-  formTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#212529',
+    color: '#374151',
     marginBottom: 8,
   },
-  formGroup: {
-    marginBottom: 16,
-  },
-  formLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#495057',
-    marginBottom: 8,
-  },
-  formInput: {
-    backgroundColor: '#f8f9fa',
+  input: {
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#dee2e6',
+    color: '#111827',
   },
-  inputError: {
-    borderColor: '#dc3545',
-  },
-  errorText: {
-    color: '#dc3545',
-    fontSize: 12,
-    marginTop: 4,
+  textArea: {
+    minHeight: 80,
+    textAlignVertical: 'top',
   },
   row: {
     flexDirection: 'row',
-    marginBottom: 16,
-  },
-  inputWithIcon: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  currencySymbol: {
-    position: 'absolute',
-    left: 12,
-    zIndex: 1,
-    color: '#6c757d',
-  },
-  currencyInput: {
-    paddingLeft: 30,
-  },
-  
-  // Category Selector
-  categorySelector: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 8,
-  },
-  categoryOption: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: '#f1f3f5',
-    marginRight: 8,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  categoryOptionSelected: {
-    backgroundColor: '#0056b3',
-    borderColor: '#0056b3',
-  },
-  categoryOptionText: {
-    color: '#495057',
-    fontWeight: '500',
-  },
-  categoryOptionTextSelected: {
-    color: 'white',
-  },
-  
-  // Form Actions
-  formActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 24,
     gap: 12,
   },
-  cancelButton: {
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: '#f1f3f5',
-  },
-  cancelButtonText: {
-    color: '#495057',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  submitButton: {
+  halfWidth: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: '#0056b3',
   },
-  submitButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  
-  // Buttons
-  addButton: {
+  currencyInput: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0056b3',
-    padding: 10,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     borderRadius: 8,
+    overflow: 'hidden',
   },
-  addButtonText: {
-    color: 'white',
-    marginLeft: 8,
-    fontWeight: '600',
+  currencySymbol: {
+    padding: 12,
+    fontSize: 16,
+    color: '#6B7280',
+    backgroundColor: '#F3F4F6',
   },
-  deleteButton: {
-    marginTop: 10,
-    backgroundColor: '#ff3b30',
-    padding: 15,
-    borderRadius: 4,
-    alignItems: 'center',
-  },
-  
-  // Empty State
-  emptyState: {
+  currencyField: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+    padding: 12,
+    fontSize: 16,
+    color: '#111827',
   },
-  
-  // Action Buttons
-  actionButtons: {
+  switchContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 10,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    padding: 16,
+    backgroundColor: 'white',
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: '#E5E7EB',
+    gap: 12,
   },
-  editButton: {
-    backgroundColor: '#007AFF',
+  footerButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  deleteButtonText: {
-    color: 'white',
-    fontWeight: '500',
+  cancelButton: {
+    backgroundColor: '#F3F4F6',
   },
-  
-  // Status Badge
-  statusBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginTop: 4,
-  },
-  statusActive: {
-    backgroundColor: '#d4edda',
-  },
-  statusInactive: {
-    backgroundColor: '#f8d7da',
-  },
-  statusText: {
-    fontSize: 12,
+  cancelButtonText: {
+    color: '#374151',
     fontWeight: '600',
   },
-  statusTextActive: {
-    color: '#155724',
+  saveButton: {
+    backgroundColor: '#3B82F6',
   },
-  statusTextInactive: {
-    color: '#721c24',
+  saveButtonText: {
+    color: 'white',
+    fontWeight: '600',
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
 });
 
