@@ -69,7 +69,7 @@ export default function LoginScreen() {
             >
                 <View style={styles.header}>
                     <Ionicons name="construct" size={64} color="#3B82F6" />
-                    <Text style={styles.title}>Electro Pime</Text>
+                    <Text style={styles.title}>ElectroControl</Text>
                     <Text style={styles.subtitle}>Gestión de Reparaciones</Text>
                 </View>
 
