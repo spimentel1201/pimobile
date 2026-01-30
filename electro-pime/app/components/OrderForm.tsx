@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import SearchableSelector from './SearchableSelector';
+import LabelScanner from './LabelScanner';
+import { ExtractedDeviceInfo } from '../services/ocrService';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -99,6 +101,10 @@ export default function OrderForm({
   // Multiple items
   const [items, setItems] = useState<OrderItem[]>([createEmptyItem()]);
 
+  // Label scanner
+  const [showScanner, setShowScanner] = useState(false);
+  const [currentScanIndex, setCurrentScanIndex] = useState(0);
+
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -157,6 +163,23 @@ export default function OrderForm({
       return updated;
     });
   };
+
+  // Handle OCR scan result
+  const handleScanResult = (data: ExtractedDeviceInfo) => {
+    setItems(prev => {
+      const updated = [...prev];
+      if (data.brand) updated[currentScanIndex].brand = data.brand;
+      if (data.model) updated[currentScanIndex].model = data.model;
+      if (data.serialNumber) updated[currentScanIndex].serialNumber = data.serialNumber;
+      return updated;
+    });
+  };
+
+  const openScanner = (index: number) => {
+    setCurrentScanIndex(index);
+    setShowScanner(true);
+  };
+
 
   const addItem = () => {
     setItems(prev => [...prev, createEmptyItem()]);
@@ -289,6 +312,16 @@ export default function OrderForm({
         )}
       </View>
 
+      {/* Scan Label Button */}
+      <TouchableOpacity
+        style={styles.scanButton}
+        onPress={() => openScanner(index)}
+      >
+        <MaterialCommunityIcons name="camera" size={20} color="#3B82F6" />
+        <Text style={styles.scanButtonText}>Escanear Etiqueta</Text>
+        <Text style={styles.scanButtonHint}>Captura marca, modelo y serie</Text>
+      </TouchableOpacity>
+
       {/* Brand & Model */}
       <View style={styles.row}>
         <View style={[styles.inputContainer, styles.halfWidth]}>
@@ -403,152 +436,161 @@ export default function OrderForm({
   );
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-      {/* Technician Banner - Read Only */}
-      <View style={styles.technicianBanner}>
-        <MaterialCommunityIcons name="account-wrench" size={22} color="#3B82F6" />
-        <View style={styles.technicianInfo}>
-          <Text style={styles.technicianLabel}>Técnico asignado</Text>
-          <Text style={styles.technicianName}>{user?.firstName} {user?.lastName}</Text>
+    <>
+      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        {/* Technician Banner - Read Only */}
+        <View style={styles.technicianBanner}>
+          <MaterialCommunityIcons name="account-wrench" size={22} color="#3B82F6" />
+          <View style={styles.technicianInfo}>
+            <Text style={styles.technicianLabel}>Técnico asignado</Text>
+            <Text style={styles.technicianName}>{user?.firstName} {user?.lastName}</Text>
+          </View>
+          <View style={styles.technicianBadge}>
+            <Text style={styles.technicianBadgeText}>Auto</Text>
+          </View>
         </View>
-        <View style={styles.technicianBadge}>
-          <Text style={styles.technicianBadgeText}>Auto</Text>
+
+        {/* Customer Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Cliente</Text>
+
+          <SearchableSelector<Customer>
+            label="Cliente"
+            placeholder="Buscar cliente por nombre, teléfono o documento..."
+            value={selectedCustomer}
+            onSelect={setSelectedCustomer}
+            searchFn={searchCustomers}
+            renderItem={(c) => c.name}
+            renderSubtitle={(c) => `${c.documentType}: ${c.documentNumber} | Tel: ${c.phone}`}
+            keyExtractor={(c) => c.id}
+            required
+          />
+          {errors.customer && <Text style={styles.errorText}>{errors.customer}</Text>}
         </View>
-      </View>
 
-      {/* Customer Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Cliente</Text>
+        {/* Items Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Equipos a Reparar</Text>
+            <TouchableOpacity style={styles.addButton} onPress={addItem}>
+              <MaterialCommunityIcons name="plus" size={20} color="#fff" />
+              <Text style={styles.addButtonText}>Agregar</Text>
+            </TouchableOpacity>
+          </View>
 
-        <SearchableSelector<Customer>
-          label="Cliente"
-          placeholder="Buscar cliente por nombre, teléfono o documento..."
-          value={selectedCustomer}
-          onSelect={setSelectedCustomer}
-          searchFn={searchCustomers}
-          renderItem={(c) => c.name}
-          renderSubtitle={(c) => `${c.documentType}: ${c.documentNumber} | Tel: ${c.phone}`}
-          keyExtractor={(c) => c.id}
-          required
-        />
-        {errors.customer && <Text style={styles.errorText}>{errors.customer}</Text>}
-      </View>
+          {items.map((item, index) => renderItemForm(item, index))}
+        </View>
 
-      {/* Items Section */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Equipos a Reparar</Text>
-          <TouchableOpacity style={styles.addButton} onPress={addItem}>
-            <MaterialCommunityIcons name="plus" size={20} color="#fff" />
-            <Text style={styles.addButtonText}>Agregar</Text>
+        {/* Order Details Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Detalles de la Orden</Text>
+
+          {/* Description */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Descripción general <Text style={styles.required}>*</Text></Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="Resumen general de la orden de reparación"
+              placeholderTextColor="#9CA3AF"
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              numberOfLines={3}
+            />
+            {errors.description && <Text style={styles.errorText}>{errors.description}</Text>}
+          </View>
+
+          {/* Notes */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Notas adicionales (opcional)</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="Notas internas o instrucciones especiales"
+              placeholderTextColor="#9CA3AF"
+              value={notes}
+              onChangeText={setNotes}
+              multiline
+              numberOfLines={2}
+            />
+          </View>
+
+          {/* Initial Review Cost */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Costo de revisión inicial</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="S/ 0.00"
+              placeholderTextColor="#9CA3AF"
+              value={initialReviewCost}
+              onChangeText={setInitialReviewCost}
+              keyboardType="decimal-pad"
+            />
+          </View>
+
+          {/* Status (for editing) */}
+          {initialData && (
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Estado</Text>
+              <TouchableOpacity
+                style={styles.select}
+                onPress={() => setShowStatusPicker(!showStatusPicker)}
+              >
+                <Text style={styles.selectText}>
+                  {STATUS_OPTIONS.find(s => s.value === status)?.label || status}
+                </Text>
+                <Ionicons name="chevron-down" size={20} color="#6B7280" />
+              </TouchableOpacity>
+              {showStatusPicker && (
+                <View style={styles.pickerDropdown}>
+                  {STATUS_OPTIONS.map((option) => (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={styles.pickerItem}
+                      onPress={() => {
+                        setStatus(option.value);
+                        setShowStatusPicker(false);
+                      }}
+                    >
+                      <Text style={styles.pickerItemText}>{option.label}</Text>
+                      {status === option.value && (
+                        <Ionicons name="checkmark" size={20} color="#3B82F6" />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* Submit Button */}
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.submitButton, loading && styles.buttonDisabled]}
+            onPress={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="save" size={20} color="#fff" style={styles.buttonIcon} />
+                <Text style={styles.buttonText}>
+                  {initialData ? 'Actualizar Orden' : 'Crear Orden'}
+                </Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
+      </ScrollView>
 
-        {items.map((item, index) => renderItemForm(item, index))}
-      </View>
-
-      {/* Order Details Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Detalles de la Orden</Text>
-
-        {/* Description */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Descripción general <Text style={styles.required}>*</Text></Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="Resumen general de la orden de reparación"
-            placeholderTextColor="#9CA3AF"
-            value={description}
-            onChangeText={setDescription}
-            multiline
-            numberOfLines={3}
-          />
-          {errors.description && <Text style={styles.errorText}>{errors.description}</Text>}
-        </View>
-
-        {/* Notes */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Notas adicionales (opcional)</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="Notas internas o instrucciones especiales"
-            placeholderTextColor="#9CA3AF"
-            value={notes}
-            onChangeText={setNotes}
-            multiline
-            numberOfLines={2}
-          />
-        </View>
-
-        {/* Initial Review Cost */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Costo de revisión inicial</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="S/ 0.00"
-            placeholderTextColor="#9CA3AF"
-            value={initialReviewCost}
-            onChangeText={setInitialReviewCost}
-            keyboardType="decimal-pad"
-          />
-        </View>
-
-        {/* Status (for editing) */}
-        {initialData && (
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Estado</Text>
-            <TouchableOpacity
-              style={styles.select}
-              onPress={() => setShowStatusPicker(!showStatusPicker)}
-            >
-              <Text style={styles.selectText}>
-                {STATUS_OPTIONS.find(s => s.value === status)?.label || status}
-              </Text>
-              <Ionicons name="chevron-down" size={20} color="#6B7280" />
-            </TouchableOpacity>
-            {showStatusPicker && (
-              <View style={styles.pickerDropdown}>
-                {STATUS_OPTIONS.map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={styles.pickerItem}
-                    onPress={() => {
-                      setStatus(option.value);
-                      setShowStatusPicker(false);
-                    }}
-                  >
-                    <Text style={styles.pickerItemText}>{option.label}</Text>
-                    {status === option.value && (
-                      <Ionicons name="checkmark" size={20} color="#3B82F6" />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
-      </View>
-
-      {/* Submit Button */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.submitButton, loading && styles.buttonDisabled]}
-          onPress={handleSubmit}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Ionicons name="save" size={20} color="#fff" style={styles.buttonIcon} />
-              <Text style={styles.buttonText}>
-                {initialData ? 'Actualizar Orden' : 'Crear Orden'}
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+      {/* Label Scanner Modal */}
+      <LabelScanner
+        visible={showScanner}
+        onClose={() => setShowScanner(false)}
+        onConfirm={handleScanResult}
+      />
+    </>
   );
 }
 
@@ -791,5 +833,27 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  scanButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+    borderStyle: 'dashed',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+    gap: 8,
+  },
+  scanButtonText: {
+    color: '#3B82F6',
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+  },
+  scanButtonHint: {
+    color: '#9CA3AF',
+    fontSize: 12,
   },
 });
