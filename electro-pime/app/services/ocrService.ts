@@ -1,8 +1,7 @@
-import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
 
-const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent';
+const DEEPSEEK_API_KEY = process.env.EXPO_PUBLIC_DEEPSEEK_API_KEY;
+const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 
 export interface ExtractedDeviceInfo {
     brand: string | null;
@@ -30,6 +29,7 @@ async function imageUriToBase64(uri: string): Promise<string> {
         });
     } else {
         // Native: Use expo-file-system
+        const FileSystem = require('expo-file-system');
         return await FileSystem.readAsStringAsync(uri, {
             encoding: FileSystem.EncodingType.Base64,
         });
@@ -37,13 +37,13 @@ async function imageUriToBase64(uri: string): Promise<string> {
 }
 
 /**
- * Extracts device information from a label image using Gemini Vision API
+ * Extracts device information from a label image using DeepSeek Vision API
  * @param imageUri - Local file URI from camera/gallery
  * @returns Extracted device info (brand, model, serialNumber)
  */
 export async function extractDeviceInfoFromImage(imageUri: string): Promise<ExtractedDeviceInfo> {
-    if (!GEMINI_API_KEY || GEMINI_API_KEY === 'your_gemini_api_key_here') {
-        throw new Error('Gemini API key not configured. Please add EXPO_PUBLIC_GEMINI_API_KEY to .env file.');
+    if (!DEEPSEEK_API_KEY || DEEPSEEK_API_KEY === 'your_deepseek_api_key_here') {
+        throw new Error('DeepSeek API key not configured. Please add EXPO_PUBLIC_DEEPSEEK_API_KEY to .env file.');
     }
 
     try {
@@ -53,13 +53,7 @@ export async function extractDeviceInfoFromImage(imageUri: string): Promise<Extr
         // Determine MIME type from URI
         const mimeType = imageUri.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
 
-        // Construct Gemini API request
-        const requestBody = {
-            contents: [
-                {
-                    parts: [
-                        {
-                            text: `Analyze this device label image and extract the following information.
+        const prompt = `Analyze this device label image and extract the following information.
 Look for:
 1. Brand/Manufacturer (e.g., LG, Samsung, Sony, Panasonic, TCL, Hisense, etc.)
 2. Model number (often labeled as "Model", "Model No", "Modelo", etc.)
@@ -68,44 +62,52 @@ Look for:
 IMPORTANT: Return ONLY a valid JSON object in this exact format, with no additional text:
 {"brand": "value or null", "model": "value or null", "serialNumber": "value or null"}
 
-If a field cannot be found, use null. Do not include any explanation or markdown.`
-                        },
-                        {
-                            inline_data: {
-                                mime_type: mimeType,
-                                data: base64Image
-                            }
-                        }
-                    ]
-                }
-            ],
-            generationConfig: {
-                temperature: 0.1,
-                maxOutputTokens: 256,
-            }
-        };
+If a field cannot be found, use null. Do not include any explanation or markdown.`;
 
-        const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+        // Call DeepSeek API
+        const response = await fetch(DEEPSEEK_API_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
             },
-            body: JSON.stringify(requestBody),
+            body: JSON.stringify({
+                model: 'deepseek-chat',
+                messages: [
+                    {
+                        role: 'user',
+                        content: [
+                            {
+                                type: 'text',
+                                text: prompt,
+                            },
+                            {
+                                type: 'image_url',
+                                image_url: {
+                                    url: `data:${mimeType};base64,${base64Image}`,
+                                },
+                            },
+                        ],
+                    },
+                ],
+                temperature: 0.1,
+                max_tokens: 256,
+            }),
         });
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            console.error('Gemini API error:', errorData);
+            console.error('DeepSeek API error:', errorData);
             throw new Error(`API error: ${response.status} - ${errorData?.error?.message || 'Unknown error'}`);
         }
 
         const data = await response.json();
 
-        // Extract text from Gemini response
-        const responseText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        // Extract text from DeepSeek response
+        const responseText = data?.choices?.[0]?.message?.content;
 
         if (!responseText) {
-            throw new Error('No response from Gemini API');
+            throw new Error('No response from DeepSeek API');
         }
 
         // Parse JSON from response (handle potential markdown wrapper)
