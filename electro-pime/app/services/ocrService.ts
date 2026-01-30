@@ -1,13 +1,39 @@
 import * as FileSystem from 'expo-file-system';
+import { Platform } from 'react-native';
 
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent';
 
 export interface ExtractedDeviceInfo {
     brand: string | null;
     model: string | null;
     serialNumber: string | null;
     rawText?: string;
+}
+
+/**
+ * Convert image URI to base64 string (platform-specific)
+ */
+async function imageUriToBase64(uri: string): Promise<string> {
+    if (Platform.OS === 'web') {
+        // Web: Use fetch to get blob, then convert to base64
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64 = (reader.result as string).split(',')[1];
+                resolve(base64);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    } else {
+        // Native: Use expo-file-system
+        return await FileSystem.readAsStringAsync(uri, {
+            encoding: FileSystem.EncodingType.Base64,
+        });
+    }
 }
 
 /**
@@ -21,10 +47,8 @@ export async function extractDeviceInfoFromImage(imageUri: string): Promise<Extr
     }
 
     try {
-        // Read image as base64
-        const base64Image = await FileSystem.readAsStringAsync(imageUri, {
-            encoding: FileSystem.EncodingType.Base64,
-        });
+        // Read image as base64 (platform-specific)
+        const base64Image = await imageUriToBase64(imageUri);
 
         // Determine MIME type from URI
         const mimeType = imageUri.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
