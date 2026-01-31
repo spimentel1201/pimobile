@@ -21,7 +21,6 @@
   "dependencies": {
     "@expo/vector-icons": "^14.0.2",
     "@google/generative-ai": "^0.24.1",
-    "@ismaelmoreiraa/vision-camera-ocr": "^3.0.2",
     "@react-native-community/datetimepicker": "8.2.0",
     "@react-native-picker/picker": "^2.11.0",
     "@react-navigation/bottom-tabs": "^7.2.0",
@@ -55,6 +54,7 @@
     "react-native-screens": "~4.4.0",
     "react-native-svg": "^15.11.2",
     "react-native-vision-camera": "^4.7.3",
+    "react-native-vision-camera-ocr-plus": "^1.2.1",
     "react-native-web": "~0.19.13",
     "react-native-webview": "13.12.5",
     "tesseract.js": "^7.0.0"

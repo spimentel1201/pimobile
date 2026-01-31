@@ -115,25 +115,28 @@ function processOCRText(rawText: string): ExtractedDeviceInfo {
 }
 
 /**
- * Extract device info using Vision Camera OCR (native only)
+ * Extract device info using Vision Camera OCR Plus (native only)
  */
-async function extractWithVisionCamera(imageUri: string): Promise<ExtractedDeviceInfo> {
+async function extractWithVisionCameraOCR(imageUri: string): Promise<ExtractedDeviceInfo> {
     try {
-        // Import dynamically to avoid web errors
-        const { OCRFrame } = await import('@ismaelmoreiraa/vision-camera-ocr');
+        // Import the OCR plugin
+        const { OCR } = require('react-native-vision-camera-ocr-plus');
 
-        // Process image with Vision Camera OCR
-        const result = await OCRFrame(imageUri);
+        // Process image with Vision Camera OCR Plus
+        const result = await OCR.recognize(imageUri, {
+            language: 'latin', // or 'english'
+        });
 
         // Combine all text blocks
-        const rawText = result.result.blocks
+        const rawText = result.blocks
             .map((block: any) => block.text)
             .join('\n');
 
+        console.log('Vision Camera OCR Plus result:', rawText);
         return processOCRText(rawText);
     } catch (error) {
-        console.error('Vision Camera OCR error:', error);
-        throw new Error('Failed to process image with Vision Camera OCR');
+        console.error('Vision Camera OCR Plus error:', error);
+        throw error;
     }
 }
 
@@ -164,17 +167,18 @@ async function extractWithTesseract(imageUri: string): Promise<ExtractedDeviceIn
         // Terminate worker
         await worker.terminate();
 
+        console.log('Tesseract OCR result:', data.text);
         return processOCRText(data.text);
     } catch (error) {
         console.error('Tesseract OCR error:', error);
-        throw new Error('Failed to process image with Tesseract OCR');
+        throw error;
     }
 }
 
 /**
  * Extracts device information from a label image
- * Uses Vision Camera OCR for native platforms (more accurate)
- * Falls back to Tesseract.js for web
+ * Uses Vision Camera OCR Plus for native platforms (more accurate)
+ * Falls back to Tesseract.js for web or if Vision Camera fails
  * @param imageUri - Local file URI from camera/gallery
  * @returns Extracted device info (brand, model, serialNumber)
  */
@@ -185,12 +189,18 @@ export async function extractDeviceInfoFromImage(imageUri: string): Promise<Extr
             console.log('Using Tesseract.js for web OCR');
             return await extractWithTesseract(imageUri);
         } else {
-            // Use Vision Camera OCR for native (more accurate)
-            console.log('Using Vision Camera OCR for native');
-            return await extractWithVisionCamera(imageUri);
+            // Try Vision Camera OCR Plus for native (more accurate)
+            console.log('Attempting Vision Camera OCR Plus for native');
+            try {
+                return await extractWithVisionCameraOCR(imageUri);
+            } catch (visionError) {
+                // Fallback to Tesseract if Vision Camera fails
+                console.warn('Vision Camera OCR Plus failed, falling back to Tesseract:', visionError);
+                return await extractWithTesseract(imageUri);
+            }
         }
     } catch (error) {
         console.error('OCR extraction error:', error);
-        throw error;
+        throw new Error('Failed to extract device information from image');
     }
 }
