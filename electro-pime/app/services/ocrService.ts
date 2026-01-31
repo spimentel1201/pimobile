@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { createWorker } from 'tesseract.js';
+import { createWorker, PSM } from 'tesseract.js';
 
 export interface ExtractedDeviceInfo {
     brand: string | null;
@@ -93,7 +93,7 @@ export async function extractDeviceInfoFromImage(imageUri: string): Promise<Extr
         // Configure Tesseract for better accuracy
         await worker.setParameters({
             tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-/:. ',
-            tessedit_pageseg_mode: 6, // Assume uniform block of text
+            tessedit_pageseg_mode: PSM.SINGLE_BLOCK, // Assume uniform block of text
             preserve_interword_spaces: '1',
         });
 
