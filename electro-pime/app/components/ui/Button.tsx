@@ -8,7 +8,7 @@ import {
   TextStyle,
   GestureResponderEvent,
 } from 'react-native';
-import { colors, typography, spacing, radii, shadows } from '../../constants/theme';
+import { colors, typography, spacing, radii, shadows } from '../../../constants/theme';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost' | 'success';
 type ButtonSize = 'sm' | 'md' | 'lg';
