@@ -1,11 +1,12 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Dimensions, Text } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Text } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, usePathname, useSegments } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { ComponentProps } from 'react';
-
-const { width } = Dimensions.get('window');
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../../hooks/useTheme';
+import { typography, spacing, radii, shadows } from '../../constants/theme';
 
 type TabItem = {
   name: string;
@@ -24,6 +25,8 @@ export default function BottomTabBar() {
   const router = useRouter();
   const pathname = usePathname();
   const segments = useSegments();
+  const insets = useSafeAreaInsets();
+  const { theme, colorScheme } = useTheme();
 
   const isActive = (route: string) => {
     const currentPath = `/${segments.join('/')}`;
@@ -32,49 +35,76 @@ export default function BottomTabBar() {
   };
 
   const handleNavigation = (route: string) => {
-    // Mapeo de rutas permitidas
     const allowedRoutes = {
-      'dashboard': '/dashboard',
-      'orders': '/orders',
-      'sales': '/sales',
-      'profile': '/profile'
+      dashboard: '/dashboard',
+      orders: '/orders',
+      sales: '/sales',
+      profile: '/profile',
     } as const;
-    
-    // Verificar si la ruta es válida
+
     const targetRoute = allowedRoutes[route as keyof typeof allowedRoutes];
     if (targetRoute) {
       router.push(targetRoute as any);
-    } else {
-      console.warn(`Ruta no válida: ${route}`);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <BlurView intensity={90} tint="light" style={styles.blurContainer}>
-        <View style={styles.tabContainer}>
-          {tabs.map((tab) => (
-            <TouchableOpacity
-              key={tab.name}
-              style={styles.tab}
-              onPress={() => handleNavigation(tab.route)}
-              activeOpacity={0.7}
-            >
-              <MaterialCommunityIcons
-                name={tab.icon as ComponentProps<typeof MaterialCommunityIcons>['name']}
-                size={24}
-                color={isActive(tab.route) ? '#2563eb' : '#64748b'}
-              />
-              <Text 
-                style={[
-                  styles.tabText, 
-                  { color: isActive(tab.route) ? '#2563eb' : '#64748b' }
-                ]}
+    <View
+      style={[
+        styles.container,
+        {
+          borderTopColor: theme.divider,
+          paddingBottom: insets.bottom,
+        },
+      ]}
+    >
+      <BlurView
+        intensity={colorScheme === 'dark' ? 80 : 90}
+        tint={colorScheme === 'dark' ? 'dark' : 'light'}
+        style={styles.blurContainer}
+      >
+        <View
+          style={[
+            styles.tabContainer,
+            { backgroundColor: theme.tabBar },
+          ]}
+        >
+          {tabs.map((tab) => {
+            const active = isActive(tab.route);
+            return (
+              <TouchableOpacity
+                key={tab.name}
+                style={styles.tab}
+                onPress={() => handleNavigation(tab.route)}
+                activeOpacity={0.7}
               >
-                {tab.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <View
+                  style={[
+                    styles.iconContainer,
+                    active && {
+                      backgroundColor: theme.primaryLight,
+                    },
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name={tab.icon as ComponentProps<typeof MaterialCommunityIcons>['name']}
+                    size={22}
+                    color={active ? theme.primary : theme.textMuted}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.tabText,
+                    {
+                      color: active ? theme.primary : theme.textMuted,
+                    },
+                  ]}
+                >
+                  {tab.name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </BlurView>
     </View>
@@ -88,8 +118,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.1)',
-    backgroundColor: 'transparent',
     zIndex: 100,
   },
   blurContainer: {
@@ -99,19 +127,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    height: 70,
-    paddingBottom: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    paddingTop: spacing.sm,
   },
   tab: {
     flex: 1,
+    alignItems: 'center',
+    gap: spacing['2xs'],
+  },
+  iconContainer: {
+    width: 40,
+    height: 28,
+    borderRadius: radii.full,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 8,
   },
   tabText: {
-    fontSize: 12,
-    marginTop: 4,
-    fontFamily: 'SpaceMono',
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.medium,
   },
 });
