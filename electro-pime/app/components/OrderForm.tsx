@@ -2,13 +2,11 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
-  TextInput,
   Text,
   TouchableOpacity,
   ScrollView,
   Alert,
   ActivityIndicator,
-  SafeAreaView,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import SearchableSelector from './SearchableSelector';
@@ -20,6 +18,12 @@ import {
   CreateRepairOrderDto,
   RepairOrderStatus,
 } from '../types/api';
+import { useTheme } from '../../hooks/useTheme';
+import { typography, spacing, radii } from '../../constants/theme';
+import { Card } from './ui/Card';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
+import { Badge } from './ui/Badge';
 
 interface OrderFormProps {
   initialData?: RepairOrder;
@@ -85,6 +89,7 @@ export default function OrderForm({
   loading,
 }: OrderFormProps) {
   const { user } = useAuth();
+  const { theme } = useTheme();
 
   // Customer
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -238,46 +243,46 @@ export default function OrderForm({
 
   // Render item form
   const renderItemForm = (item: OrderItem, index: number) => (
-    <View key={index} style={styles.itemCard}>
+    <Card key={index} variant="flat" padding={spacing.base} style={styles.itemCard}>
       <View style={styles.itemHeader}>
         <View style={styles.itemTitleContainer}>
-          <MaterialCommunityIcons name="devices" size={20} color="#3B82F6" />
-          <Text style={styles.itemTitle}>Equipo {index + 1}</Text>
+          <MaterialCommunityIcons name="devices" size={20} color={theme.primary} />
+          <Text style={[styles.itemTitle, { color: theme.text }]}>Equipo {index + 1}</Text>
         </View>
         {items.length > 1 && (
           <TouchableOpacity onPress={() => removeItem(index)} style={styles.removeButton}>
-            <MaterialCommunityIcons name="trash-can-outline" size={22} color="#EF4444" />
+            <MaterialCommunityIcons name="trash-can-outline" size={22} color={theme.text === '#F8FAFC' ? '#F87171' : '#EF4444'} />
           </TouchableOpacity>
         )}
       </View>
 
       {/* Device Type */}
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Tipo de dispositivo <Text style={styles.required}>*</Text></Text>
+        <Text style={[styles.label, { color: theme.text }]}>Tipo de dispositivo <Text style={styles.required}>*</Text></Text>
         <TouchableOpacity
-          style={styles.select}
+          style={[styles.select, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}
           onPress={() => updateItem(index, 'showDeviceTypePicker', !item.showDeviceTypePicker)}
         >
-          <Text style={item.deviceType ? styles.selectText : styles.placeholderText}>
+          <Text style={item.deviceType ? [styles.selectText, { color: theme.text }] : [styles.placeholderText, { color: theme.textMuted }]}>
             {item.deviceType || 'Seleccionar tipo...'}
           </Text>
-          <Ionicons name="chevron-down" size={20} color="#6B7280" />
+          <Ionicons name="chevron-down" size={20} color={theme.textSecondary} />
         </TouchableOpacity>
         {item.showDeviceTypePicker && (
-          <View style={styles.pickerDropdown}>
+          <View style={[styles.pickerDropdown, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
               {DEVICE_TYPES.map((type) => (
                 <TouchableOpacity
                   key={type}
-                  style={styles.pickerItem}
+                  style={[styles.pickerItem, { borderBottomColor: theme.borderLight }]}
                   onPress={() => {
                     updateItem(index, 'deviceType', type);
                     updateItem(index, 'showDeviceTypePicker', false);
                   }}
                 >
-                  <Text style={styles.pickerItemText}>{type}</Text>
+                  <Text style={[styles.pickerItemText, { color: theme.text }]}>{type}</Text>
                   {item.deviceType === type && (
-                    <Ionicons name="checkmark" size={20} color="#3B82F6" />
+                    <Ionicons name="checkmark" size={20} color={theme.primary} />
                   )}
                 </TouchableOpacity>
               ))}
@@ -285,140 +290,121 @@ export default function OrderForm({
           </View>
         )}
         {errors[`item_${index}_deviceType`] && (
-          <Text style={styles.errorText}>{errors[`item_${index}_deviceType`]}</Text>
+          <Text style={[styles.errorText, { color: theme.text === '#F8FAFC' ? '#F87171' : '#EF4444' }]}>{errors[`item_${index}_deviceType`]}</Text>
         )}
       </View>
 
       {/* Brand & Model */}
       <View style={styles.row}>
         <View style={[styles.inputContainer, styles.halfWidth]}>
-          <Text style={styles.label}>Marca <Text style={styles.required}>*</Text></Text>
-          <TextInput
-            style={styles.input}
+          <Input
+            label="Marca *"
             placeholder="Ej: Samsung, LG..."
-            placeholderTextColor="#9CA3AF"
             value={item.brand}
             onChangeText={(text) => updateItem(index, 'brand', text)}
+            error={errors[`item_${index}_brand`]}
           />
-          {errors[`item_${index}_brand`] && (
-            <Text style={styles.errorText}>{errors[`item_${index}_brand`]}</Text>
-          )}
         </View>
         <View style={[styles.inputContainer, styles.halfWidth]}>
-          <Text style={styles.label}>Modelo <Text style={styles.required}>*</Text></Text>
-          <TextInput
-            style={styles.input}
+          <Input
+            label="Modelo *"
             placeholder="Ej: Galaxy S21..."
-            placeholderTextColor="#9CA3AF"
             value={item.model}
             onChangeText={(text) => updateItem(index, 'model', text)}
+            error={errors[`item_${index}_model`]}
           />
-          {errors[`item_${index}_model`] && (
-            <Text style={styles.errorText}>{errors[`item_${index}_model`]}</Text>
-          )}
         </View>
       </View>
 
       {/* Serial Number */}
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>Número de Serie (opcional)</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Ingrese el número de serie"
-          placeholderTextColor="#9CA3AF"
-          value={item.serialNumber}
-          onChangeText={(text) => updateItem(index, 'serialNumber', text)}
-        />
-      </View>
+      <Input
+        label="Número de Serie (opcional)"
+        placeholder="Ingrese el número de serie"
+        value={item.serialNumber}
+        onChangeText={(text) => updateItem(index, 'serialNumber', text)}
+      />
 
       {/* Problem Description */}
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>Descripción del problema <Text style={styles.required}>*</Text></Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          placeholder="Describa detalladamente el problema"
-          placeholderTextColor="#9CA3AF"
-          value={item.problemDescription}
-          onChangeText={(text) => updateItem(index, 'problemDescription', text)}
-          multiline
-          numberOfLines={3}
-        />
-        {errors[`item_${index}_problemDescription`] && (
-          <Text style={styles.errorText}>{errors[`item_${index}_problemDescription`]}</Text>
-        )}
-      </View>
+      <Input
+        label="Descripción del problema *"
+        placeholder="Describa detalladamente el problema"
+        value={item.problemDescription}
+        onChangeText={(text) => updateItem(index, 'problemDescription', text)}
+        multiline
+        numberOfLines={3}
+        error={errors[`item_${index}_problemDescription`]}
+        containerStyle={styles.textAreaContainer}
+        style={styles.textAreaInput}
+      />
 
       {/* Accessories */}
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Accesorios incluidos</Text>
+        <Text style={[styles.label, { color: theme.text }]}>Accesorios incluidos</Text>
         <View style={styles.tagsContainer}>
-          {ACCESSORY_OPTIONS.map((accessory) => (
-            <TouchableOpacity
-              key={accessory}
-              style={[
-                styles.tag,
-                item.accessories.includes(accessory) && styles.tagSelected
-              ]}
-              onPress={() => toggleAccessory(index, accessory)}
-            >
-              <Text style={[
-                styles.tagText,
-                item.accessories.includes(accessory) && styles.tagTextSelected
-              ]}>
-                {accessory}
-              </Text>
-              {item.accessories.includes(accessory) && (
-                <Ionicons name="checkmark" size={14} color="#fff" style={{ marginLeft: 4 }} />
-              )}
-            </TouchableOpacity>
-          ))}
+          {ACCESSORY_OPTIONS.map((accessory) => {
+            const isSelected = item.accessories.includes(accessory);
+            return (
+              <TouchableOpacity
+                key={accessory}
+                style={[
+                  styles.tag,
+                  { backgroundColor: theme.card, borderColor: theme.inputBorder },
+                  isSelected && { backgroundColor: theme.primary, borderColor: theme.primary },
+                ]}
+                onPress={() => toggleAccessory(index, accessory)}
+              >
+                <Badge
+                  label={accessory}
+                  variant={isSelected ? 'primary' : 'default'}
+                  size="sm"
+                  style={isSelected ? styles.badgeSelected : undefined}
+                />
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
       {/* Quantity & Price */}
       <View style={styles.row}>
         <View style={[styles.inputContainer, styles.halfWidth]}>
-          <Text style={styles.label}>Cantidad <Text style={styles.required}>*</Text></Text>
-          <TextInput
-            style={styles.input}
+          <Input
+            label="Cantidad *"
             value={item.quantity.toString()}
             onChangeText={(text) => updateItem(index, 'quantity', parseInt(text) || 1)}
             keyboardType="numeric"
-            placeholderTextColor="#9CA3AF"
           />
         </View>
         <View style={[styles.inputContainer, styles.halfWidth]}>
-          <Text style={styles.label}>Precio estimado</Text>
-          <TextInput
-            style={styles.input}
+          <Input
+            label="Precio estimado"
             placeholder="S/ 0.00"
-            placeholderTextColor="#9CA3AF"
             value={item.price}
             onChangeText={(text) => updateItem(index, 'price', text)}
             keyboardType="decimal-pad"
           />
         </View>
       </View>
-    </View>
+    </Card>
   );
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+    <ScrollView style={[styles.container, { backgroundColor: theme.background }]} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
       {/* Technician Banner - Read Only */}
-      <View style={styles.technicianBanner}>
-        <MaterialCommunityIcons name="account-wrench" size={22} color="#3B82F6" />
-        <View style={styles.technicianInfo}>
-          <Text style={styles.technicianLabel}>Técnico asignado</Text>
-          <Text style={styles.technicianName}>{user?.firstName} {user?.lastName}</Text>
+      <Card variant="outlined" padding={spacing.md} style={styles.technicianBanner}>
+        <View style={styles.technicianBannerContent}>
+          <MaterialCommunityIcons name="account-wrench" size={22} color={theme.primary} />
+          <View style={styles.technicianInfo}>
+            <Text style={[styles.technicianLabel, { color: theme.textSecondary }]}>Técnico asignado</Text>
+            <Text style={[styles.technicianName, { color: theme.text }]}>{user?.firstName} {user?.lastName}</Text>
+          </View>
+          <Badge label="Auto" variant="primary" size="sm" />
         </View>
-        <View style={styles.technicianBadge}>
-          <Text style={styles.technicianBadgeText}>Auto</Text>
-        </View>
-      </View>
+      </Card>
 
       {/* Customer Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Cliente</Text>
+      <Card variant="elevated" padding={spacing.base} style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Cliente</Text>
 
         <SearchableSelector<Customer>
           label="Cliente"
@@ -431,95 +417,90 @@ export default function OrderForm({
           keyExtractor={(c) => c.id}
           required
         />
-        {errors.customer && <Text style={styles.errorText}>{errors.customer}</Text>}
-      </View>
+        {errors.customer && <Text style={[styles.errorText, { color: theme.text === '#F8FAFC' ? '#F87171' : '#EF4444' }]}>{errors.customer}</Text>}
+      </Card>
 
       {/* Items Section */}
-      <View style={styles.section}>
+      <Card variant="elevated" padding={spacing.base} style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Equipos a Reparar</Text>
-          <TouchableOpacity style={styles.addButton} onPress={addItem}>
-            <MaterialCommunityIcons name="plus" size={20} color="#fff" />
-            <Text style={styles.addButtonText}>Agregar</Text>
-          </TouchableOpacity>
+          <Text style={[styles.sectionTitle, { color: theme.text, marginBottom: 0 }]}>Equipos a Reparar</Text>
+          <Button
+            title="Agregar"
+            variant="success"
+            size="sm"
+            onPress={addItem}
+            icon={<MaterialCommunityIcons name="plus" size={18} color="#fff" />}
+          />
         </View>
 
         {items.map((item, index) => renderItemForm(item, index))}
-      </View>
+      </Card>
 
       {/* Order Details Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Detalles de la Orden</Text>
+      <Card variant="elevated" padding={spacing.base} style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Detalles de la Orden</Text>
 
         {/* Description */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Descripción general <Text style={styles.required}>*</Text></Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="Resumen general de la orden de reparación"
-            placeholderTextColor="#9CA3AF"
-            value={description}
-            onChangeText={setDescription}
-            multiline
-            numberOfLines={3}
-          />
-          {errors.description && <Text style={styles.errorText}>{errors.description}</Text>}
-        </View>
+        <Input
+          label="Descripción general *"
+          placeholder="Resumen general de la orden de reparación"
+          value={description}
+          onChangeText={setDescription}
+          multiline
+          numberOfLines={3}
+          error={errors.description}
+          containerStyle={styles.textAreaContainer}
+          style={styles.textAreaInput}
+        />
 
         {/* Notes */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Notas adicionales (opcional)</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="Notas internas o instrucciones especiales"
-            placeholderTextColor="#9CA3AF"
-            value={notes}
-            onChangeText={setNotes}
-            multiline
-            numberOfLines={2}
-          />
-        </View>
+        <Input
+          label="Notas adicionales (opcional)"
+          placeholder="Notas internas o instrucciones especiales"
+          value={notes}
+          onChangeText={setNotes}
+          multiline
+          numberOfLines={2}
+          containerStyle={styles.textAreaContainer}
+          style={styles.textAreaInput}
+        />
 
         {/* Initial Review Cost */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Costo de revisión inicial</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="S/ 0.00"
-            placeholderTextColor="#9CA3AF"
-            value={initialReviewCost}
-            onChangeText={setInitialReviewCost}
-            keyboardType="decimal-pad"
-          />
-        </View>
+        <Input
+          label="Costo de revisión inicial"
+          placeholder="S/ 0.00"
+          value={initialReviewCost}
+          onChangeText={setInitialReviewCost}
+          keyboardType="decimal-pad"
+        />
 
         {/* Status (for editing) */}
         {initialData && (
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Estado</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Estado</Text>
             <TouchableOpacity
-              style={styles.select}
+              style={[styles.select, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}
               onPress={() => setShowStatusPicker(!showStatusPicker)}
             >
-              <Text style={styles.selectText}>
+              <Text style={[styles.selectText, { color: theme.text }]}>
                 {STATUS_OPTIONS.find(s => s.value === status)?.label || status}
               </Text>
-              <Ionicons name="chevron-down" size={20} color="#6B7280" />
+              <Ionicons name="chevron-down" size={20} color={theme.textSecondary} />
             </TouchableOpacity>
             {showStatusPicker && (
-              <View style={styles.pickerDropdown}>
+              <View style={[styles.pickerDropdown, { backgroundColor: theme.card, borderColor: theme.border }]}>
                 {STATUS_OPTIONS.map((option) => (
                   <TouchableOpacity
                     key={option.value}
-                    style={styles.pickerItem}
+                    style={[styles.pickerItem, { borderBottomColor: theme.borderLight }]}
                     onPress={() => {
                       setStatus(option.value);
                       setShowStatusPicker(false);
                     }}
                   >
-                    <Text style={styles.pickerItemText}>{option.label}</Text>
+                    <Text style={[styles.pickerItemText, { color: theme.text }]}>{option.label}</Text>
                     {status === option.value && (
-                      <Ionicons name="checkmark" size={20} color="#3B82F6" />
+                      <Ionicons name="checkmark" size={20} color={theme.primary} />
                     )}
                   </TouchableOpacity>
                 ))}
@@ -527,26 +508,20 @@ export default function OrderForm({
             )}
           </View>
         )}
-      </View>
+      </Card>
 
       {/* Submit Button */}
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.submitButton, loading && styles.buttonDisabled]}
-          onPress={handleSubmit}
+        <Button
+          title={initialData ? 'Actualizar Orden' : 'Crear Orden'}
+          variant="primary"
+          size="lg"
+          fullWidth
+          loading={loading}
           disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Ionicons name="save" size={20} color="#fff" style={styles.buttonIcon} />
-              <Text style={styles.buttonText}>
-                {initialData ? 'Actualizar Orden' : 'Crear Orden'}
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
+          onPress={handleSubmit}
+          icon={!loading ? <Ionicons name="save" size={20} color="#fff" /> : undefined}
+        />
       </View>
     </ScrollView>
   );
@@ -555,241 +530,146 @@ export default function OrderForm({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
   },
   scrollContent: {
     paddingBottom: 100,
   },
   technicianBanner: {
+    marginHorizontal: spacing.base,
+    marginTop: spacing.base,
+  },
+  technicianBannerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
-    padding: 14,
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
   },
   technicianInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: spacing.md,
   },
   technicianLabel: {
-    fontSize: 12,
-    color: '#6B7280',
+    fontSize: typography.sizes.xs,
   },
   technicianName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1E40AF',
-  },
-  technicianBadge: {
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  technicianBadgeText: {
-    fontSize: 12,
-    color: '#fff',
-    fontWeight: '600',
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.semibold,
   },
   section: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginHorizontal: 16,
-    marginTop: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    marginHorizontal: spacing.base,
+    marginTop: spacing.base,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 12,
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.semibold,
+    marginBottom: spacing.md,
   },
   inputContainer: {
-    marginBottom: 16,
+    marginBottom: spacing.base,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 8,
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.medium,
+    marginBottom: spacing.sm,
   },
   required: {
     color: '#EF4444',
-  },
-  input: {
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#111827',
-  },
-  textArea: {
-    minHeight: 80,
-    textAlignVertical: 'top',
   },
   select: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F9FAFB',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: radii.md,
+    padding: spacing.md,
   },
   selectText: {
-    fontSize: 16,
-    color: '#111827',
+    fontSize: typography.sizes.base,
   },
   placeholderText: {
-    fontSize: 16,
-    color: '#9CA3AF',
+    fontSize: typography.sizes.base,
   },
   pickerDropdown: {
-    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    marginTop: 4,
+    borderRadius: radii.md,
+    marginTop: spacing.xs,
     maxHeight: 200,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   pickerItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 12,
+    padding: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
   },
   pickerItemText: {
-    fontSize: 16,
-    color: '#374151',
+    fontSize: typography.sizes.base,
   },
   row: {
     flexDirection: 'row',
-    marginHorizontal: -6,
+    marginHorizontal: -spacing['2xs'] - 1,
   },
   halfWidth: {
     flex: 1,
-    marginHorizontal: 6,
+    marginHorizontal: spacing['2xs'] + 1,
   },
   errorText: {
-    color: '#EF4444',
-    fontSize: 12,
-    marginTop: 4,
+    fontSize: typography.sizes.xs,
+    marginTop: spacing.xs,
   },
   itemCard: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    marginBottom: spacing.base,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: 'transparent',
   },
   itemHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 12,
+    marginBottom: spacing.base,
+    paddingBottom: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: 'rgba(0,0,0,0.06)',
   },
   itemTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   itemTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    marginLeft: 8,
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.semibold,
+    marginLeft: spacing.sm,
   },
   removeButton: {
-    padding: 4,
+    padding: spacing.xs,
   },
   tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: spacing.sm,
   },
   tag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    overflow: 'hidden',
   },
-  tagSelected: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+  badgeSelected: {
+    backgroundColor: 'transparent',
   },
-  tagText: {
-    fontSize: 13,
-    color: '#4B5563',
+  textAreaContainer: {
+    minHeight: 80,
   },
-  tagTextSelected: {
-    color: '#FFFFFF',
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#10B981',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  addButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    marginLeft: 4,
+  textAreaInput: {
+    textAlignVertical: 'top',
+    minHeight: 72,
+    paddingTop: spacing.md,
   },
   footer: {
-    padding: 16,
+    padding: spacing.base,
     paddingBottom: 80,
-  },
-  submitButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#3B82F6',
-    borderRadius: 12,
-    padding: 16,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonIcon: {
-    marginRight: 8,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });
