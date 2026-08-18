@@ -57,6 +57,7 @@
     "react-native-vision-camera-ocr-plus": "^1.2.1",
     "react-native-web": "~0.19.13",
     "react-native-webview": "13.12.5",
+    "react-native-worklets-core": "^1.6.2",
     "tesseract.js": "^7.0.0"
   },
   "devDependencies": {

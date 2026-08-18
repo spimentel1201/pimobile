@@ -34,19 +34,23 @@ function extractBrand(text: string): string | null {
  * Extract model number from OCR text
  */
 function extractModel(text: string): string | null {
-    // Look for patterns like "Model: XXX" or "Modelo: XXX"
-    // Enhanced to capture longer model numbers with hyphens
+    // Look for patterns like "Model Code: XXX" or "Type No: XXX"
+    // Enhanced to capture longer model numbers (minimum 5 chars)
     const modelPatterns = [
-        /MODEL[O]?\s*CODE\s*[:.\-]?\s*([A-Z0-9\-]+)/i,
-        /MODEL[O]?\s*[:.\-]?\s*([A-Z0-9\-]{3,})/i,
-        /TYPE\s*NO[.]?\s*[:.\-]?\s*([A-Z0-9\-]{3,})/i,
-        /MOD[.]?\s*[:.\-]?\s*([A-Z0-9\-]{3,})/i,
+        /MODEL[O]?\s*CODE\s*[:.\-]?\s*([A-Z0-9\-]{5,})/i,
+        /TYPE\s*NO[.]?\s*[:.\-]?\s*([A-Z0-9\-]{5,})/i,
+        /MODEL[O]?\s*[:.\-]?\s*([A-Z0-9\-]{5,})/i,
+        /MOD[.]?\s*[:.\-]?\s*([A-Z0-9\-]{5,})/i,
     ];
 
     for (const pattern of modelPatterns) {
         const match = text.match(pattern);
-        if (match && match[1] && match[1].length >= 3) {
-            return match[1].trim();
+        if (match && match[1] && match[1].length >= 5) {
+            // Clean up the model number
+            let model = match[1].trim();
+            // Remove trailing non-alphanumeric chars
+            model = model.replace(/[^A-Z0-9\-]+$/i, '');
+            return model;
         }
     }
 
@@ -58,15 +62,18 @@ function extractModel(text: string): string | null {
  */
 function extractSerialNumber(text: string): string | null {
     // Look for patterns like "S/N: XXX" or "Serial No: XXX"
+    // Require minimum 8 characters for serial numbers
     const serialPatterns = [
-        /S[\/]?N\s*[:.\-]?\s*([A-Z0-9]+)/i,
-        /SERIAL\s*NO[.]?\s*[:.\-]?\s*([A-Z0-9]+)/i,
-        /SERIE\s*[:.\-]?\s*([A-Z0-9]+)/i,
+        /S\s*[\/]?\s*N\s*[:.\-]?\s*([A-Z0-9]{8,})/i,
+        /SERIAL\s*NO[.]?\s*[:.\-]?\s*([A-Z0-9]{8,})/i,
+        /SERIE\s*[:.\-]?\s*([A-Z0-9]{8,})/i,
+        // Standalone long alphanumeric (likely serial)
+        /\b([A-Z0-9]{10,})\b/i,
     ];
 
     for (const pattern of serialPatterns) {
         const match = text.match(pattern);
-        if (match && match[1]) {
+        if (match && match[1] && match[1].length >= 8) {
             return match[1].trim();
         }
     }
@@ -83,23 +90,40 @@ function processOCRText(rawText: string): ExtractedDeviceInfo {
     // Post-process OCR text to fix common errors
     const processedText = rawText
         .replace(/[O0]/g, (match, offset, string) => {
-            // If surrounded by letters, likely 'O', if by numbers, likely '0'
             const before = string[offset - 1];
             const after = string[offset + 1];
+
+            // Special case: "2O" or "3O" followed by letter likely means "2D" or "3D"
+            // Example: "Z2OQ" should be "Z2DQ"
+            if (/[23]/.test(before) && /[A-Z]/i.test(after)) {
+                return 'D';
+            }
+
+            // If surrounded by letters, likely 'O'
             if (/[A-Z]/i.test(before) || /[A-Z]/i.test(after)) {
                 return 'O';
             }
+
+            // Otherwise it's '0'
             return '0';
         })
         .replace(/[l1I]/g, (match, offset, string) => {
-            // Similar logic for 1/I/l confusion
             const before = string[offset - 1];
             const after = string[offset + 1];
+
+            // If surrounded by letters, likely 'I'
             if (/[A-Z]/i.test(before) || /[A-Z]/i.test(after)) {
                 return 'I';
             }
+            // Otherwise it's '1'
             return '1';
-        });
+        })
+        // Fix 9/0 confusion in model numbers
+        // Example: "LN3209" should likely be "LN3200"
+        .replace(/(\d)9(\d)/g, '$10$2')
+        // Fix 8/3 confusion after letters
+        // Example: "LN820539" should be "LN320539"
+        .replace(/([A-Z])8(\d{2,})/gi, '$13$2');
 
     // Extract information using pattern matching
     const brand = extractBrand(processedText);
