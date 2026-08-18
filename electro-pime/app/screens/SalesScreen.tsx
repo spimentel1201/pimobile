@@ -5,20 +5,28 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  FlatList,
   Modal,
   Alert,
-  ActivityIndicator,
-  RefreshControl,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { api } from '../services/api';
 import { Sale, PaymentMethod } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../../hooks/useTheme';
+import { EmptyState } from '../components/ui/EmptyState';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Badge } from '../components/ui/Badge';
+import { SkeletonLoader } from '../components/ui/SkeletonLoader';
+import { FilterChip } from '../components/ui/FilterChip';
+import { spacing, typography, radii, shadows, colors } from '../../constants/theme';
 
 const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   CASH: 'Efectivo',
@@ -41,6 +49,8 @@ const PAYMENT_METHOD_ICONS: Record<PaymentMethod, string> = {
 const SalesScreen = () => {
   const router = useRouter();
   const { user } = useAuth();
+  const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -75,7 +85,6 @@ const SalesScreen = () => {
       }
 
       const data = await api.getSales(params);
-      // Sort sales by createdAt descending (newest first)
       const sortedData = data.sort((a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
@@ -121,27 +130,27 @@ const SalesScreen = () => {
   const metrics = calculateMetrics();
 
   const renderMetrics = () => (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.metricsContainer}>
-      <View style={styles.metricCard}>
-        <MaterialCommunityIcons name="cash-multiple" size={24} color="#10B981" />
-        <Text style={styles.metricValue}>S/ {metrics.total.toFixed(2)}</Text>
-        <Text style={styles.metricLabel}>Total Ventas</Text>
-      </View>
-      <View style={styles.metricCard}>
-        <MaterialCommunityIcons name="receipt" size={24} color="#3B82F6" />
-        <Text style={styles.metricValue}>{metrics.count}</Text>
-        <Text style={styles.metricLabel}>N° Transacciones</Text>
-      </View>
-      <View style={styles.metricCard}>
-        <MaterialCommunityIcons name="chart-line" size={24} color="#F59E0B" />
-        <Text style={styles.metricValue}>S/ {metrics.avgTicket.toFixed(2)}</Text>
-        <Text style={styles.metricLabel}>Ticket Promedio</Text>
-      </View>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.metricsContainer, { backgroundColor: theme.surface }]}>
+      <Card variant="flat" padding={spacing.base} style={styles.metricCard}>
+        <MaterialCommunityIcons name="cash-multiple" size={24} color={colors.success} />
+        <Text style={[styles.metricValue, { color: theme.text }]}>S/ {metrics.total.toFixed(2)}</Text>
+        <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Total Ventas</Text>
+      </Card>
+      <Card variant="flat" padding={spacing.base} style={styles.metricCard}>
+        <MaterialCommunityIcons name="receipt" size={24} color={colors.primary} />
+        <Text style={[styles.metricValue, { color: theme.text }]}>{metrics.count}</Text>
+        <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>N° Transacciones</Text>
+      </Card>
+      <Card variant="flat" padding={spacing.base} style={styles.metricCard}>
+        <MaterialCommunityIcons name="chart-line" size={24} color={colors.warning} />
+        <Text style={[styles.metricValue, { color: theme.text }]}>S/ {metrics.avgTicket.toFixed(2)}</Text>
+        <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Ticket Promedio</Text>
+      </Card>
     </ScrollView>
   );
 
   const renderFilters = () => (
-    <View style={styles.filterContainer}>
+    <View style={[styles.filterContainer, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         {[
           { key: 'today', label: 'Hoy' },
@@ -149,79 +158,75 @@ const SalesScreen = () => {
           { key: 'month', label: 'Mes' },
           { key: 'all', label: 'Todas' },
         ].map((filter) => (
-          <TouchableOpacity
+          <FilterChip
             key={filter.key}
-            style={[
-              styles.filterChip,
-              dateFilter === filter.key && styles.filterChipActive
-            ]}
+            label={filter.label}
+            selected={dateFilter === filter.key}
             onPress={() => setDateFilter(filter.key as typeof dateFilter)}
-          >
-            <Text style={[
-              styles.filterChipText,
-              dateFilter === filter.key && styles.filterChipTextActive
-            ]}>
-              {filter.label}
-            </Text>
-          </TouchableOpacity>
+            style={{ marginRight: spacing.sm }}
+          />
         ))}
       </ScrollView>
     </View>
   );
 
-  const renderSaleCard = ({ item }: { item: Sale }) => (
-    <TouchableOpacity
-      style={styles.saleCard}
-      onPress={() => {
-        setSelectedSale(item);
-        setShowDetails(true);
-      }}
-    >
-      <View style={styles.saleHeader}>
-        <Text style={styles.saleId}>#{item.id.slice(0, 8)}</Text>
-        <View style={styles.paymentBadge}>
-          <MaterialCommunityIcons
-            name={PAYMENT_METHOD_ICONS[item.paymentMethod] as any}
-            size={14}
-            color="#3B82F6"
-          />
-          <Text style={styles.paymentText}>{PAYMENT_METHOD_LABELS[item.paymentMethod]}</Text>
-        </View>
-      </View>
+  const renderSaleCard = ({ item, index }: { item: Sale; index: number }) => (
+    <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() => {
+          setSelectedSale(item);
+          setShowDetails(true);
+        }}
+      >
+        <Card variant="elevated" padding={spacing.base} style={{ marginBottom: spacing.md }}>
+          <View style={styles.saleHeader}>
+            <Text style={[styles.saleId, { color: theme.primary }]}>#{item.id.slice(0, 8)}</Text>
+            <View style={styles.paymentBadge}>
+              <MaterialCommunityIcons
+                name={PAYMENT_METHOD_ICONS[item.paymentMethod] as any}
+                size={14}
+                color={theme.primary}
+              />
+              <Badge label={PAYMENT_METHOD_LABELS[item.paymentMethod]} variant="primary" />
+            </View>
+          </View>
 
-      <View style={styles.saleInfo}>
-        <View style={styles.infoRow}>
-          <MaterialCommunityIcons name="account" size={18} color="#6B7280" />
-          <Text style={styles.infoText}>{item.customerFullName || item.customerName || 'Cliente General'}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <MaterialCommunityIcons name="calendar" size={18} color="#6B7280" />
-          <Text style={styles.infoText}>{new Date(item.createdAt).toLocaleDateString()}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <MaterialCommunityIcons name="package-variant" size={18} color="#6B7280" />
-          <Text style={styles.infoText}>{item.items?.length || 0} productos</Text>
-        </View>
-      </View>
+          <View style={styles.saleInfo}>
+            <View style={styles.infoRow}>
+              <MaterialCommunityIcons name="account" size={18} color={theme.textMuted} />
+              <Text style={[styles.infoText, { color: theme.textSecondary }]}>{item.customerFullName || item.customerName || 'Cliente General'}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <MaterialCommunityIcons name="calendar" size={18} color={theme.textMuted} />
+              <Text style={[styles.infoText, { color: theme.textSecondary }]}>{new Date(item.createdAt).toLocaleDateString()}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <MaterialCommunityIcons name="package-variant" size={18} color={theme.textMuted} />
+              <Text style={[styles.infoText, { color: theme.textSecondary }]}>{item.items?.length || 0} productos</Text>
+            </View>
+          </View>
 
-      <View style={styles.saleFooter}>
-        <Text style={styles.saleTotal}>S/ {item.totalAmount.toFixed(2)}</Text>
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
-            onPress={() => handleViewInvoice(item)}
-          >
-            <MaterialCommunityIcons name="file-document" size={18} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: '#10B981' }]}
-            onPress={() => handlePrintTicket(item)}
-          >
-            <MaterialCommunityIcons name="printer" size={18} color="white" />
-          </TouchableOpacity>
-        </View>
-      </View>
-    </TouchableOpacity>
+          <View style={[styles.saleFooter, { borderTopColor: theme.borderLight }]}>
+            <Text style={[styles.saleTotal, { color: colors.success }]}>S/ {item.totalAmount.toFixed(2)}</Text>
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: theme.primary }]}
+                onPress={() => handleViewInvoice(item)}
+              >
+                <MaterialCommunityIcons name="file-document" size={18} color={colors.white} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: colors.success }]}
+                onPress={() => handlePrintTicket(item)}
+              >
+                <MaterialCommunityIcons name="printer" size={18} color={colors.white} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Card>
+      </TouchableOpacity>
+    </Animated.View>
   );
 
   const renderSaleDetails = () => {
@@ -233,69 +238,71 @@ const SalesScreen = () => {
         animationType="slide"
         onRequestClose={() => setShowDetails(false)}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Venta #{selectedSale.id.slice(0, 8)}</Text>
+        <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
+          <View style={[styles.modalHeader, { backgroundColor: theme.headerBg, borderBottomColor: theme.headerBorder }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>Venta #{selectedSale.id.slice(0, 8)}</Text>
             <TouchableOpacity onPress={() => setShowDetails(false)}>
-              <MaterialCommunityIcons name="close" size={24} color="#374151" />
+              <MaterialCommunityIcons name="close" size={24} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.modalContent}>
-            <View style={styles.detailSection}>
-              <Text style={styles.sectionTitle}>Información General</Text>
+            <Card variant="outlined" padding={spacing.base} style={{ marginBottom: spacing.md }}>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Información General</Text>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Cliente:</Text>
-                <Text style={styles.detailValue}>
+                <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Cliente:</Text>
+                <Text style={[styles.detailValue, { color: theme.text }]}>
                   {selectedSale.customerFullName || selectedSale.customerName || 'Cliente General'}
                 </Text>
               </View>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Vendedor:</Text>
-                <Text style={styles.detailValue}>{selectedSale.userName}</Text>
+                <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Vendedor:</Text>
+                <Text style={[styles.detailValue, { color: theme.text }]}>{selectedSale.userName}</Text>
               </View>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Método de Pago:</Text>
-                <Text style={styles.detailValue}>{PAYMENT_METHOD_LABELS[selectedSale.paymentMethod]}</Text>
+                <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Método de Pago:</Text>
+                <Text style={[styles.detailValue, { color: theme.text }]}>{PAYMENT_METHOD_LABELS[selectedSale.paymentMethod]}</Text>
               </View>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Fecha:</Text>
-                <Text style={styles.detailValue}>
+                <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Fecha:</Text>
+                <Text style={[styles.detailValue, { color: theme.text }]}>
                   {new Date(selectedSale.createdAt).toLocaleString()}
                 </Text>
               </View>
-            </View>
+            </Card>
 
-            <View style={styles.detailSection}>
-              <Text style={styles.sectionTitle}>Productos</Text>
+            <Card variant="outlined" padding={spacing.base} style={{ marginBottom: spacing.md }}>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Productos</Text>
               {selectedSale.items?.map((item, index) => (
-                <View key={index} style={styles.productItem}>
+                <View key={index} style={[styles.productItem, { borderBottomColor: theme.borderLight }]}>
                   <View style={styles.productInfo}>
-                    <Text style={styles.productName}>{item.productName || 'Producto'}</Text>
-                    <Text style={styles.productQty}>{item.quantity} x S/ {item.price.toFixed(2)}</Text>
+                    <Text style={[styles.productName, { color: theme.text }]}>{item.productName || 'Producto'}</Text>
+                    <Text style={[styles.productQty, { color: theme.textSecondary }]}>{item.quantity} x S/ {item.price.toFixed(2)}</Text>
                   </View>
-                  <Text style={styles.productTotal}>S/ {(item.quantity * item.price).toFixed(2)}</Text>
+                  <Text style={[styles.productTotal, { color: theme.text }]}>S/ {(item.quantity * item.price).toFixed(2)}</Text>
                 </View>
               ))}
-            </View>
+            </Card>
 
-            <View style={styles.totalSection}>
-              <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>S/ {selectedSale.totalAmount.toFixed(2)}</Text>
-            </View>
+            <Card variant="outlined" padding={spacing.base}>
+              <View style={styles.totalSection}>
+                <Text style={[styles.totalLabel, { color: theme.text }]}>Total</Text>
+                <Text style={[styles.totalValue, { color: colors.success }]}>S/ {selectedSale.totalAmount.toFixed(2)}</Text>
+              </View>
+            </Card>
           </ScrollView>
 
-          <View style={styles.modalFooter}>
-            <TouchableOpacity
-              style={[styles.footerButton, { backgroundColor: '#10B981' }]}
+          <View style={[styles.modalFooter, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
+            <Button
+              title="Ver Ticket"
+              variant="success"
               onPress={() => {
                 setShowDetails(false);
                 handlePrintTicket(selectedSale);
               }}
-            >
-              <MaterialCommunityIcons name="printer" size={20} color="white" />
-              <Text style={styles.footerButtonText}>Ver Ticket</Text>
-            </TouchableOpacity>
+              icon={<MaterialCommunityIcons name="printer" size={20} color={colors.white} />}
+              fullWidth
+            />
           </View>
         </View>
       </Modal>
@@ -311,82 +318,86 @@ const SalesScreen = () => {
         animationType="slide"
         onRequestClose={() => setShowTicket(false)}
       >
-        <View style={styles.ticketContainer}>
-          <View style={styles.ticketHeader}>
+        <View style={[styles.ticketContainer, { backgroundColor: theme.background }]}>
+          <View style={[styles.ticketHeader, { backgroundColor: theme.headerBg, borderBottomColor: theme.headerBorder }]}>
             <TouchableOpacity onPress={() => setShowTicket(false)}>
-              <MaterialCommunityIcons name="close" size={24} color="#374151" />
+              <MaterialCommunityIcons name="close" size={24} color={theme.textSecondary} />
             </TouchableOpacity>
-            <Text style={styles.ticketHeaderTitle}>Ticket de Venta</Text>
+            <Text style={[styles.ticketHeaderTitle, { color: theme.text }]}>Ticket de Venta</Text>
             <View style={{ width: 24 }} />
           </View>
 
           <ScrollView style={styles.ticketContent}>
-            <View style={styles.ticket}>
+            <Card variant="elevated" padding={spacing.lg}>
               {/* Ticket Header */}
               <View style={styles.ticketBrand}>
-                <Text style={styles.ticketBrandName}>ELECTRONICA PIMENTEL</Text>
-                <Text style={styles.ticketBrandSubtitle}>Reparación de Electrodomésticos en general y venta de componentes electrónicos</Text>
+                <Text style={[styles.ticketBrandName, { color: theme.primary }]}>ELECTRONICA PIMENTEL</Text>
+                <Text style={[styles.ticketBrandSubtitle, { color: theme.textSecondary }]}>Reparación de Electrodomésticos en general y venta de componentes electrónicos</Text>
               </View>
 
-              <View style={styles.ticketDivider} />
+              <View style={[styles.ticketDivider, { borderBottomColor: theme.border }]} />
 
               <View style={styles.ticketInfo}>
-                <Text style={styles.ticketInfoText}>Fecha: {new Date(selectedSale.createdAt).toLocaleString()}</Text>
-                <Text style={styles.ticketInfoText}>Ticket: #{selectedSale.id.slice(0, 8).toUpperCase()}</Text>
-                <Text style={styles.ticketInfoText}>Cliente: {selectedSale.customerFullName || selectedSale.customerName || 'Cliente General'}</Text>
-                <Text style={styles.ticketInfoText}>Método: {PAYMENT_METHOD_LABELS[selectedSale.paymentMethod]}</Text>
+                <Text style={[styles.ticketInfoText, { color: theme.textSecondary }]}>Fecha: {new Date(selectedSale.createdAt).toLocaleString()}</Text>
+                <Text style={[styles.ticketInfoText, { color: theme.textSecondary }]}>Ticket: #{selectedSale.id.slice(0, 8).toUpperCase()}</Text>
+                <Text style={[styles.ticketInfoText, { color: theme.textSecondary }]}>Cliente: {selectedSale.customerFullName || selectedSale.customerName || 'Cliente General'}</Text>
+                <Text style={[styles.ticketInfoText, { color: theme.textSecondary }]}>Método: {PAYMENT_METHOD_LABELS[selectedSale.paymentMethod]}</Text>
               </View>
 
-              <View style={styles.ticketDivider} />
+              <View style={[styles.ticketDivider, { borderBottomColor: theme.border }]} />
 
               {/* Items */}
               <View style={styles.ticketItems}>
-                <View style={styles.ticketItemHeader}>
-                  <Text style={styles.ticketItemHeaderText}>ITEM</Text>
-                  <Text style={styles.ticketItemHeaderText}>CANT</Text>
-                  <Text style={styles.ticketItemHeaderText}>P.U</Text>
-                  <Text style={styles.ticketItemHeaderText}>TOTAL</Text>
+                <View style={[styles.ticketItemHeader, { borderBottomColor: theme.border }]}>
+                  <Text style={[styles.ticketItemHeaderText, { color: theme.textSecondary }]}>ITEM</Text>
+                  <Text style={[styles.ticketItemHeaderText, { color: theme.textSecondary }]}>CANT</Text>
+                  <Text style={[styles.ticketItemHeaderText, { color: theme.textSecondary }]}>P.U</Text>
+                  <Text style={[styles.ticketItemHeaderText, { color: theme.textSecondary }]}>TOTAL</Text>
                 </View>
                 {selectedSale.items?.map((item, index) => (
-                  <View key={index} style={styles.ticketItemRow}>
-                    <Text style={styles.ticketItemName}>{item.productName || 'Producto'}</Text>
-                    <Text style={styles.ticketItemQty}>{item.quantity}</Text>
-                    <Text style={styles.ticketItemPrice}>{item.price.toFixed(2)}</Text>
-                    <Text style={styles.ticketItemSubtotal}>{(item.quantity * item.price).toFixed(2)}</Text>
+                  <View key={index} style={[styles.ticketItemRow, { borderBottomColor: theme.borderLight }]}>
+                    <Text style={[styles.ticketItemName, { color: theme.text }]}>{item.productName || 'Producto'}</Text>
+                    <Text style={[styles.ticketItemQty, { color: theme.textSecondary }]}>{item.quantity}</Text>
+                    <Text style={[styles.ticketItemPrice, { color: theme.textSecondary }]}>{item.price.toFixed(2)}</Text>
+                    <Text style={[styles.ticketItemSubtotal, { color: theme.text }]}>S/ {(item.quantity * item.price).toFixed(2)}</Text>
                   </View>
                 ))}
               </View>
 
-              <View style={styles.ticketDivider} />
+              <View style={[styles.ticketDivider, { borderBottomColor: theme.border }]} />
 
               {/* Total */}
               <View style={styles.ticketTotal}>
-                <Text style={styles.ticketTotalLabel}>TOTAL:</Text>
-                <Text style={styles.ticketTotalValue}>S/ {selectedSale.totalAmount.toFixed(2)}</Text>
+                <Text style={[styles.ticketTotalLabel, { color: theme.text }]}>TOTAL:</Text>
+                <Text style={[styles.ticketTotalValue, { color: colors.success }]}>S/ {selectedSale.totalAmount.toFixed(2)}</Text>
               </View>
 
-              <View style={styles.ticketDivider} />
+              <View style={[styles.ticketDivider, { borderBottomColor: theme.border }]} />
 
-              <Text style={styles.ticketFooter}>¡Gracias por su compra!</Text>
-              <Text style={styles.ticketFooterSmall}>Conserve su ticket</Text>
-            </View>
+              <Text style={[styles.ticketFooter, { color: theme.textSecondary }]}>¡Gracias por su compra!</Text>
+              <Text style={[styles.ticketFooterSmall, { color: theme.textMuted }]}>Conserve su ticket</Text>
+            </Card>
           </ScrollView>
 
-          <View style={styles.ticketActions}>
-            <TouchableOpacity
-              style={[styles.ticketActionButton, { backgroundColor: '#10B981' }]}
-              onPress={() => handleShareTicket(selectedSale)}
-            >
-              <MaterialCommunityIcons name="share-variant" size={20} color="white" />
-              <Text style={styles.ticketActionText}>Compartir</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.ticketActionButton, { backgroundColor: '#3B82F6' }]}
-              onPress={() => handlePrintPDF(selectedSale)}
-            >
-              <MaterialCommunityIcons name="file-pdf-box" size={20} color="white" />
-              <Text style={styles.ticketActionText}>Descargar PDF</Text>
-            </TouchableOpacity>
+          <View style={[styles.ticketActions, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
+            <View style={{ flex: 1 }}>
+              <Button
+                title="Compartir"
+                variant="success"
+                onPress={() => handleShareTicket(selectedSale)}
+                icon={<MaterialCommunityIcons name="share-variant" size={20} color={colors.white} />}
+                fullWidth
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Button
+                title="Descargar PDF"
+                variant="primary"
+                onPress={() => handlePrintPDF(selectedSale)}
+                icon={<MaterialCommunityIcons name="file-pdf-box" size={20} color={colors.white} />}
+                fullWidth
+              />
+            </View>
           </View>
         </View>
       </Modal>
@@ -469,7 +480,6 @@ const SalesScreen = () => {
           <div class="info-block">
             <div class="info-label">Facturado a:</div>
             <div class="info-main">${sale.customerFullName || sale.customerName || 'Cliente General'}</div>
-            <!-- <div class="info-sub">ID: 12345678</div> -->
           </div>
           
           <div class="info-block">
@@ -614,9 +624,12 @@ const SalesScreen = () => {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={styles.loadingText}>Cargando ventas...</Text>
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <View style={[styles.header, { backgroundColor: theme.headerBg, borderBottomColor: theme.headerBorder }]}>
+          <SkeletonLoader lines={1} lineHeight={22} />
+        </View>
+        <SkeletonLoader lines={3} lineHeight={spacing.lg} borderRadius={radii.lg} />
+        <SkeletonLoader lines={4} lineHeight={120} borderRadius={radii.lg} />
       </View>
     );
   }
@@ -624,44 +637,47 @@ const SalesScreen = () => {
   if (error) {
     return (
       <View style={styles.centered}>
-        <MaterialCommunityIcons name="alert-circle" size={48} color="#EF4444" />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchSales}>
-          <Text style={styles.retryButtonText}>Reintentar</Text>
-        </TouchableOpacity>
+        <MaterialCommunityIcons name="alert-circle" size={48} color={colors.error} />
+        <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
+        <Button
+          title="Reintentar"
+          variant="primary"
+          onPress={fetchSales}
+        />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Ventas</Text>
-        <TouchableOpacity
-          style={styles.newSaleButton}
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.header, { backgroundColor: theme.headerBg, borderBottomColor: theme.headerBorder }]}>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Ventas</Text>
+        <Button
+          title="Nueva Venta"
+          variant="success"
+          size="sm"
           onPress={() => router.push('/sales/new')}
-        >
-          <MaterialCommunityIcons name="plus" size={20} color="white" />
-          <Text style={styles.newSaleButtonText}>Nueva Venta</Text>
-        </TouchableOpacity>
+          icon={<MaterialCommunityIcons name="plus" size={20} color={colors.white} />}
+        />
       </View>
 
       {renderMetrics()}
       {renderFilters()}
 
-      <FlatList
+      <Animated.FlatList
         data={sales}
         renderItem={renderSaleCard}
         keyExtractor={item => item.id}
-        contentContainerStyle={styles.salesList}
+        contentContainerStyle={[styles.salesList, { paddingBottom: spacing['4xl'] + insets.bottom }]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <MaterialCommunityIcons name="cash-register" size={64} color="#D1D5DB" />
-            <Text style={styles.emptyText}>No hay ventas</Text>
-          </View>
+          <EmptyState
+            icon="cash-register"
+            title="No hay ventas"
+            message="Las ventas aparecerán aquí una vez registradas"
+          />
         }
       />
 
@@ -674,467 +690,298 @@ const SalesScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#6B7280',
+    padding: spacing['2xl'],
   },
   errorText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#EF4444',
+    marginTop: spacing.md,
+    fontSize: typography.sizes.base,
     textAlign: 'center',
-  },
-  retryButton: {
-    marginTop: 16,
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: 'white',
-    fontWeight: '600',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'white',
+    padding: spacing.base,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  newSaleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#10B981',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  newSaleButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    marginLeft: 4,
+    fontSize: typography.sizes.xl,
+    fontWeight: typography.weights.bold,
   },
   metricsContainer: {
-    padding: 16,
-    backgroundColor: 'white',
+    padding: spacing.base,
   },
   metricCard: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    padding: 16,
-    marginRight: 12,
+    marginRight: spacing.md,
     minWidth: 140,
     alignItems: 'center',
   },
   metricValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginTop: 8,
+    fontSize: typography.sizes.xl,
+    fontWeight: typography.weights.bold,
+    marginTop: spacing.sm,
   },
   metricLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
+    fontSize: typography.sizes.xs,
+    marginTop: spacing.xs,
   },
   filterContainer: {
-    padding: 12,
-    backgroundColor: 'white',
+    padding: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  filterChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-    marginRight: 8,
-  },
-  filterChipActive: {
-    backgroundColor: '#3B82F6',
-  },
-  filterChipText: {
-    fontSize: 14,
-    color: '#4B5563',
-  },
-  filterChipTextActive: {
-    color: 'white',
   },
   salesList: {
-    padding: 16,
-    paddingBottom: 100,
-  },
-  saleCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    padding: spacing.base,
   },
   saleHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   saleId: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#3B82F6',
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.semibold,
   },
   paymentBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-  },
-  paymentText: {
-    fontSize: 12,
-    color: '#3B82F6',
-    fontWeight: '500',
+    gap: spacing.xs,
   },
   saleInfo: {
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: spacing.xs,
   },
   infoText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: '#4B5563',
+    marginLeft: spacing.sm,
+    fontSize: typography.sizes.sm,
   },
   saleFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 12,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
   },
   saleTotal: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#10B981',
+    fontSize: typography.sizes.xl,
+    fontWeight: typography.weights.bold,
   },
   actionButtons: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
   },
   actionButton: {
     width: 36,
     height: 36,
-    borderRadius: 8,
+    borderRadius: radii.md,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 64,
-  },
-  emptyText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#6B7280',
   },
   // Modal styles
   modalContainer: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'white',
+    padding: spacing.base,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.semibold,
   },
   modalContent: {
     flex: 1,
-    padding: 16,
+    padding: spacing.base,
   },
   modalFooter: {
-    padding: 16,
-    backgroundColor: 'white',
+    padding: spacing.base,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-  },
-  footerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 14,
-    borderRadius: 8,
-    gap: 8,
-  },
-  footerButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    fontSize: 16,
   },
   detailSection: {
-    backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
+    padding: spacing.base,
+    borderRadius: radii.lg,
+    marginBottom: spacing.md,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 12,
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.semibold,
+    marginBottom: spacing.md,
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   detailLabel: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: typography.sizes.sm,
   },
   detailValue: {
-    fontSize: 14,
-    color: '#111827',
-    fontWeight: '500',
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.medium,
   },
   productItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
   },
   productInfo: {
     flex: 1,
   },
   productName: {
-    fontSize: 14,
-    color: '#111827',
+    fontSize: typography.sizes.sm,
   },
   productQty: {
-    fontSize: 12,
-    color: '#6B7280',
+    fontSize: typography.sizes.xs,
   },
   productTotal: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.semibold,
   },
   totalSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 12,
   },
   totalLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.semibold,
   },
   totalValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#10B981',
+    fontSize: typography.sizes['2xl'],
+    fontWeight: typography.weights.bold,
   },
   // Ticket styles
   ticketContainer: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
   },
   ticketHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'white',
+    padding: spacing.base,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   ticketHeaderTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.semibold,
   },
   ticketContent: {
     flex: 1,
-    padding: 16,
+    padding: spacing.base,
   },
   ticket: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderRadius: radii.lg,
   },
   ticketBrand: {
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: spacing.base,
   },
   ticketBrandName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#3B82F6',
+    fontSize: typography.sizes.xl,
+    fontWeight: typography.weights.bold,
     letterSpacing: 1,
   },
   ticketBrandSubtitle: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
+    fontSize: typography.sizes.xs,
+    marginTop: spacing.xs,
   },
   ticketDivider: {
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
     borderStyle: 'dashed',
-    marginVertical: 12,
+    marginVertical: spacing.md,
   },
   ticketInfo: {
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
   },
   ticketInfoText: {
-    fontSize: 13,
-    color: '#4B5563',
-    marginBottom: 6,
+    fontSize: typography.sizes.sm,
+    marginBottom: spacing.xs,
   },
   ticketItems: {
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
   },
   ticketItemHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingBottom: 8,
+    paddingBottom: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   ticketItemHeaderText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#6B7280',
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.semibold,
     flex: 1,
     textAlign: 'center',
   },
   ticketItemRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
   },
   ticketItemName: {
     flex: 2,
-    fontSize: 12,
-    color: '#111827',
+    fontSize: typography.sizes.xs,
   },
   ticketItemQty: {
     flex: 1,
-    fontSize: 12,
-    color: '#4B5563',
+    fontSize: typography.sizes.xs,
     textAlign: 'center',
   },
   ticketItemPrice: {
     flex: 1,
-    fontSize: 12,
-    color: '#4B5563',
+    fontSize: typography.sizes.xs,
     textAlign: 'center',
   },
   ticketItemSubtotal: {
     flex: 1,
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.semibold,
     textAlign: 'right',
   },
   ticketTotal: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
   },
   ticketTotalLabel: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#111827',
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.bold,
   },
   ticketTotalValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#10B981',
+    fontSize: typography.sizes['2xl'],
+    fontWeight: typography.weights.bold,
   },
   ticketFooter: {
     textAlign: 'center',
-    fontSize: 14,
-    color: '#374151',
-    marginTop: 8,
+    fontSize: typography.sizes.sm,
+    marginTop: spacing.sm,
   },
   ticketFooterSmall: {
     textAlign: 'center',
-    fontSize: 11,
-    color: '#9CA3AF',
-    marginTop: 4,
+    fontSize: typography.sizes.xs,
+    marginTop: spacing.xs,
   },
   ticketActions: {
     flexDirection: 'row',
-    gap: 12,
-    padding: 16,
-    paddingBottom: 32,
-    backgroundColor: 'white',
+    gap: spacing.md,
+    padding: spacing.base,
+    paddingBottom: spacing.xl,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-  },
-  ticketActionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 8,
-    gap: 8,
-  },
-  ticketActionText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });
 

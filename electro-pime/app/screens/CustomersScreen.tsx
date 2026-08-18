@@ -4,22 +4,33 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
   FlatList,
   Linking,
   Alert,
-  ActivityIndicator,
   RefreshControl,
   Modal,
   ScrollView,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../services/api';
 import { Customer, CreateCustomerDto } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../../hooks/useTheme';
+import { EmptyState } from '../components/ui/EmptyState';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { Avatar } from '../components/ui/Avatar';
+import { SkeletonLoader } from '../components/ui/SkeletonLoader';
+import { Badge } from '../components/ui/Badge';
+import { spacing, typography, radii, shadows } from '../../constants/theme';
 
 const CustomersScreen = () => {
   const { user } = useAuth();
+  const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -173,96 +184,103 @@ const CustomersScreen = () => {
   };
 
   const renderHeader = () => (
-    <View style={styles.header}>
-      <Text style={styles.headerTitle}>Clientes</Text>
-      <TouchableOpacity style={styles.addButton} onPress={openNewCustomerModal}>
-        <MaterialCommunityIcons name="plus" size={20} color="white" />
-        <Text style={styles.addButtonText}>Nuevo</Text>
-      </TouchableOpacity>
+    <View style={[styles.header, { backgroundColor: theme.headerBg, borderBottomColor: theme.headerBorder }]}>
+      <Text style={[styles.headerTitle, { color: theme.text }]}>Clientes</Text>
+      <Button
+        title="Nuevo"
+        onPress={openNewCustomerModal}
+        variant="primary"
+        size="sm"
+        icon={<MaterialCommunityIcons name="plus" size={18} color="white" />}
+      />
     </View>
   );
 
   const renderMetrics = () => (
     <View style={styles.metricsContainer}>
-      <View style={styles.metricCard}>
-        <MaterialCommunityIcons name="account-group" size={24} color="#3B82F6" />
-        <Text style={styles.metricValue}>{customers.length}</Text>
-        <Text style={styles.metricLabel}>Total Clientes</Text>
-      </View>
+      <Card variant="elevated" padding={spacing.base} style={styles.metricCard}>
+        <MaterialCommunityIcons name="account-group" size={24} color={theme.primary} />
+        <Text style={[styles.metricValue, { color: theme.text }]}>{customers.length}</Text>
+        <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Total Clientes</Text>
+      </Card>
     </View>
   );
 
   const renderSearchBar = () => (
     <View style={styles.searchContainer}>
-      <MaterialCommunityIcons name="magnify" size={20} color="#9CA3AF" />
-      <TextInput
-        style={styles.searchInput}
+      <Input
         placeholder="Buscar por nombre, teléfono o documento..."
-        placeholderTextColor="#9CA3AF"
         value={searchQuery}
         onChangeText={handleSearch}
+        leftIcon={<MaterialCommunityIcons name="magnify" size={20} color={theme.textMuted} />}
+        rightIcon={
+          searchQuery.length > 0 ? (
+            <TouchableOpacity onPress={() => handleSearch('')}>
+              <MaterialCommunityIcons name="close-circle" size={20} color={theme.textMuted} />
+            </TouchableOpacity>
+          ) : undefined
+        }
+        containerStyle={styles.searchInputContainer}
       />
-      {searchQuery.length > 0 && (
-        <TouchableOpacity onPress={() => handleSearch('')}>
-          <MaterialCommunityIcons name="close-circle" size={20} color="#9CA3AF" />
-        </TouchableOpacity>
-      )}
     </View>
   );
 
   const renderCustomerCard = ({ item }: { item: Customer }) => (
-    <View style={styles.customerCard}>
-      <View style={styles.customerHeader}>
-        <View style={styles.avatarContainer}>
-          <Text style={styles.avatarText}>{item.name.charAt(0).toUpperCase()}</Text>
+    <Animated.View entering={FadeInDown.duration(300)}>
+      <Card variant="elevated" padding={spacing.base} style={styles.customerCard}>
+        <View style={styles.customerHeader}>
+          <Avatar name={item.name} size={48} />
+          <View style={styles.customerInfo}>
+            <Text style={[styles.customerName, { color: theme.text }]}>{item.name}</Text>
+            <View style={styles.documentRow}>
+              <Badge label={item.documentType} variant="default" size="sm" />
+              <Text style={[styles.customerDocument, { color: theme.textSecondary }]}>
+                {item.documentNumber}
+              </Text>
+            </View>
+            {item.email && (
+              <Text style={[styles.customerEmail, { color: theme.primary }]}>{item.email}</Text>
+            )}
+          </View>
         </View>
-        <View style={styles.customerInfo}>
-          <Text style={styles.customerName}>{item.name}</Text>
-          <Text style={styles.customerDocument}>
-            {item.documentType}: {item.documentNumber}
-          </Text>
-          {item.email && (
-            <Text style={styles.customerEmail}>{item.email}</Text>
-          )}
-        </View>
-      </View>
 
-      <View style={styles.contactRow}>
-        <TouchableOpacity
-          style={[styles.contactButton, { backgroundColor: '#3B82F6' }]}
-          onPress={() => handleContact('phone', item.phone)}
-        >
-          <MaterialCommunityIcons name="phone" size={18} color="white" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.contactButton, { backgroundColor: '#25D366' }]}
-          onPress={() => handleContact('whatsapp', item.phone)}
-        >
-          <MaterialCommunityIcons name="whatsapp" size={18} color="white" />
-        </TouchableOpacity>
-        {item.email && (
+        <View style={[styles.contactRow, { borderTopColor: theme.divider }]}>
           <TouchableOpacity
-            style={[styles.contactButton, { backgroundColor: '#EF4444' }]}
-            onPress={() => handleContact('email', item.email!)}
+            style={[styles.contactButton, { backgroundColor: theme.primary }]}
+            onPress={() => handleContact('phone', item.phone)}
           >
-            <MaterialCommunityIcons name="email" size={18} color="white" />
+            <MaterialCommunityIcons name="phone" size={18} color="white" />
           </TouchableOpacity>
-        )}
-        <View style={styles.actionsSpacer} />
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: '#F59E0B' }]}
-          onPress={() => openEditCustomerModal(item)}
-        >
-          <MaterialCommunityIcons name="pencil" size={18} color="white" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: '#EF4444' }]}
-          onPress={() => handleDeleteCustomer(item)}
-        >
-          <MaterialCommunityIcons name="delete" size={18} color="white" />
-        </TouchableOpacity>
-      </View>
-    </View>
+          <TouchableOpacity
+            style={[styles.contactButton, { backgroundColor: '#25D366' }]}
+            onPress={() => handleContact('whatsapp', item.phone)}
+          >
+            <MaterialCommunityIcons name="whatsapp" size={18} color="white" />
+          </TouchableOpacity>
+          {item.email && (
+            <TouchableOpacity
+              style={[styles.contactButton, { backgroundColor: theme.error }]}
+              onPress={() => handleContact('email', item.email!)}
+            >
+              <MaterialCommunityIcons name="email" size={18} color="white" />
+            </TouchableOpacity>
+          )}
+          <View style={styles.actionsSpacer} />
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: theme.warning }]}
+            onPress={() => openEditCustomerModal(item)}
+          >
+            <MaterialCommunityIcons name="pencil" size={18} color="white" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: theme.error }]}
+            onPress={() => handleDeleteCustomer(item)}
+          >
+            <MaterialCommunityIcons name="delete" size={18} color="white" />
+          </TouchableOpacity>
+        </View>
+      </Card>
+    </Animated.View>
   );
 
   const renderModal = () => (
@@ -271,44 +289,38 @@ const CustomersScreen = () => {
       animationType="slide"
       onRequestClose={() => setShowModal(false)}
     >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>
+      <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
+        <View style={[styles.modalHeader, { backgroundColor: theme.headerBg, borderBottomColor: theme.headerBorder }]}>
+          <Text style={[styles.modalTitle, { color: theme.text }]}>
             {editingCustomer ? 'Editar Cliente' : 'Nuevo Cliente'}
           </Text>
           <TouchableOpacity onPress={() => setShowModal(false)}>
-            <MaterialCommunityIcons name="close" size={24} color="#374151" />
+            <MaterialCommunityIcons name="close" size={24} color={theme.textSecondary} />
           </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.modalContent}>
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Nombre *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Nombre completo"
-              value={formData.name}
-              onChangeText={(text) => setFormData({ ...formData, name: text })}
-            />
-          </View>
+          <Input
+            label="Nombre *"
+            placeholder="Nombre completo"
+            value={formData.name}
+            onChangeText={(text) => setFormData({ ...formData, name: text })}
+          />
 
           <View style={styles.row}>
             <View style={[styles.inputContainer, styles.halfWidth]}>
-              <Text style={styles.inputLabel}>Tipo Doc. *</Text>
-              <View style={styles.pickerContainer}>
-                <TouchableOpacity
-                  style={styles.pickerButton}
-                  onPress={() => setFormData({ ...formData, documentType: formData.documentType === 'DNI' ? 'RUC' : 'DNI' })}
-                >
-                  <Text style={styles.pickerText}>{formData.documentType}</Text>
-                  <MaterialCommunityIcons name="chevron-down" size={20} color="#6B7280" />
-                </TouchableOpacity>
-              </View>
+              <Text style={[styles.inputLabel, { color: theme.text }]}>Tipo Doc. *</Text>
+              <TouchableOpacity
+                style={[styles.pickerButton, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}
+                onPress={() => setFormData({ ...formData, documentType: formData.documentType === 'DNI' ? 'RUC' : 'DNI' })}
+              >
+                <Text style={[styles.pickerText, { color: theme.text }]}>{formData.documentType}</Text>
+                <MaterialCommunityIcons name="chevron-down" size={20} color={theme.textSecondary} />
+              </TouchableOpacity>
             </View>
             <View style={[styles.inputContainer, styles.halfWidth]}>
-              <Text style={styles.inputLabel}>Número Doc. *</Text>
-              <TextInput
-                style={styles.input}
+              <Input
+                label="Número Doc. *"
                 placeholder="00000000"
                 value={formData.documentNumber}
                 onChangeText={(text) => setFormData({ ...formData, documentNumber: text })}
@@ -317,62 +329,49 @@ const CustomersScreen = () => {
             </View>
           </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Teléfono *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="999999999"
-              value={formData.phone}
-              onChangeText={(text) => setFormData({ ...formData, phone: text })}
-              keyboardType="phone-pad"
-            />
-          </View>
+          <Input
+            label="Teléfono *"
+            placeholder="999999999"
+            value={formData.phone}
+            onChangeText={(text) => setFormData({ ...formData, phone: text })}
+            keyboardType="phone-pad"
+          />
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Email</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="correo@ejemplo.com"
-              value={formData.email}
-              onChangeText={(text) => setFormData({ ...formData, email: text })}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </View>
+          <Input
+            label="Email"
+            placeholder="correo@ejemplo.com"
+            value={formData.email}
+            onChangeText={(text) => setFormData({ ...formData, email: text })}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Dirección</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Dirección completa"
-              value={formData.address}
-              onChangeText={(text) => setFormData({ ...formData, address: text })}
-              multiline
-              numberOfLines={3}
-            />
-          </View>
+          <Input
+            label="Dirección"
+            placeholder="Dirección completa"
+            value={formData.address}
+            onChangeText={(text) => setFormData({ ...formData, address: text })}
+            multiline
+          />
         </ScrollView>
 
-        <View style={styles.modalFooter}>
-          <TouchableOpacity
-            style={[styles.footerButton, styles.cancelButton]}
+        <View style={[styles.modalFooter, { backgroundColor: theme.headerBg, borderTopColor: theme.headerBorder, paddingBottom: spacing.base + insets.bottom }]}>
+          <Button
+            title="Cancelar"
             onPress={() => setShowModal(false)}
-          >
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.footerButton, styles.saveButton, saving && styles.buttonDisabled]}
+            variant="secondary"
+            size="md"
+            style={styles.footerButton}
+          />
+          <Button
+            title={editingCustomer ? 'Actualizar' : 'Guardar'}
             onPress={handleSaveCustomer}
+            variant="primary"
+            size="md"
+            loading={saving}
             disabled={saving}
-          >
-            {saving ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text style={styles.saveButtonText}>
-                {editingCustomer ? 'Actualizar' : 'Guardar'}
-              </Text>
-            )}
-          </TouchableOpacity>
+            style={styles.footerButton}
+          />
         </View>
       </View>
     </Modal>
@@ -380,27 +379,30 @@ const CustomersScreen = () => {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={styles.loadingText}>Cargando clientes...</Text>
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+        <SkeletonLoader lines={4} lineHeight={60} borderRadius={radii.lg} />
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.centered}>
-        <MaterialCommunityIcons name="alert-circle" size={48} color="#EF4444" />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchCustomers}>
-          <Text style={styles.retryButtonText}>Reintentar</Text>
-        </TouchableOpacity>
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+        <MaterialCommunityIcons name="alert-circle" size={48} color={theme.error} />
+        <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
+        <Button
+          title="Reintentar"
+          onPress={fetchCustomers}
+          variant="primary"
+          size="md"
+          style={styles.retryButton}
+        />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background, paddingBottom: insets.bottom }]}>
       {renderHeader()}
       {renderMetrics()}
       {renderSearchBar()}
@@ -413,13 +415,11 @@ const CustomersScreen = () => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <MaterialCommunityIcons name="account-off" size={64} color="#D1D5DB" />
-            <Text style={styles.emptyText}>No hay clientes</Text>
-            <TouchableOpacity style={styles.emptyButton} onPress={openNewCustomerModal}>
-              <Text style={styles.emptyButtonText}>Agregar primer cliente</Text>
-            </TouchableOpacity>
-          </View>
+          <EmptyState
+            icon="account-off"
+            title="No hay clientes"
+            message="Agrega tu primer cliente para comenzar"
+          />
         }
       />
       {renderModal()}
@@ -430,173 +430,101 @@ const CustomersScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#6B7280',
+    padding: spacing['2xl'],
   },
   errorText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#EF4444',
+    marginTop: spacing.md,
+    fontSize: typography.sizes.base,
     textAlign: 'center',
   },
   retryButton: {
-    marginTop: 16,
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: 'white',
-    fontWeight: '600',
+    marginTop: spacing.base,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'white',
-    padding: 16,
+    padding: spacing.base,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  addButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    marginLeft: 4,
+    fontSize: typography.sizes.xl,
+    fontWeight: typography.weights.bold,
   },
   metricsContainer: {
     flexDirection: 'row',
-    padding: 16,
-    gap: 12,
+    padding: spacing.base,
+    gap: spacing.md,
   },
   metricCard: {
     flex: 1,
-    backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 12,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
   metricValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginTop: 8,
+    fontSize: typography.sizes['2xl'],
+    fontWeight: typography.weights.bold,
+    marginTop: spacing.sm,
   },
   metricLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
+    fontSize: typography.sizes.xs,
+    marginTop: spacing.xs,
   },
   searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    paddingHorizontal: spacing.base,
+    marginBottom: spacing.base,
   },
-  searchInput: {
-    flex: 1,
-    height: 44,
-    fontSize: 16,
-    color: '#111827',
-    marginLeft: 8,
+  searchInputContainer: {
+    marginBottom: 0,
   },
   listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingHorizontal: spacing.base,
+    paddingBottom: spacing.base,
   },
   customerCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    marginBottom: spacing.md,
   },
   customerHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-  },
-  avatarContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#3B82F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: 'bold',
+    marginBottom: spacing.md,
   },
   customerInfo: {
-    marginLeft: 12,
+    marginLeft: spacing.md,
     flex: 1,
   },
   customerName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.semibold,
+  },
+  documentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing['2xs'],
   },
   customerDocument: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 2,
+    fontSize: typography.sizes.sm,
   },
   customerEmail: {
-    fontSize: 14,
-    color: '#3B82F6',
-    marginTop: 2,
+    fontSize: typography.sizes.sm,
+    marginTop: spacing['2xs'],
   },
   contactRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 12,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-    gap: 8,
+    gap: spacing.sm,
   },
   contactButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radii.full,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -606,131 +534,64 @@ const styles = StyleSheet.create({
   actionButton: {
     width: 36,
     height: 36,
-    borderRadius: 8,
+    borderRadius: radii.md,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 64,
-  },
-  emptyText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  emptyButton: {
-    marginTop: 16,
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  emptyButtonText: {
-    color: 'white',
-    fontWeight: '600',
   },
   // Modal styles
   modalContainer: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'white',
+    padding: spacing.base,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.semibold,
   },
   modalContent: {
     flex: 1,
-    padding: 16,
+    padding: spacing.base,
   },
   inputContainer: {
-    marginBottom: 16,
+    marginBottom: spacing.base,
   },
   inputLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#111827',
-  },
-  textArea: {
-    minHeight: 80,
-    textAlignVertical: 'top',
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.medium,
+    marginBottom: spacing.sm,
   },
   row: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
   },
   halfWidth: {
     flex: 1,
-  },
-  pickerContainer: {
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
   },
   pickerButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 12,
+    padding: spacing.md,
+    borderWidth: 1.5,
+    borderRadius: radii.lg,
+    minHeight: 48,
   },
   pickerText: {
-    fontSize: 16,
-    color: '#111827',
+    fontSize: typography.sizes.base,
   },
   modalFooter: {
     flexDirection: 'row',
-    padding: 16,
-    backgroundColor: 'white',
+    padding: spacing.base,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    gap: 12,
+    gap: spacing.md,
   },
   footerButton: {
     flex: 1,
-    padding: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#F3F4F6',
-  },
-  cancelButtonText: {
-    color: '#374151',
-    fontWeight: '600',
-  },
-  saveButton: {
-    backgroundColor: '#3B82F6',
-  },
-  saveButtonText: {
-    color: 'white',
-    fontWeight: '600',
-  },
-  buttonDisabled: {
-    opacity: 0.7,
   },
 });
 

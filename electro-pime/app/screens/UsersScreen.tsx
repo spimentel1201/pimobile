@@ -3,33 +3,44 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
-  FlatList,
-  Modal,
   TextInput,
   Alert,
-  ActivityIndicator,
   RefreshControl,
   ScrollView,
 } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { api } from '../services/api';
 import { User } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../../hooks/useTheme';
+import { spacing, typography, radii, shadows } from '../../constants/theme';
+import { EmptyState } from '../components/ui/EmptyState';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Avatar } from '../components/ui/Avatar';
+import { Badge } from '../components/ui/Badge';
+import { FilterChip } from '../components/ui/FilterChip';
+import { SkeletonLoader } from '../components/ui/SkeletonLoader';
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: 'Administrador',
   TECHNICIAN: 'Técnico',
+  SELLER: 'Vendedor',
   CUSTOMER: 'Cliente',
 };
 
-const ROLE_COLORS: Record<string, string> = {
-  ADMIN: '#8B5CF6',
-  TECHNICIAN: '#3B82F6',
-  CUSTOMER: '#10B981',
+const ROLE_BADGE_VARIANT: Record<string, 'primary' | 'info' | 'warning' | 'success'> = {
+  ADMIN: 'primary',
+  TECHNICIAN: 'info',
+  SELLER: 'warning',
+  CUSTOMER: 'success',
 };
 
 const UsersScreen = () => {
+  const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -126,220 +137,243 @@ const UsersScreen = () => {
   });
 
   const renderHeader = () => (
-    <View style={styles.header}>
-      <Text style={styles.headerTitle}>Usuarios</Text>
+    <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
+      <Text style={[styles.headerTitle, { color: theme.text }]}>Usuarios</Text>
       <View style={styles.statsContainer}>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{users.length}</Text>
-          <Text style={styles.statLabel}>Total</Text>
+        <View style={[styles.statItem, { backgroundColor: theme.surfaceVariant }]}>
+          <Text style={[styles.statValue, { color: theme.primary }]}>{users.length}</Text>
+          <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Total</Text>
         </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{users.filter(u => u.isActive).length}</Text>
-          <Text style={styles.statLabel}>Activos</Text>
+        <View style={[styles.statItem, { backgroundColor: theme.surfaceVariant }]}>
+          <Text style={[styles.statValue, { color: theme.primary }]}>{users.filter(u => u.isActive).length}</Text>
+          <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Activos</Text>
         </View>
       </View>
     </View>
   );
 
   const renderFilters = () => (
-    <View style={styles.filtersContainer}>
-      <View style={styles.searchContainer}>
-        <MaterialCommunityIcons name="magnify" size={20} color="#9CA3AF" />
+    <View style={[styles.filtersContainer, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
+      <View style={[styles.searchContainer, { backgroundColor: theme.surfaceVariant }]}>
+        <MaterialCommunityIcons name="magnify" size={20} color={theme.textMuted} />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: theme.text }]}
           placeholder="Buscar usuarios..."
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={theme.textMuted}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
         {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <MaterialCommunityIcons name="close-circle" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
+          <MaterialCommunityIcons
+            name="close-circle"
+            size={20}
+            color={theme.textMuted}
+            onPress={() => setSearchQuery('')}
+          />
         )}
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.roleFilters}>
-        {['all', 'ADMIN', 'TECHNICIAN', 'CUSTOMER'].map((role) => (
-          <TouchableOpacity
+        {['all', 'ADMIN', 'TECHNICIAN', 'SELLER', 'CUSTOMER'].map((role) => (
+          <FilterChip
             key={role}
-            style={[
-              styles.roleChip,
-              selectedRole === role && styles.roleChipActive,
-              role !== 'all' && { borderLeftColor: ROLE_COLORS[role], borderLeftWidth: 3 }
-            ]}
+            label={role === 'all' ? 'Todos' : ROLE_LABELS[role]}
+            selected={selectedRole === role}
             onPress={() => setSelectedRole(role)}
-          >
-            <Text style={[
-              styles.roleChipText,
-              selectedRole === role && styles.roleChipTextActive
-            ]}>
-              {role === 'all' ? 'Todos' : ROLE_LABELS[role]}
-            </Text>
-          </TouchableOpacity>
+          />
         ))}
       </ScrollView>
     </View>
   );
 
-  const renderUserCard = ({ item }: { item: User }) => (
-    <TouchableOpacity
-      style={[styles.userCard, !item.isActive && styles.userCardInactive]}
-      onPress={() => {
-        setSelectedUser(item);
-        setShowDetails(true);
-      }}
-    >
-      <View style={styles.userHeader}>
-        <View style={styles.avatarContainer}>
-          <Text style={styles.avatarText}>
-            {item.firstName?.charAt(0)}{item.lastName?.charAt(0)}
-          </Text>
+  const renderUserCard = ({ item, index }: { item: User; index: number }) => (
+    <Animated.View entering={FadeInDown.delay(index * 80).springify()}>
+      <Card
+        variant="elevated"
+        padding={spacing.base}
+        style={[!item.isActive && styles.userCardInactive, { marginBottom: spacing.md }]}
+      >
+        <View
+          style={styles.userHeader}
+        >
+          <Avatar
+            name={`${item.firstName} ${item.lastName}`}
+            size={48}
+          />
+          <View style={styles.userInfo}>
+            <Text style={[styles.userName, { color: theme.text }]}>
+              {item.firstName} {item.lastName}
+            </Text>
+            <Text style={[styles.userEmail, { color: theme.textSecondary }]}>
+              {item.email}
+            </Text>
+          </View>
+          <Badge
+            label={ROLE_LABELS[item.role] || item.role}
+            variant={ROLE_BADGE_VARIANT[item.role] || 'default'}
+          />
         </View>
-        <View style={styles.userInfo}>
-          <Text style={styles.userName}>{item.firstName} {item.lastName}</Text>
-          <Text style={styles.userEmail}>{item.email}</Text>
-        </View>
-        <View style={[styles.roleBadge, { backgroundColor: ROLE_COLORS[item.role] }]}>
-          <Text style={styles.roleBadgeText}>{ROLE_LABELS[item.role]}</Text>
-        </View>
-      </View>
 
-      <View style={styles.userFooter}>
-        <View style={styles.statusContainer}>
-          <View style={[styles.statusDot, { backgroundColor: item.isActive ? '#10B981' : '#EF4444' }]} />
-          <Text style={styles.statusText}>{item.isActive ? 'Activo' : 'Inactivo'}</Text>
-        </View>
-
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: item.isActive ? '#F59E0B' : '#10B981' }]}
-            onPress={() => handleToggleStatus(item)}
-          >
-            <MaterialCommunityIcons
-              name={item.isActive ? "account-off" : "account-check"}
-              size={18}
-              color="white"
+        <View style={[styles.userFooter, { borderTopColor: theme.borderLight }]}>
+          <View style={styles.statusContainer}>
+            <View
+              style={[
+                styles.statusDot,
+                { backgroundColor: item.isActive ? theme.primary : theme.error || '#EF4444' },
+              ]}
             />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: '#EF4444' }]}
-            onPress={() => handleDeleteUser(item)}
-          >
-            <MaterialCommunityIcons name="delete" size={18} color="white" />
-          </TouchableOpacity>
+            <Text style={[styles.statusText, { color: theme.textSecondary }]}>
+              {item.isActive ? 'Activo' : 'Inactivo'}
+            </Text>
+          </View>
+
+          <View style={styles.actionButtons}>
+            <Button
+              title=""
+              variant={item.isActive ? 'success' : 'primary'}
+              size="sm"
+              onPress={() => handleToggleStatus(item)}
+              icon={
+                <MaterialCommunityIcons
+                  name={item.isActive ? 'account-off' : 'account-check'}
+                  size={18}
+                  color={theme.textInverse}
+                />
+              }
+              style={styles.actionButton}
+            />
+            <Button
+              title=""
+              variant="danger"
+              size="sm"
+              onPress={() => handleDeleteUser(item)}
+              icon={
+                <MaterialCommunityIcons name="delete" size={18} color={theme.textInverse} />
+              }
+              style={styles.actionButton}
+            />
+          </View>
         </View>
-      </View>
-    </TouchableOpacity>
+      </Card>
+    </Animated.View>
   );
 
   const renderUserDetails = () => {
     if (!selectedUser) return null;
 
     return (
-      <Modal
-        visible={showDetails}
-        animationType="slide"
-        onRequestClose={() => setShowDetails(false)}
+      <View
+        style={[styles.modalContainer, { backgroundColor: theme.background }]}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Detalles del Usuario</Text>
-            <TouchableOpacity onPress={() => setShowDetails(false)}>
-              <MaterialCommunityIcons name="close" size={24} color="#374151" />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.modalContent}>
-            <View style={styles.profileSection}>
-              <View style={styles.largeAvatar}>
-                <Text style={styles.largeAvatarText}>
-                  {selectedUser.firstName?.charAt(0)}{selectedUser.lastName?.charAt(0)}
-                </Text>
-              </View>
-              <Text style={styles.profileName}>
-                {selectedUser.firstName} {selectedUser.lastName}
-              </Text>
-              <View style={[styles.roleBadge, { backgroundColor: ROLE_COLORS[selectedUser.role] }]}>
-                <Text style={styles.roleBadgeText}>{ROLE_LABELS[selectedUser.role]}</Text>
-              </View>
-            </View>
-
-            <View style={styles.detailSection}>
-              <View style={styles.detailRow}>
-                <MaterialCommunityIcons name="email" size={20} color="#6B7280" />
-                <Text style={styles.detailText}>{selectedUser.email}</Text>
-              </View>
-              {selectedUser.phone && (
-                <View style={styles.detailRow}>
-                  <MaterialCommunityIcons name="phone" size={20} color="#6B7280" />
-                  <Text style={styles.detailText}>{selectedUser.phone}</Text>
-                </View>
-              )}
-              <View style={styles.detailRow}>
-                <MaterialCommunityIcons name="calendar" size={20} color="#6B7280" />
-                <Text style={styles.detailText}>
-                  Creado: {new Date(selectedUser.createdAt).toLocaleDateString()}
-                </Text>
-              </View>
-              <View style={styles.detailRow}>
-                <MaterialCommunityIcons
-                  name={selectedUser.isActive ? "check-circle" : "close-circle"}
-                  size={20}
-                  color={selectedUser.isActive ? '#10B981' : '#EF4444'}
-                />
-                <Text style={styles.detailText}>
-                  {selectedUser.isActive ? 'Usuario Activo' : 'Usuario Inactivo'}
-                </Text>
-              </View>
-            </View>
-          </ScrollView>
+        <View style={[styles.modalHeader, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
+          <Text style={[styles.modalTitle, { color: theme.text }]}>Detalles del Usuario</Text>
+          <MaterialCommunityIcons
+            name="close"
+            size={24}
+            color={theme.textSecondary}
+            onPress={() => setShowDetails(false)}
+          />
         </View>
-      </Modal>
+
+        <ScrollView style={styles.modalContent}>
+          <Card variant="flat" padding={spacing.xl} style={styles.profileSection}>
+            <Avatar
+              name={`${selectedUser.firstName} ${selectedUser.lastName}`}
+              size={80}
+              style={{ marginBottom: spacing.md }}
+            />
+            <Text style={[styles.profileName, { color: theme.text }]}>
+              {selectedUser.firstName} {selectedUser.lastName}
+            </Text>
+            <Badge
+              label={ROLE_LABELS[selectedUser.role] || selectedUser.role}
+              variant={ROLE_BADGE_VARIANT[selectedUser.role] || 'default'}
+              size="md"
+            />
+          </Card>
+
+          <Card variant="flat" padding={spacing.base} style={styles.detailSection}>
+            <View style={[styles.detailRow, { borderBottomColor: theme.borderLight }]}>
+              <MaterialCommunityIcons name="email" size={20} color={theme.textMuted} />
+              <Text style={[styles.detailText, { color: theme.textSecondary }]}>{selectedUser.email}</Text>
+            </View>
+            {selectedUser.phone && (
+              <View style={[styles.detailRow, { borderBottomColor: theme.borderLight }]}>
+                <MaterialCommunityIcons name="phone" size={20} color={theme.textMuted} />
+                <Text style={[styles.detailText, { color: theme.textSecondary }]}>{selectedUser.phone}</Text>
+              </View>
+            )}
+            <View style={[styles.detailRow, { borderBottomColor: theme.borderLight }]}>
+              <MaterialCommunityIcons name="calendar" size={20} color={theme.textMuted} />
+              <Text style={[styles.detailText, { color: theme.textSecondary }]}>
+                Creado: {new Date(selectedUser.createdAt).toLocaleDateString()}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <MaterialCommunityIcons
+                name={selectedUser.isActive ? 'check-circle' : 'close-circle'}
+                size={20}
+                color={selectedUser.isActive ? theme.primary : theme.error || '#EF4444'}
+              />
+              <Text style={[styles.detailText, { color: theme.textSecondary }]}>
+                {selectedUser.isActive ? 'Usuario Activo' : 'Usuario Inactivo'}
+              </Text>
+            </View>
+          </Card>
+        </ScrollView>
+      </View>
     );
   };
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={styles.loadingText}>Cargando usuarios...</Text>
+      <View style={[styles.container, { backgroundColor: theme.background, paddingBottom: insets.bottom }]}>
+        {renderHeader()}
+        {renderFilters()}
+        <SkeletonLoader lines={5} lineHeight={120} borderRadius={radii.lg} />
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.centered}>
-        <MaterialCommunityIcons name="alert-circle" size={48} color="#EF4444" />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchUsers}>
-          <Text style={styles.retryButtonText}>Reintentar</Text>
-        </TouchableOpacity>
+      <View style={[styles.centered, { backgroundColor: theme.background, paddingBottom: insets.bottom }]}>
+        <EmptyState
+          icon="alert-circle-outline"
+          title="Error al cargar"
+          message={error}
+        />
+        <Button
+          title="Reintentar"
+          onPress={fetchUsers}
+          variant="primary"
+          style={{ marginTop: spacing.base }}
+        />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background, paddingBottom: insets.bottom }]}>
       {renderHeader()}
       {renderFilters()}
-      <FlatList
+      <Animated.FlatList
         data={filteredUsers}
         renderItem={renderUserCard}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />
         }
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <MaterialCommunityIcons name="account-group-outline" size={64} color="#D1D5DB" />
-            <Text style={styles.emptyText}>No hay usuarios</Text>
-          </View>
+          <EmptyState
+            icon="account-group-outline"
+            title="No hay usuarios"
+            message="No se encontraron usuarios con los filtros aplicados"
+          />
         }
       />
-      {renderUserDetails()}
+      {showDetails && renderUserDetails()}
     </View>
   );
 };
@@ -347,123 +381,62 @@ const UsersScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  errorText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#EF4444',
-    textAlign: 'center',
-  },
-  retryButton: {
-    marginTop: 16,
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: 'white',
-    fontWeight: '600',
+    padding: spacing['2xl'],
   },
   header: {
-    backgroundColor: 'white',
-    padding: 16,
+    padding: spacing.base,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 16,
+    fontSize: typography.sizes.xl,
+    fontWeight: typography.weights.bold,
+    marginBottom: spacing.base,
   },
   statsContainer: {
     flexDirection: 'row',
-    gap: 16,
+    gap: spacing.base,
   },
   statItem: {
-    backgroundColor: '#F9FAFB',
-    padding: 12,
-    borderRadius: 8,
+    padding: spacing.md,
+    borderRadius: radii.md,
     alignItems: 'center',
     minWidth: 80,
   },
   statValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#3B82F6',
+    fontSize: typography.sizes.xl,
+    fontWeight: typography.weights.bold,
   },
   statLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
+    fontSize: typography.sizes.xs,
+    marginTop: spacing.xs,
   },
   filtersContainer: {
-    backgroundColor: 'white',
-    padding: 16,
+    padding: spacing.base,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    marginBottom: 12,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.md,
+    marginBottom: spacing.md,
   },
   searchInput: {
     flex: 1,
     height: 44,
-    fontSize: 16,
-    color: '#111827',
-    marginLeft: 8,
+    fontSize: typography.sizes.base,
+    marginLeft: spacing.sm,
   },
   roleFilters: {
     flexDirection: 'row',
   },
-  roleChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
-    marginRight: 8,
-  },
-  roleChipActive: {
-    backgroundColor: '#3B82F6',
-  },
-  roleChipText: {
-    fontSize: 14,
-    color: '#4B5563',
-  },
-  roleChipTextActive: {
-    color: 'white',
-  },
   listContent: {
-    padding: 16,
-  },
-  userCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    padding: spacing.base,
   },
   userCardInactive: {
     opacity: 0.7,
@@ -471,52 +444,26 @@ const styles = StyleSheet.create({
   userHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-  },
-  avatarContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#3B82F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
+    marginBottom: spacing.md,
   },
   userInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: spacing.md,
   },
   userName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.semibold,
   },
   userEmail: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: typography.sizes.sm,
     marginTop: 2,
-  },
-  roleBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  roleBadgeText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
   },
   userFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 12,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
   },
   statusContainer: {
     flexDirection: 'row',
@@ -525,101 +472,60 @@ const styles = StyleSheet.create({
   statusDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
-    marginRight: 6,
+    borderRadius: radii.sm,
+    marginRight: spacing.xs + 2,
   },
   statusText: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: typography.sizes.sm,
   },
   actionButtons: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
   },
   actionButton: {
     width: 36,
     height: 36,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 64,
-  },
-  emptyText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#6B7280',
+    borderRadius: radii.md,
+    paddingHorizontal: 0,
   },
   // Modal styles
   modalContainer: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'white',
+    padding: spacing.base,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.semibold,
   },
   modalContent: {
     flex: 1,
-    padding: 16,
+    padding: spacing.base,
   },
   profileSection: {
     alignItems: 'center',
-    backgroundColor: 'white',
-    padding: 24,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  largeAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#3B82F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  largeAvatarText: {
-    color: 'white',
-    fontSize: 28,
-    fontWeight: 'bold',
+    marginBottom: spacing.base,
   },
   profileName: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 8,
+    fontSize: typography.sizes.xl,
+    fontWeight: typography.weights.semibold,
+    marginBottom: spacing.sm,
   },
-  detailSection: {
-    backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 12,
-  },
+  detailSection: {},
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
   },
   detailText: {
-    marginLeft: 12,
-    fontSize: 14,
-    color: '#4B5563',
+    marginLeft: spacing.md,
+    fontSize: typography.sizes.sm,
   },
 });
 

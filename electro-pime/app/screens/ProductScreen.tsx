@@ -3,23 +3,33 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   FlatList,
   Modal,
   Switch,
   ScrollView,
   StyleSheet,
   Alert,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../services/api';
 import { Product, CreateProductDto } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../../hooks/useTheme';
+import { colors, typography, spacing, radii } from '../../constants/theme';
+import { EmptyState } from '../components/ui/EmptyState';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { Badge } from '../components/ui/Badge';
+import { SkeletonLoader } from '../components/ui/SkeletonLoader';
 
 const ProductsScreen = () => {
   const { user } = useAuth();
+  const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -197,136 +207,167 @@ const ProductsScreen = () => {
   };
 
   const renderHeader = () => (
-    <View style={styles.header}>
-      <Text style={styles.headerTitle}>Productos</Text>
-      <TouchableOpacity style={styles.addButton} onPress={openNewProductModal}>
-        <MaterialIcons name="add" size={20} color="white" />
-        <Text style={styles.addButtonText}>Nuevo</Text>
-      </TouchableOpacity>
+    <View style={[styles.header, { backgroundColor: theme.headerBg, borderBottomColor: theme.headerBorder }]}>
+      <Text style={[styles.headerTitle, { color: theme.text }]}>Productos</Text>
+      <Button
+        title="Nuevo"
+        onPress={openNewProductModal}
+        variant="primary"
+        size="sm"
+        icon={<MaterialIcons name="add" size={20} color={colors.white} />}
+      />
     </View>
   );
 
   const renderSearchAndFilters = () => (
-    <View style={styles.filtersSection}>
-      <View style={styles.searchContainer}>
-        <MaterialIcons name="search" size={20} color="#9CA3AF" />
+    <View style={[styles.filtersSection, { backgroundColor: theme.headerBg, borderBottomColor: theme.border }]}>
+      <View style={[styles.searchContainer, { backgroundColor: theme.inputBg }]}>
+        <MaterialIcons name="search" size={20} color={theme.textMuted} />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: theme.text }]}
           placeholder="Buscar productos..."
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={theme.textMuted}
           value={searchQuery}
           onChangeText={handleSearch}
         />
         {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => handleSearch('')}>
-            <MaterialIcons name="close" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
+          <MaterialIcons
+            name="close"
+            size={20}
+            color={theme.textMuted}
+            onPress={() => handleSearch('')}
+          />
         )}
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesContainer}>
-        <TouchableOpacity
-          style={[styles.categoryChip, selectedCategory === 'all' && styles.categoryChipActive]}
-          onPress={() => setSelectedCategory('all')}
+        <View
+          style={[styles.categoryChip, { backgroundColor: selectedCategory === 'all' ? colors.primary : theme.surfaceVariant }]}
         >
-          <Text style={[styles.categoryChipText, selectedCategory === 'all' && styles.categoryChipTextActive]}>
+          <Text
+            style={[styles.categoryChipText, { color: selectedCategory === 'all' ? colors.white : theme.textSecondary }]}
+            onPress={() => setSelectedCategory('all')}
+          >
             Todas
           </Text>
-        </TouchableOpacity>
+        </View>
         {categories.map((category) => (
-          <TouchableOpacity
+          <View
             key={category}
-            style={[styles.categoryChip, selectedCategory === category && styles.categoryChipActive]}
-            onPress={() => setSelectedCategory(category)}
+            style={[styles.categoryChip, { backgroundColor: selectedCategory === category ? colors.primary : theme.surfaceVariant }]}
           >
-            <Text style={[styles.categoryChipText, selectedCategory === category && styles.categoryChipTextActive]}>
+            <Text
+              style={[styles.categoryChipText, { color: selectedCategory === category ? colors.white : theme.textSecondary }]}
+              onPress={() => setSelectedCategory(category)}
+            >
               {category}
             </Text>
-          </TouchableOpacity>
+          </View>
         ))}
       </ScrollView>
     </View>
   );
 
-  const renderProductCard = ({ item }: { item: Product }) => {
+  const renderProductCard = ({ item, index }: { item: Product; index: number }) => {
     const profit = item.price - item.cost;
     const profitMargin = item.cost > 0 ? ((profit / item.cost) * 100).toFixed(1) : '0';
 
     return (
-      <View style={[styles.productCard, !item.isActive && styles.productCardInactive]}>
-        <View style={styles.productHeader}>
-          <View style={styles.productInfo}>
-            <Text style={styles.productName}>{item.name}</Text>
-            <Text style={styles.productCategory}>{item.category}</Text>
+      <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
+        <Card
+          variant="elevated"
+          padding={spacing.base}
+          style={!item.isActive ? styles.productCardInactive : undefined}
+        >
+          <View style={styles.productHeader}>
+            <View style={styles.productInfo}>
+              <Text style={[styles.productName, { color: theme.text }]}>{item.name}</Text>
+              <Text style={[styles.productCategory, { color: theme.textSecondary }]}>{item.category}</Text>
+            </View>
+            <Badge
+              label={item.isActive ? 'Activo' : 'Inactivo'}
+              variant={item.isActive ? 'success' : 'default'}
+              size="sm"
+            />
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: item.isActive ? '#10B981' : '#9CA3AF' }]}>
-            <Text style={styles.statusBadgeText}>{item.isActive ? 'Activo' : 'Inactivo'}</Text>
-          </View>
-        </View>
 
-        {item.description && (
-          <Text style={styles.productDescription} numberOfLines={2}>{item.description}</Text>
-        )}
-
-        <View style={styles.priceRow}>
-          <View style={styles.priceItem}>
-            <Text style={styles.priceLabel}>Costo</Text>
-            <Text style={styles.priceValue}>S/ {item.cost.toFixed(2)}</Text>
-          </View>
-          <View style={styles.priceItem}>
-            <Text style={styles.priceLabel}>Precio</Text>
-            <Text style={[styles.priceValue, styles.priceValueHighlight]}>S/ {item.price.toFixed(2)}</Text>
-          </View>
-          <View style={styles.priceItem}>
-            <Text style={styles.priceLabel}>Margen</Text>
-            <Text style={[styles.priceValue, { color: profit > 0 ? '#10B981' : '#EF4444' }]}>
-              {profitMargin}%
+          {item.description && (
+            <Text style={[styles.productDescription, { color: theme.textSecondary }]} numberOfLines={2}>
+              {item.description}
             </Text>
-          </View>
-        </View>
+          )}
 
-        <View style={styles.stockRow}>
-          <View style={styles.stockInfo}>
-            <MaterialCommunityIcons name="package-variant" size={20} color="#6B7280" />
-            <Text style={[
-              styles.stockText,
-              item.stock <= 5 && styles.stockLow,
-              item.stock === 0 && styles.stockOut
-            ]}>
-              {item.stock} unidades
-            </Text>
+          <View style={[styles.priceRow, { borderTopColor: theme.borderLight, borderBottomColor: theme.borderLight }]}>
+            <View style={styles.priceItem}>
+              <Text style={[styles.priceLabel, { color: theme.textSecondary }]}>Costo</Text>
+              <Text style={[styles.priceValue, { color: theme.text }]}>S/ {item.cost.toFixed(2)}</Text>
+            </View>
+            <View style={styles.priceItem}>
+              <Text style={[styles.priceLabel, { color: theme.textSecondary }]}>Precio</Text>
+              <Text style={[styles.priceValue, { color: colors.primary }]}>S/ {item.price.toFixed(2)}</Text>
+            </View>
+            <View style={styles.priceItem}>
+              <Text style={[styles.priceLabel, { color: theme.textSecondary }]}>Margen</Text>
+              <Text style={[styles.priceValue, { color: profit > 0 ? colors.success : colors.error }]}>
+                {profitMargin}%
+              </Text>
+            </View>
           </View>
-          <View style={styles.stockActions}>
-            <TouchableOpacity
-              style={styles.stockButton}
-              onPress={() => handleUpdateStock(item, 1)}
-            >
-              <MaterialIcons name="add" size={18} color="#3B82F6" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.stockButton}
-              onPress={() => handleUpdateStock(item, -1)}
-            >
-              <MaterialIcons name="remove" size={18} color="#EF4444" />
-            </TouchableOpacity>
-          </View>
-        </View>
 
-        <View style={styles.productActions}>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
-            onPress={() => openEditProductModal(item)}
-          >
-            <MaterialIcons name="edit" size={18} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: '#EF4444' }]}
-            onPress={() => handleDeleteProduct(item)}
-          >
-            <MaterialIcons name="delete" size={18} color="white" />
-          </TouchableOpacity>
-        </View>
-      </View>
+          <View style={styles.stockRow}>
+            <View style={styles.stockInfo}>
+              <MaterialCommunityIcons name="package-variant" size={20} color={theme.textSecondary} />
+              <Text
+                style={[
+                  styles.stockText,
+                  { color: theme.textSecondary },
+                  item.stock <= 5 && { color: colors.warning },
+                  item.stock === 0 && { color: colors.error },
+                ]}
+              >
+                {item.stock} unidades
+              </Text>
+            </View>
+            <View style={styles.stockActions}>
+              <Button
+                title=""
+                onPress={() => handleUpdateStock(item, 1)}
+                variant="ghost"
+                size="sm"
+                icon={<MaterialIcons name="add" size={18} color={colors.primary} />}
+                style={styles.stockButton}
+              />
+              <Button
+                title=""
+                onPress={() => handleUpdateStock(item, -1)}
+                variant="ghost"
+                size="sm"
+                icon={<MaterialIcons name="remove" size={18} color={colors.error} />}
+                style={styles.stockButton}
+              />
+            </View>
+          </View>
+
+          <View style={[styles.productActions, { borderTopColor: theme.borderLight }]}>
+            <Button
+              title=""
+              onPress={() => openEditProductModal(item)}
+              variant="primary"
+              size="sm"
+              icon={<MaterialIcons name="edit" size={18} color={colors.white} />}
+              style={styles.actionButton}
+            />
+            <Button
+              title=""
+              onPress={() => handleDeleteProduct(item)}
+              variant="danger"
+              size="sm"
+              icon={<MaterialIcons name="delete" size={18} color={colors.white} />}
+              style={styles.actionButton}
+            />
+          </View>
+        </Card>
+      </Animated.View>
     );
   };
 
@@ -336,120 +377,109 @@ const ProductsScreen = () => {
       animationType="slide"
       onRequestClose={() => setShowModal(false)}
     >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>
+      <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
+        <View style={[styles.modalHeader, { backgroundColor: theme.headerBg, borderBottomColor: theme.border }]}>
+          <Text style={[styles.modalTitle, { color: theme.text }]}>
             {editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
           </Text>
-          <TouchableOpacity onPress={() => setShowModal(false)}>
-            <MaterialIcons name="close" size={24} color="#374151" />
-          </TouchableOpacity>
+          <MaterialIcons
+            name="close"
+            size={24}
+            color={theme.textSecondary}
+            onPress={() => setShowModal(false)}
+          />
         </View>
 
         <ScrollView style={styles.modalContent}>
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Nombre *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Nombre del producto"
-              value={formData.name}
-              onChangeText={(text) => setFormData({ ...formData, name: text })}
-            />
-          </View>
+          <Input
+            label="Nombre *"
+            placeholder="Nombre del producto"
+            value={formData.name}
+            onChangeText={(text) => setFormData({ ...formData, name: text })}
+          />
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Descripción</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Descripción del producto"
-              value={formData.description}
-              onChangeText={(text) => setFormData({ ...formData, description: text })}
-              multiline
-              numberOfLines={3}
-            />
-          </View>
+          <Input
+            label="Descripción"
+            placeholder="Descripción del producto"
+            value={formData.description}
+            onChangeText={(text) => setFormData({ ...formData, description: text })}
+            multiline
+            numberOfLines={3}
+            containerStyle={styles.textAreaContainer}
+          />
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Categoría *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ej: Repuestos, Accesorios..."
-              value={formData.category}
-              onChangeText={(text) => setFormData({ ...formData, category: text })}
-            />
-          </View>
+          <Input
+            label="Categoría *"
+            placeholder="Ej: Repuestos, Accesorios..."
+            value={formData.category}
+            onChangeText={(text) => setFormData({ ...formData, category: text })}
+          />
 
           <View style={styles.row}>
-            <View style={[styles.inputContainer, styles.halfWidth]}>
-              <Text style={styles.inputLabel}>Costo *</Text>
-              <View style={styles.currencyInput}>
-                <Text style={styles.currencySymbol}>S/</Text>
-                <TextInput
-                  style={styles.currencyField}
-                  placeholder="0.00"
-                  value={formData.cost?.toString() || ''}
-                  onChangeText={(text) => setFormData({ ...formData, cost: parseFloat(text) || 0 })}
-                  keyboardType="numeric"
-                />
-              </View>
-            </View>
-            <View style={[styles.inputContainer, styles.halfWidth]}>
-              <Text style={styles.inputLabel}>Precio *</Text>
-              <View style={styles.currencyInput}>
-                <Text style={styles.currencySymbol}>S/</Text>
-                <TextInput
-                  style={styles.currencyField}
-                  placeholder="0.00"
-                  value={formData.price?.toString() || ''}
-                  onChangeText={(text) => setFormData({ ...formData, price: parseFloat(text) || 0 })}
-                  keyboardType="numeric"
-                />
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Stock inicial</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="0"
-              value={formData.stock?.toString() || ''}
-              onChangeText={(text) => setFormData({ ...formData, stock: parseInt(text) || 0 })}
+            <Input
+              label="Costo *"
+              placeholder="0.00"
+              value={formData.cost?.toString() || ''}
+              onChangeText={(text) => setFormData({ ...formData, cost: parseFloat(text) || 0 })}
               keyboardType="numeric"
+              containerStyle={styles.halfWidth}
+              leftIcon={
+                <View style={[styles.currencySymbol, { backgroundColor: theme.inputBg, borderRightColor: theme.border }]}>
+                  <Text style={[styles.currencySymbolText, { color: theme.textSecondary }]}>S/</Text>
+                </View>
+              }
+            />
+            <Input
+              label="Precio *"
+              placeholder="0.00"
+              value={formData.price?.toString() || ''}
+              onChangeText={(text) => setFormData({ ...formData, price: parseFloat(text) || 0 })}
+              keyboardType="numeric"
+              containerStyle={styles.halfWidth}
+              leftIcon={
+                <View style={[styles.currencySymbol, { backgroundColor: theme.inputBg, borderRightColor: theme.border }]}>
+                  <Text style={[styles.currencySymbolText, { color: theme.textSecondary }]}>S/</Text>
+                </View>
+              }
             />
           </View>
 
+          <Input
+            label="Stock inicial"
+            placeholder="0"
+            value={formData.stock?.toString() || ''}
+            onChangeText={(text) => setFormData({ ...formData, stock: parseInt(text) || 0 })}
+            keyboardType="numeric"
+          />
+
           <View style={styles.switchContainer}>
-            <Text style={styles.inputLabel}>Producto activo</Text>
+            <Text style={[styles.inputLabel, { color: theme.text }]}>Producto activo</Text>
             <Switch
               value={formData.isActive}
               onValueChange={(value) => setFormData({ ...formData, isActive: value })}
-              trackColor={{ false: '#D1D5DB', true: '#93C5FD' }}
-              thumbColor={formData.isActive ? '#3B82F6' : '#9CA3AF'}
+              trackColor={{ false: theme.inputBorder, true: colors.primaryLight }}
+              thumbColor={formData.isActive ? colors.primary : theme.textMuted}
             />
           </View>
         </ScrollView>
 
-        <View style={styles.modalFooter}>
-          <TouchableOpacity
-            style={[styles.footerButton, styles.cancelButton]}
+        <View style={[styles.modalFooter, { backgroundColor: theme.headerBg, borderTopColor: theme.border }]}>
+          <Button
+            title="Cancelar"
             onPress={() => setShowModal(false)}
-          >
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.footerButton, styles.saveButton, saving && styles.buttonDisabled]}
+            variant="secondary"
+            size="md"
+            style={styles.footerButton}
+          />
+          <Button
+            title={editingProduct ? 'Actualizar' : 'Guardar'}
             onPress={handleSaveProduct}
+            variant="primary"
+            size="md"
+            loading={saving}
             disabled={saving}
-          >
-            {saving ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text style={styles.saveButtonText}>
-                {editingProduct ? 'Actualizar' : 'Guardar'}
-              </Text>
-            )}
-          </TouchableOpacity>
+            style={styles.footerButton}
+          />
         </View>
       </View>
     </Modal>
@@ -457,27 +487,31 @@ const ProductsScreen = () => {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={styles.loadingText}>Cargando productos...</Text>
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+        <SkeletonLoader lines={5} lineHeight={16} borderRadius={radii.md} />
+        <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Cargando productos...</Text>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.centered}>
-        <MaterialIcons name="error" size={48} color="#EF4444" />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchProducts}>
-          <Text style={styles.retryButtonText}>Reintentar</Text>
-        </TouchableOpacity>
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+        <MaterialIcons name="error" size={48} color={colors.error} />
+        <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
+        <Button
+          title="Reintentar"
+          onPress={fetchProducts}
+          variant="primary"
+          size="md"
+          style={styles.retryButton}
+        />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background, paddingBottom: insets.bottom }]}>
       {renderHeader()}
       {renderSearchAndFilters()}
       <FlatList
@@ -489,13 +523,11 @@ const ProductsScreen = () => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <MaterialCommunityIcons name="package-variant-closed" size={64} color="#D1D5DB" />
-            <Text style={styles.emptyText}>No hay productos</Text>
-            <TouchableOpacity style={styles.emptyButton} onPress={openNewProductModal}>
-              <Text style={styles.emptyButtonText}>Agregar primer producto</Text>
-            </TouchableOpacity>
-          </View>
+          <EmptyState
+            icon="package-variant-closed"
+            title="No hay productos"
+            message="Agrega tu primer producto para comenzar a vender."
+          />
         }
       />
       {renderModal()}
@@ -506,119 +538,69 @@ const ProductsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    padding: spacing['2xl'],
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#6B7280',
+    marginTop: spacing.md,
+    fontSize: typography.sizes.base,
   },
   errorText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#EF4444',
+    marginTop: spacing.md,
+    fontSize: typography.sizes.base,
     textAlign: 'center',
   },
   retryButton: {
-    marginTop: 16,
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: 'white',
-    fontWeight: '600',
+    marginTop: spacing.base,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'white',
-    padding: 16,
+    padding: spacing.base,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  addButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    marginLeft: 4,
+    fontSize: typography.sizes.xl,
+    fontWeight: typography.weights.bold,
   },
   filtersSection: {
-    backgroundColor: 'white',
-    paddingBottom: 12,
+    paddingBottom: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    marginHorizontal: 16,
-    marginTop: 12,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    marginHorizontal: spacing.base,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.md,
   },
   searchInput: {
     flex: 1,
-    height: 44,
-    fontSize: 16,
-    color: '#111827',
-    marginLeft: 8,
+    height: spacing['3xl'],
+    fontSize: typography.sizes.base,
+    marginLeft: spacing.sm,
   },
   categoriesContainer: {
-    paddingHorizontal: 16,
-    marginTop: 12,
+    paddingHorizontal: spacing.base,
+    marginTop: spacing.md,
   },
   categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-    marginRight: 8,
-  },
-  categoryChipActive: {
-    backgroundColor: '#3B82F6',
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.xl,
+    marginRight: spacing.sm,
   },
   categoryChipText: {
-    fontSize: 14,
-    color: '#4B5563',
-  },
-  categoryChipTextActive: {
-    color: 'white',
+    fontSize: typography.sizes.sm,
   },
   listContent: {
-    padding: 16,
-  },
-  productCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    padding: spacing.base,
   },
   productCardInactive: {
     opacity: 0.6,
@@ -627,241 +609,137 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   productInfo: {
     flex: 1,
   },
   productName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.semibold,
   },
   productCategory: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusBadgeText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: typography.sizes.xs,
+    marginTop: spacing['2xs'],
   },
   productDescription: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 12,
+    fontSize: typography.sizes.sm,
+    marginBottom: spacing.md,
   },
   priceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
   },
   priceItem: {
     alignItems: 'center',
   },
   priceLabel: {
-    fontSize: 12,
-    color: '#6B7280',
+    fontSize: typography.sizes.xs,
   },
   priceValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginTop: 4,
-  },
-  priceValueHighlight: {
-    color: '#3B82F6',
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.semibold,
+    marginTop: spacing.xs,
   },
   stockRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
   },
   stockInfo: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   stockText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: '#4B5563',
-  },
-  stockLow: {
-    color: '#F59E0B',
-  },
-  stockOut: {
-    color: '#EF4444',
+    marginLeft: spacing.sm,
+    fontSize: typography.sizes.sm,
   },
   stockActions: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
   },
   stockButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F3F4F6',
+    width: spacing['2xl'],
+    height: spacing['2xl'],
+    borderRadius: radii.xl,
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
   },
   productActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 8,
-    paddingTop: 12,
+    gap: spacing.sm,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
   },
   actionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
+    width: spacing['2xl'] + spacing.sm,
+    height: spacing['2xl'] + spacing.sm,
+    borderRadius: radii.md,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 64,
-  },
-  emptyText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  emptyButton: {
-    marginTop: 16,
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  emptyButtonText: {
-    color: 'white',
-    fontWeight: '600',
   },
   // Modal styles
   modalContainer: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'white',
+    padding: spacing.base,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.semibold,
   },
   modalContent: {
     flex: 1,
-    padding: 16,
+    padding: spacing.base,
   },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#111827',
-  },
-  textArea: {
-    minHeight: 80,
-    textAlignVertical: 'top',
+  textAreaContainer: {
+    minHeight: spacing['4xl'],
   },
   row: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
   },
   halfWidth: {
     flex: 1,
   },
-  currencyInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
   currencySymbol: {
-    padding: 12,
-    fontSize: 16,
-    color: '#6B7280',
-    backgroundColor: '#F3F4F6',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRightWidth: 1,
   },
-  currencyField: {
-    flex: 1,
-    padding: 12,
-    fontSize: 16,
-    color: '#111827',
+  currencySymbolText: {
+    fontSize: typography.sizes.base,
+  },
+  inputLabel: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.medium,
+    marginBottom: spacing.xs,
   },
   switchContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.base,
   },
   modalFooter: {
     flexDirection: 'row',
-    padding: 16,
-    backgroundColor: 'white',
+    padding: spacing.base,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    gap: 12,
+    gap: spacing.md,
   },
   footerButton: {
     flex: 1,
-    padding: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#F3F4F6',
-  },
-  cancelButtonText: {
-    color: '#374151',
-    fontWeight: '600',
-  },
-  saveButton: {
-    backgroundColor: '#3B82F6',
-  },
-  saveButtonText: {
-    color: 'white',
-    fontWeight: '600',
-  },
-  buttonDisabled: {
-    opacity: 0.7,
   },
 });
 

@@ -5,20 +5,27 @@ import {
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    TextInput,
     Modal,
     FlatList,
     Alert,
     ActivityIndicator,
-    SafeAreaView,
     Platform,
 } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { api } from '../services/api';
 import { Product, Customer, PaymentMethod, CreateSaleDto } from '../types/api';
 import SearchableSelector from '../components/SearchableSelector';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../hooks/useTheme';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { Badge } from '../components/ui/Badge';
+import { EmptyState } from '../components/ui/EmptyState';
+import { colors, spacing, typography, radii, shadows } from '../constants/theme';
 
 interface CartItem {
     product: Product;
@@ -26,18 +33,20 @@ interface CartItem {
     price: number;
 }
 
-const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: string }[] = [
-    { value: 'CASH', label: 'Efectivo', icon: 'cash' },
-    { value: 'CREDIT_CARD', label: 'Tarjeta Crédito', icon: 'credit-card' },
-    { value: 'DEBIT_CARD', label: 'Tarjeta Débito', icon: 'credit-card-outline' },
-    { value: 'TRANSFER', label: 'Transferencia', icon: 'bank-transfer' },
-    { value: 'YAPE', label: 'Yape', icon: 'cellphone' },
-    { value: 'PLIN', label: 'Plin', icon: 'cellphone' },
+const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: string; variant: 'default' | 'primary' | 'success' | 'warning' | 'info' }[] = [
+    { value: 'CASH', label: 'Efectivo', icon: 'cash', variant: 'success' },
+    { value: 'CREDIT_CARD', label: 'Tarjeta Crédito', icon: 'credit-card', variant: 'primary' },
+    { value: 'DEBIT_CARD', label: 'Tarjeta Débito', icon: 'credit-card-outline', variant: 'info' },
+    { value: 'TRANSFER', label: 'Transferencia', icon: 'bank-transfer', variant: 'default' },
+    { value: 'YAPE', label: 'Yape', icon: 'cellphone', variant: 'primary' },
+    { value: 'PLIN', label: 'Plin', icon: 'cellphone', variant: 'info' },
 ];
 
 export default function NewSaleScreen() {
     const router = useRouter();
     const { user } = useAuth();
+    const { theme } = useTheme();
+    const insets = useSafeAreaInsets();
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     const [cart, setCart] = useState<CartItem[]>([]);
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
@@ -162,31 +171,33 @@ export default function NewSaleScreen() {
     };
 
     const renderCartItem = (item: CartItem, index: number) => (
-        <View key={index} style={styles.cartItem}>
-            <View style={styles.cartItemInfo}>
-                <Text style={styles.cartItemName}>{item.product.name}</Text>
-                <Text style={styles.cartItemPrice}>S/ {item.price.toFixed(2)} c/u</Text>
-            </View>
-            <View style={styles.quantityControls}>
-                <TouchableOpacity
-                    style={styles.quantityButton}
-                    onPress={() => updateQuantity(index, item.quantity - 1)}
-                >
-                    <MaterialCommunityIcons name="minus" size={18} color="#374151" />
+        <Animated.View key={index} entering={FadeInDown.delay(index * 60).springify()}>
+            <Card variant="outlined" padding={spacing.md} style={styles.cartItem}>
+                <View style={styles.cartItemInfo}>
+                    <Text style={[styles.cartItemName, { color: theme.text }]}>{item.product.name}</Text>
+                    <Text style={[styles.cartItemPrice, { color: theme.textSecondary }]}>S/ {item.price.toFixed(2)} c/u</Text>
+                </View>
+                <View style={[styles.quantityControls, { backgroundColor: theme.surfaceVariant }]}>
+                    <TouchableOpacity
+                        style={styles.quantityButton}
+                        onPress={() => updateQuantity(index, item.quantity - 1)}
+                    >
+                        <MaterialCommunityIcons name="minus" size={18} color={theme.text} />
+                    </TouchableOpacity>
+                    <Text style={[styles.quantityText, { color: theme.text }]}>{item.quantity}</Text>
+                    <TouchableOpacity
+                        style={styles.quantityButton}
+                        onPress={() => updateQuantity(index, item.quantity + 1)}
+                    >
+                        <MaterialCommunityIcons name="plus" size={18} color={theme.text} />
+                    </TouchableOpacity>
+                </View>
+                <Text style={[styles.cartItemTotal, { color: theme.success }]}>S/ {(item.quantity * item.price).toFixed(2)}</Text>
+                <TouchableOpacity onPress={() => removeFromCart(index)}>
+                    <MaterialCommunityIcons name="delete" size={22} color={theme.error} />
                 </TouchableOpacity>
-                <Text style={styles.quantityText}>{item.quantity}</Text>
-                <TouchableOpacity
-                    style={styles.quantityButton}
-                    onPress={() => updateQuantity(index, item.quantity + 1)}
-                >
-                    <MaterialCommunityIcons name="plus" size={18} color="#374151" />
-                </TouchableOpacity>
-            </View>
-            <Text style={styles.cartItemTotal}>S/ {(item.quantity * item.price).toFixed(2)}</Text>
-            <TouchableOpacity onPress={() => removeFromCart(index)}>
-                <MaterialCommunityIcons name="delete" size={22} color="#EF4444" />
-            </TouchableOpacity>
-        </View>
+            </Card>
+        </Animated.View>
     );
 
     const renderProductSearchModal = () => (
@@ -195,56 +206,58 @@ export default function NewSaleScreen() {
             animationType="slide"
             onRequestClose={() => setShowProductSearch(false)}
         >
-            <View style={styles.modalContainer}>
-                <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>Buscar Producto</Text>
+            <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
+                <View style={[styles.modalHeader, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
+                    <Text style={[styles.modalTitle, { color: theme.text }]}>Buscar Producto</Text>
                     <TouchableOpacity onPress={() => setShowProductSearch(false)}>
-                        <MaterialCommunityIcons name="close" size={24} color="#374151" />
+                        <MaterialCommunityIcons name="close" size={24} color={theme.text} />
                     </TouchableOpacity>
                 </View>
 
-                <View style={styles.searchContainer}>
-                    <MaterialCommunityIcons name="magnify" size={20} color="#9CA3AF" />
-                    <TextInput
-                        style={styles.searchInput}
+                <View style={[styles.searchContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                    <MaterialCommunityIcons name="magnify" size={20} color={theme.textMuted} />
+                    <Input
                         placeholder="Buscar por nombre o código..."
                         value={productSearchQuery}
-                        onChangeText={(text) => {
+                        onChangeText={(text: string) => {
                             setProductSearchQuery(text);
                             searchProducts(text);
                         }}
                         autoFocus
+                        containerStyle={styles.searchInputWrapper}
                     />
                 </View>
 
                 {searching ? (
                     <View style={styles.centered}>
-                        <ActivityIndicator size="large" color="#3B82F6" />
+                        <ActivityIndicator size="large" color={theme.primary} />
                     </View>
                 ) : (
                     <FlatList
                         data={searchResults}
                         keyExtractor={item => item.id}
                         renderItem={({ item }) => (
-                            <TouchableOpacity
-                                style={styles.productItem}
-                                onPress={() => addToCart(item)}
-                            >
-                                <View style={styles.productInfo}>
-                                    <Text style={styles.productName}>{item.name}</Text>
-                                    <Text style={styles.productStock}>Stock: {item.stock}</Text>
-                                </View>
-                                <Text style={styles.productPrice}>S/ {item.price.toFixed(2)}</Text>
-                            </TouchableOpacity>
+                            <Animated.View entering={FadeInDown.springify()}>
+                                <TouchableOpacity
+                                    style={[styles.productItem, { backgroundColor: theme.surface }]}
+                                    onPress={() => addToCart(item)}
+                                >
+                                    <View style={styles.productInfo}>
+                                        <Text style={[styles.productName, { color: theme.text }]}>{item.name}</Text>
+                                        <Text style={[styles.productStock, { color: theme.textSecondary }]}>Stock: {item.stock}</Text>
+                                    </View>
+                                    <Text style={[styles.productPrice, { color: theme.success }]}>S/ {item.price.toFixed(2)}</Text>
+                                </TouchableOpacity>
+                            </Animated.View>
                         )}
                         ListEmptyComponent={
                             productSearchQuery.length >= 2 ? (
                                 <View style={styles.emptySearch}>
-                                    <Text style={styles.emptySearchText}>No se encontraron productos</Text>
+                                    <Text style={[styles.emptySearchText, { color: theme.textSecondary }]}>No se encontraron productos</Text>
                                 </View>
                             ) : (
                                 <View style={styles.emptySearch}>
-                                    <Text style={styles.emptySearchText}>Escriba al menos 2 caracteres</Text>
+                                    <Text style={[styles.emptySearchText, { color: theme.textSecondary }]}>Escriba al menos 2 caracteres</Text>
                                 </View>
                             )
                         }
@@ -255,11 +268,11 @@ export default function NewSaleScreen() {
     );
 
     return (
-        <SafeAreaView style={styles.container}>
+        <View style={[styles.container, { backgroundColor: theme.background }]}>
             <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
                 {/* Customer Selection */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Cliente (Opcional)</Text>
+                    <Text style={[styles.sectionTitle, { color: theme.text }]}>Cliente (Opcional)</Text>
                     <SearchableSelector<Customer>
                         label=""
                         placeholder="Buscar cliente..."
@@ -275,27 +288,22 @@ export default function NewSaleScreen() {
                 {/* Add Products */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Productos</Text>
-                        <TouchableOpacity
-                            style={styles.addProductButton}
+                        <Text style={[styles.sectionTitle, { color: theme.text }]}>Productos</Text>
+                        <Button
+                            title="Agregar"
+                            variant="primary"
+                            size="sm"
                             onPress={() => setShowProductSearch(true)}
-                        >
-                            <MaterialCommunityIcons name="plus" size={18} color="#fff" />
-                            <Text style={styles.addProductButtonText}>Agregar</Text>
-                        </TouchableOpacity>
+                            icon={<MaterialCommunityIcons name="plus" size={18} color={colors.white} />}
+                        />
                     </View>
 
                     {cart.length === 0 ? (
-                        <View style={styles.emptyCart}>
-                            <MaterialCommunityIcons name="cart-outline" size={48} color="#D1D5DB" />
-                            <Text style={styles.emptyCartText}>No hay productos</Text>
-                            <TouchableOpacity
-                                style={styles.emptyCartButton}
-                                onPress={() => setShowProductSearch(true)}
-                            >
-                                <Text style={styles.emptyCartButtonText}>Agregar Producto</Text>
-                            </TouchableOpacity>
-                        </View>
+                        <EmptyState
+                            icon="cart-outline"
+                            title="No hay productos"
+                            message="Agregue productos para comenzar la venta"
+                        />
                     ) : (
                         <View style={styles.cartList}>
                             {cart.map((item, index) => renderCartItem(item, index))}
@@ -305,30 +313,36 @@ export default function NewSaleScreen() {
 
                 {/* Payment Method */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Método de Pago</Text>
+                    <Text style={[styles.sectionTitle, { color: theme.text }]}>Método de Pago</Text>
                     <TouchableOpacity
-                        style={styles.paymentSelector}
+                        style={[styles.paymentSelector, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}
                         onPress={() => setShowPaymentPicker(!showPaymentPicker)}
                     >
                         <MaterialCommunityIcons
                             name={PAYMENT_METHODS.find(p => p.value === paymentMethod)?.icon as any || 'cash'}
                             size={24}
-                            color="#3B82F6"
+                            color={theme.primary}
                         />
-                        <Text style={styles.paymentText}>
+                        <Text style={[styles.paymentText, { color: theme.text }]}>
                             {PAYMENT_METHODS.find(p => p.value === paymentMethod)?.label || 'Efectivo'}
                         </Text>
-                        <MaterialCommunityIcons name="chevron-down" size={24} color="#6B7280" />
+                        <Badge
+                            label={PAYMENT_METHODS.find(p => p.value === paymentMethod)?.label || 'Efectivo'}
+                            variant={PAYMENT_METHODS.find(p => p.value === paymentMethod)?.variant || 'default'}
+                            size="sm"
+                        />
+                        <MaterialCommunityIcons name="chevron-down" size={24} color={theme.textSecondary} />
                     </TouchableOpacity>
 
                     {showPaymentPicker && (
-                        <View style={styles.paymentOptions}>
+                        <View style={[styles.paymentOptions, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                             {PAYMENT_METHODS.map((method) => (
                                 <TouchableOpacity
                                     key={method.value}
                                     style={[
                                         styles.paymentOption,
-                                        paymentMethod === method.value && styles.paymentOptionSelected
+                                        { borderBottomColor: theme.border },
+                                        paymentMethod === method.value && { backgroundColor: theme.primaryLight }
                                     ]}
                                     onPress={() => {
                                         setPaymentMethod(method.value);
@@ -338,11 +352,12 @@ export default function NewSaleScreen() {
                                     <MaterialCommunityIcons
                                         name={method.icon as any}
                                         size={20}
-                                        color={paymentMethod === method.value ? '#3B82F6' : '#6B7280'}
+                                        color={paymentMethod === method.value ? theme.primary : theme.textSecondary}
                                     />
                                     <Text style={[
                                         styles.paymentOptionText,
-                                        paymentMethod === method.value && styles.paymentOptionTextSelected
+                                        { color: theme.text },
+                                        paymentMethod === method.value && { color: theme.primary, fontWeight: typography.weights.medium }
                                     ]}>
                                         {method.label}
                                     </Text>
@@ -354,252 +369,170 @@ export default function NewSaleScreen() {
             </ScrollView>
 
             {/* Footer with Total and Submit */}
-            <View style={styles.footer}>
+            <View style={[styles.footer, { backgroundColor: theme.surface, borderTopColor: theme.border, paddingBottom: spacing.base + insets.bottom }]}>
                 <View style={styles.totalContainer}>
-                    <Text style={styles.totalLabel}>Total:</Text>
-                    <Text style={styles.totalAmount}>S/ {calculateTotal().toFixed(2)}</Text>
+                    <Text style={[styles.totalLabel, { color: theme.textSecondary }]}>Total:</Text>
+                    <Text style={[styles.totalAmount, { color: theme.text }]}>S/ {calculateTotal().toFixed(2)}</Text>
                 </View>
-                <TouchableOpacity
-                    style={[styles.submitButton, (saving || cart.length === 0) && styles.buttonDisabled]}
+                <Button
+                    title="Registrar Venta"
+                    variant="success"
+                    size="lg"
                     onPress={handleCreateSale}
-                    disabled={saving || cart.length === 0}
-                >
-                    {saving ? (
-                        <ActivityIndicator color="#fff" />
-                    ) : (
-                        <>
-                            <MaterialCommunityIcons name="check" size={20} color="#fff" />
-                            <Text style={styles.submitButtonText}>Registrar Venta</Text>
-                        </>
-                    )}
-                </TouchableOpacity>
+                    loading={saving}
+                    disabled={cart.length === 0}
+                    icon={!saving ? <MaterialCommunityIcons name="check" size={20} color={colors.white} /> : undefined}
+                />
             </View>
 
             {renderProductSearchModal()}
-        </SafeAreaView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F3F4F6',
     },
     content: {
         flex: 1,
     },
     section: {
-        backgroundColor: 'white',
-        padding: 16,
-        marginBottom: 8,
+        padding: spacing.base,
+        marginBottom: spacing.sm,
     },
     sectionHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 12,
+        marginBottom: spacing.md,
     },
     sectionTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#111827',
-    },
-    addProductButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#3B82F6',
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 8,
-    },
-    addProductButtonText: {
-        color: 'white',
-        fontWeight: '500',
-        marginLeft: 4,
+        fontSize: typography.sizes.base,
+        fontWeight: typography.weights.semibold,
     },
     emptyCart: {
         alignItems: 'center',
-        padding: 32,
+        padding: spacing['2xl'],
     },
     emptyCartText: {
-        marginTop: 12,
-        fontSize: 14,
-        color: '#6B7280',
+        marginTop: spacing.md,
+        fontSize: typography.sizes.sm,
     },
     emptyCartButton: {
-        marginTop: 12,
-        backgroundColor: '#3B82F6',
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        borderRadius: 8,
-    },
-    emptyCartButtonText: {
-        color: 'white',
-        fontWeight: '500',
+        marginTop: spacing.md,
     },
     cartList: {
-        gap: 12,
+        gap: spacing.md,
     },
     cartItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#F9FAFB',
-        padding: 12,
-        borderRadius: 8,
-        gap: 12,
+        gap: spacing.md,
     },
     cartItemInfo: {
         flex: 1,
     },
     cartItemName: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#111827',
+        fontSize: typography.sizes.sm,
+        fontWeight: typography.weights.medium,
     },
     cartItemPrice: {
-        fontSize: 12,
-        color: '#6B7280',
-        marginTop: 2,
+        fontSize: typography.sizes.xs,
+        marginTop: spacing['2xs'],
     },
     quantityControls: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#E5E7EB',
-        borderRadius: 8,
+        borderRadius: radii.md,
     },
     quantityButton: {
-        padding: 8,
+        padding: spacing.sm,
     },
     quantityText: {
-        paddingHorizontal: 12,
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#111827',
+        paddingHorizontal: spacing.md,
+        fontSize: typography.sizes.sm,
+        fontWeight: typography.weights.semibold,
     },
     cartItemTotal: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#10B981',
+        fontSize: typography.sizes.sm,
+        fontWeight: typography.weights.semibold,
         minWidth: 70,
         textAlign: 'right',
     },
     paymentSelector: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#F9FAFB',
-        padding: 12,
-        borderRadius: 8,
+        padding: spacing.md,
+        borderRadius: radii.md,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
-        gap: 12,
+        gap: spacing.md,
     },
     paymentText: {
         flex: 1,
-        fontSize: 16,
-        color: '#111827',
+        fontSize: typography.sizes.base,
     },
     paymentOptions: {
-        marginTop: 8,
-        backgroundColor: '#F9FAFB',
-        borderRadius: 8,
+        marginTop: spacing.sm,
+        borderRadius: radii.md,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
     },
     paymentOption: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 12,
-        gap: 12,
+        padding: spacing.md,
+        gap: spacing.md,
         borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
-    },
-    paymentOptionSelected: {
-        backgroundColor: '#EFF6FF',
     },
     paymentOptionText: {
-        fontSize: 14,
-        color: '#374151',
-    },
-    paymentOptionTextSelected: {
-        color: '#3B82F6',
-        fontWeight: '500',
+        fontSize: typography.sizes.sm,
     },
     footer: {
-        backgroundColor: 'white',
-        padding: 16,
-        paddingBottom: 80,
+        padding: spacing.base,
         borderTopWidth: 1,
-        borderTopColor: '#E5E7EB',
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 16,
+        gap: spacing.base,
+        ...shadows.md,
     },
     scrollContent: {
-        paddingBottom: 20,
+        paddingBottom: spacing.lg,
     },
     totalContainer: {
         flex: 1,
     },
     totalLabel: {
-        fontSize: 14,
-        color: '#6B7280',
+        fontSize: typography.sizes.sm,
     },
     totalAmount: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#111827',
-    },
-    submitButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#10B981',
-        paddingHorizontal: 24,
-        paddingVertical: 14,
-        borderRadius: 8,
-        gap: 8,
-    },
-    submitButtonText: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    buttonDisabled: {
-        opacity: 0.5,
+        fontSize: typography.sizes['2xl'],
+        fontWeight: typography.weights.bold,
     },
     modalContainer: {
         flex: 1,
-        backgroundColor: '#F9FAFB',
     },
     modalHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: 16,
-        backgroundColor: 'white',
+        padding: spacing.base,
         borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
     },
     modalTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#111827',
+        fontSize: typography.sizes.lg,
+        fontWeight: typography.weights.semibold,
     },
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'white',
-        margin: 16,
-        paddingHorizontal: 12,
-        borderRadius: 8,
+        margin: spacing.base,
+        paddingHorizontal: spacing.md,
+        borderRadius: radii.md,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
     },
-    searchInput: {
+    searchInputWrapper: {
         flex: 1,
-        height: 44,
-        fontSize: 16,
-        marginLeft: 8,
-        color: '#111827',
+        marginBottom: 0,
     },
     centered: {
         flex: 1,
@@ -609,36 +542,31 @@ const styles = StyleSheet.create({
     productItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'white',
-        padding: 16,
-        marginHorizontal: 16,
-        marginBottom: 8,
-        borderRadius: 8,
+        padding: spacing.base,
+        marginHorizontal: spacing.base,
+        marginBottom: spacing.sm,
+        borderRadius: radii.md,
     },
     productInfo: {
         flex: 1,
     },
     productName: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#111827',
+        fontSize: typography.sizes.sm,
+        fontWeight: typography.weights.medium,
     },
     productStock: {
-        fontSize: 12,
-        color: '#6B7280',
-        marginTop: 2,
+        fontSize: typography.sizes.xs,
+        marginTop: spacing['2xs'],
     },
     productPrice: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#10B981',
+        fontSize: typography.sizes.base,
+        fontWeight: typography.weights.semibold,
     },
     emptySearch: {
         alignItems: 'center',
-        padding: 32,
+        padding: spacing['2xl'],
     },
     emptySearchText: {
-        fontSize: 14,
-        color: '#6B7280',
+        fontSize: typography.sizes.sm,
     },
 });
