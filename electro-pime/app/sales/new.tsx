@@ -19,13 +19,13 @@ import { api } from '../services/api';
 import { Product, Customer, PaymentMethod, CreateSaleDto } from '../types/api';
 import SearchableSelector from '../components/SearchableSelector';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '../../hooks/useTheme';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { EmptyState } from '../components/ui/EmptyState';
-import { colors, spacing, typography, radii, shadows } from '../constants/theme';
+import { colors, spacing, typography, radii, shadows } from '../../constants/theme';
 
 interface CartItem {
     product: Product;
