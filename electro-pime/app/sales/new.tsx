@@ -23,7 +23,6 @@ import { useTheme } from '../../hooks/useTheme';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { Badge } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { colors, spacing, typography, radii, shadows } from '../../constants/theme';
 
@@ -33,13 +32,13 @@ interface CartItem {
     price: number;
 }
 
-const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: string; variant: 'default' | 'primary' | 'success' | 'warning' | 'info' }[] = [
-    { value: 'CASH', label: 'Efectivo', icon: 'cash', variant: 'success' },
-    { value: 'CREDIT_CARD', label: 'Tarjeta Crédito', icon: 'credit-card', variant: 'primary' },
-    { value: 'DEBIT_CARD', label: 'Tarjeta Débito', icon: 'credit-card-outline', variant: 'info' },
-    { value: 'TRANSFER', label: 'Transferencia', icon: 'bank-transfer', variant: 'default' },
-    { value: 'YAPE', label: 'Yape', icon: 'cellphone', variant: 'primary' },
-    { value: 'PLIN', label: 'Plin', icon: 'cellphone', variant: 'info' },
+const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: string }[] = [
+    { value: 'CASH', label: 'Efectivo', icon: 'cash' },
+    { value: 'CREDIT_CARD', label: 'Tarjeta Crédito', icon: 'credit-card' },
+    { value: 'DEBIT_CARD', label: 'Tarjeta Débito', icon: 'credit-card-outline' },
+    { value: 'TRANSFER', label: 'Transferencia', icon: 'bank-transfer' },
+    { value: 'YAPE', label: 'Yape', icon: 'cellphone' },
+    { value: 'PLIN', label: 'Plin', icon: 'cellphone' },
 ];
 
 export default function NewSaleScreen() {
@@ -326,11 +325,6 @@ export default function NewSaleScreen() {
                         <Text style={[styles.paymentText, { color: theme.text }]}>
                             {PAYMENT_METHODS.find(p => p.value === paymentMethod)?.label || 'Efectivo'}
                         </Text>
-                        <Badge
-                            label={PAYMENT_METHODS.find(p => p.value === paymentMethod)?.label || 'Efectivo'}
-                            variant={PAYMENT_METHODS.find(p => p.value === paymentMethod)?.variant || 'default'}
-                            size="sm"
-                        />
                         <MaterialCommunityIcons name="chevron-down" size={24} color={theme.textSecondary} />
                     </TouchableOpacity>
 

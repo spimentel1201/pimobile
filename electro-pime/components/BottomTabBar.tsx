@@ -17,7 +17,7 @@ type TabItem = {
 const tabs: TabItem[] = [
   { name: 'Inicio', icon: 'view-dashboard', route: 'dashboard' },
   { name: 'Órdenes', icon: 'clipboard-text', route: 'orders' },
-  { name: 'Ventas', icon: 'sale', route: 'sales' },
+  { name: 'Ventas', icon: 'receipt', route: 'sales' },
   { name: 'Perfil', icon: 'account', route: 'profile' },
 ];
 

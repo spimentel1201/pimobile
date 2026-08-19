@@ -353,12 +353,11 @@ export default function OrderForm({
                 ]}
                 onPress={() => toggleAccessory(index, accessory)}
               >
-                <Badge
-                  label={accessory}
-                  variant={isSelected ? 'primary' : 'default'}
-                  size="sm"
-                  style={isSelected ? styles.badgeSelected : undefined}
-                />
+                {isSelected ? (
+                  <Text style={styles.tagTextSelected}>{accessory}</Text>
+                ) : (
+                  <Badge label={accessory} variant="default" size="sm" />
+                )}
               </TouchableOpacity>
             );
           })}
@@ -656,9 +655,13 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
     borderWidth: 1,
     overflow: 'hidden',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing['2xs'],
   },
-  badgeSelected: {
-    backgroundColor: 'transparent',
+  tagTextSelected: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.semibold,
+    color: '#FFFFFF',
   },
   textAreaContainer: {
     minHeight: 80,

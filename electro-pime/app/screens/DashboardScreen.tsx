@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -20,6 +21,11 @@ import { Card } from '../../components/ui/Card';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { RepairOrder } from '../../types/api';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const ACTION_COLUMNS = 3;
+const ACTION_GAP = spacing.md;
+const ACTION_CARD_WIDTH = (SCREEN_WIDTH - spacing.lg * 2 - ACTION_GAP * (ACTION_COLUMNS - 1)) / ACTION_COLUMNS;
 
 const QUICK_ACTIONS = [
   { icon: 'plus-circle', label: 'Nueva Orden', route: '/orders/new', color: '#2563EB', bg: '#DBEAFE' },
@@ -179,17 +185,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   header: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.base,
+    paddingBottom: spacing.md,
     borderBottomWidth: 1,
   },
   companyName: {
-    fontSize: typography.sizes.sm,
+    fontSize: typography.sizes.xs,
     fontWeight: typography.weights.semibold,
     textTransform: 'uppercase',
-    marginBottom: spacing['2xs'],
+    letterSpacing: 1,
+    marginBottom: spacing.xs,
   },
   greeting: {
-    fontSize: typography.sizes['xl'],
+    fontSize: typography.sizes['2xl'],
     fontWeight: typography.weights.bold,
   },
   date: {
@@ -198,7 +207,9 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   section: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -209,7 +220,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: typography.sizes.lg,
     fontWeight: typography.weights.bold,
-    marginBottom: spacing.base,
+    marginBottom: spacing.md,
   },
   seeAll: {
     fontSize: typography.sizes.sm,
@@ -218,19 +229,20 @@ const styles = StyleSheet.create({
   actionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.md,
+    gap: ACTION_GAP,
   },
   actionCard: {
-    width: '30%',
-    padding: spacing.base,
+    width: ACTION_CARD_WIDTH,
+    paddingVertical: spacing.base,
+    paddingHorizontal: spacing.sm,
     borderRadius: radii.lg,
     alignItems: 'center',
     ...shadows.sm,
   },
   actionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: radii.xl,
+    width: 44,
+    height: 44,
+    borderRadius: radii.lg,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.sm,
@@ -239,6 +251,7 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.xs,
     fontWeight: typography.weights.medium,
     textAlign: 'center',
+    numberOfLines: 1,
   },
   orderCard: {
     padding: spacing.base,

@@ -130,23 +130,29 @@ const SalesScreen = () => {
   const metrics = calculateMetrics();
 
   const renderMetrics = () => (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.metricsContainer, { backgroundColor: theme.surface }]}>
-      <Card variant="flat" padding={spacing.base} style={styles.metricCard}>
-        <MaterialCommunityIcons name="cash-multiple" size={24} color={colors.success} />
-        <Text style={[styles.metricValue, { color: theme.text }]}>S/ {metrics.total.toFixed(2)}</Text>
-        <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Total Ventas</Text>
-      </Card>
-      <Card variant="flat" padding={spacing.base} style={styles.metricCard}>
-        <MaterialCommunityIcons name="receipt" size={24} color={colors.primary} />
-        <Text style={[styles.metricValue, { color: theme.text }]}>{metrics.count}</Text>
-        <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>N° Transacciones</Text>
-      </Card>
-      <Card variant="flat" padding={spacing.base} style={styles.metricCard}>
-        <MaterialCommunityIcons name="chart-line" size={24} color={colors.warning} />
-        <Text style={[styles.metricValue, { color: theme.text }]}>S/ {metrics.avgTicket.toFixed(2)}</Text>
-        <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Ticket Promedio</Text>
-      </Card>
-    </ScrollView>
+    <View style={[styles.metricsContainer, { backgroundColor: theme.surface }]}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.metricsScrollContent}
+      >
+        <Card variant="flat" padding={spacing.base} style={styles.metricCard}>
+          <MaterialCommunityIcons name="cash-multiple" size={24} color={colors.success} />
+          <Text style={[styles.metricValue, { color: theme.text }]}>S/ {metrics.total.toFixed(2)}</Text>
+          <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Total Ventas</Text>
+        </Card>
+        <Card variant="flat" padding={spacing.base} style={styles.metricCard}>
+          <MaterialCommunityIcons name="receipt" size={24} color={colors.primary} />
+          <Text style={[styles.metricValue, { color: theme.text }]}>{metrics.count}</Text>
+          <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>N° Transacciones</Text>
+        </Card>
+        <Card variant="flat" padding={spacing.base} style={styles.metricCard}>
+          <MaterialCommunityIcons name="chart-line" size={24} color={colors.warning} />
+          <Text style={[styles.metricValue, { color: theme.text }]}>S/ {metrics.avgTicket.toFixed(2)}</Text>
+          <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Ticket Promedio</Text>
+        </Card>
+      </ScrollView>
+    </View>
   );
 
   const renderFilters = () => (
@@ -714,11 +720,15 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
   },
   metricsContainer: {
-    padding: spacing.base,
+    paddingTop: spacing.base,
+    paddingBottom: spacing.sm,
+  },
+  metricsScrollContent: {
+    paddingHorizontal: spacing.base,
+    gap: spacing.md,
   },
   metricCard: {
-    marginRight: spacing.md,
-    minWidth: 140,
+    minWidth: 150,
     alignItems: 'center',
   },
   metricValue: {
