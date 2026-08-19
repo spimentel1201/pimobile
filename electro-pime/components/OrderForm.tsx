@@ -446,7 +446,6 @@ export default function OrderForm({
           value={description}
           onChangeText={setDescription}
           multiline
-          numberOfLines={3}
           error={errors.description}
           containerStyle={styles.textAreaContainer}
           style={styles.textAreaInput}
@@ -459,7 +458,6 @@ export default function OrderForm({
           value={notes}
           onChangeText={setNotes}
           multiline
-          numberOfLines={2}
           containerStyle={styles.textAreaContainer}
           style={styles.textAreaInput}
         />
