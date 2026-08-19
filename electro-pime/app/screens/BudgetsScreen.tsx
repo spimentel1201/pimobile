@@ -16,13 +16,15 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { api } from '../../services/api';
 import { Quote, CreateQuoteDto, Customer, RepairOrder } from '../../types/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../hooks/useTheme';
+import { typography, spacing, radii, shadows } from '../../constants/theme';
 import SearchableSelector from '../../components/SearchableSelector';
 
 const QUOTE_STATUS = {
   PENDING: { label: 'Pendiente', color: '#F59E0B' },
   APPROVED: { label: 'Aprobado', color: '#10B981' },
   REJECTED: { label: 'Rechazado', color: '#EF4444' },
-  EXPIRED: { label: 'Expirado', color: '#6B7280' },
+  EXPIRED: { label: 'Expirado', color: theme.textSecondary },
 };
 
 interface QuoteItem {
@@ -33,6 +35,7 @@ interface QuoteItem {
 
 const BudgetsScreen = () => {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -243,22 +246,22 @@ const BudgetsScreen = () => {
 
     return (
       <TouchableOpacity
-        style={styles.quoteCard}
+        style={[styles.quoteCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
         onPress={() => {
           setSelectedQuote(item);
           setShowQuoteDetails(true);
         }}
       >
         <View style={styles.quoteHeader}>
-          <Text style={styles.quoteId}>#{item.id.slice(0, 8)}</Text>
+          <Text style={[styles.quoteId, { color: theme.primary }]}>#{item.id.slice(0, 8)}</Text>
           <View style={[styles.statusBadge, { backgroundColor: status.color }]}>
             <Text style={styles.statusText}>{status.label}</Text>
           </View>
         </View>
-        <Text style={styles.customerName}>{item.customer?.name || item.customerName || 'Cliente'}</Text>
+        <Text style={[styles.customerName, { color: theme.text }]}>{item.customer?.name || item.customerName || 'Cliente'}</Text>
         <View style={styles.quoteInfo}>
-          <Text style={styles.quoteTotal}>S/ {item.totalAmount?.toFixed(2) || '0.00'}</Text>
-          <Text style={styles.quoteDate}>
+          <Text style={[styles.quoteTotal, { color: '#10B981' }]}>S/ {item.totalAmount?.toFixed(2) || '0.00'}</Text>
+          <Text style={[styles.quoteDate, { color: theme.textMuted }]}>
             {new Date(item.createdAt).toLocaleDateString()}
           </Text>
         </View>
@@ -272,18 +275,18 @@ const BudgetsScreen = () => {
       animationType="slide"
       onRequestClose={() => setShowNewQuoteModal(false)}
     >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>Nuevo Presupuesto</Text>
+      <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
+        <View style={[styles.modalHeader, { backgroundColor: theme.headerBg, borderBottomColor: theme.headerBorder }]}>
+          <Text style={[styles.modalTitle, { color: theme.text }]}>Nuevo Presupuesto</Text>
           <TouchableOpacity onPress={() => setShowNewQuoteModal(false)}>
-            <MaterialCommunityIcons name="close" size={24} color="#374151" />
+            <MaterialCommunityIcons name="close" size={24} color={theme.textSecondary} />
           </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.modalContent}>
           {/* Customer Selection */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Cliente *</Text>
+          <View style={[styles.section, { backgroundColor: theme.surface }]}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Cliente *</Text>
             <SearchableSelector<Customer>
               label="Seleccionar Cliente"
               placeholder="Buscar cliente..."
@@ -298,8 +301,8 @@ const BudgetsScreen = () => {
           </View>
 
           {/* Repair Order Selection */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Orden de Reparación (Opcional)</Text>
+          <View style={[styles.section, { backgroundColor: theme.surface }]}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Orden de Reparación (Opcional)</Text>
             <SearchableSelector<RepairOrder>
               label="Vincular a Orden"
               placeholder="Buscar orden..."
@@ -313,8 +316,8 @@ const BudgetsScreen = () => {
           </View>
 
           {/* Items */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Items / Repuestos</Text>
+          <View style={[styles.section, { backgroundColor: theme.surface }]}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Items / Repuestos</Text>
 
             {quoteItems.map((item, index) => (
               <View key={index} style={styles.itemRow}>
@@ -360,8 +363,8 @@ const BudgetsScreen = () => {
           </View>
 
           {/* Notes */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Notas</Text>
+          <View style={[styles.section, { backgroundColor: theme.surface }]}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Notas</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="Notas adicionales..."
@@ -373,13 +376,13 @@ const BudgetsScreen = () => {
           </View>
 
           {/* Total */}
-          <View style={styles.totalSection}>
-            <Text style={styles.totalLabel}>TOTAL:</Text>
-            <Text style={styles.totalAmount}>S/ {calculateTotal().toFixed(2)}</Text>
+          <View style={[styles.totalSection, { backgroundColor: theme.primaryLight }]}>
+            <Text style={[styles.totalLabel, { color: theme.primary }]}>TOTAL:</Text>
+            <Text style={[styles.totalAmount, { color: theme.primary }]}>S/ {calculateTotal().toFixed(2)}</Text>
           </View>
         </ScrollView>
 
-        <View style={styles.modalFooter}>
+        <View style={[styles.modalFooter, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
           <TouchableOpacity
             style={[styles.footerButton, styles.cancelButton]}
             onPress={() => setShowNewQuoteModal(false)}
@@ -412,47 +415,47 @@ const BudgetsScreen = () => {
         animationType="slide"
         onRequestClose={() => setShowQuoteDetails(false)}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Presupuesto #{selectedQuote.id.slice(0, 8)}</Text>
+        <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
+          <View style={[styles.modalHeader, { backgroundColor: theme.headerBg, borderBottomColor: theme.headerBorder }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>Presupuesto #{selectedQuote.id.slice(0, 8)}</Text>
             <TouchableOpacity onPress={() => setShowQuoteDetails(false)}>
-              <MaterialCommunityIcons name="close" size={24} color="#374151" />
+              <MaterialCommunityIcons name="close" size={24} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.modalContent}>
-            <View style={styles.detailSection}>
+            <View style={[styles.detailSection, { borderBottomColor: theme.border }]}>
               <View style={styles.detailHeader}>
-                <Text style={styles.detailLabel}>Estado:</Text>
+                <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Estado:</Text>
                 <View style={[styles.statusBadge, { backgroundColor: status.color }]}>
                   <Text style={styles.statusText}>{status.label}</Text>
                 </View>
               </View>
             </View>
 
-            <View style={styles.detailSection}>
-              <Text style={styles.detailLabel}>Cliente:</Text>
-              <Text style={styles.detailValue}>{selectedQuote.customer?.name || selectedQuote.customerName || 'N/A'}</Text>
+            <View style={[styles.detailSection, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Cliente:</Text>
+              <Text style={[styles.detailValue, { color: theme.text }]}>{selectedQuote.customer?.name || selectedQuote.customerName || 'N/A'}</Text>
             </View>
 
-            <View style={styles.detailSection}>
-              <Text style={styles.detailLabel}>Fecha:</Text>
-              <Text style={styles.detailValue}>
+            <View style={[styles.detailSection, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Fecha:</Text>
+              <Text style={[styles.detailValue, { color: theme.text }]}>
                 {new Date(selectedQuote.createdAt).toLocaleDateString()}
               </Text>
             </View>
 
             {selectedQuote.items && selectedQuote.items.length > 0 && (
-              <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Items:</Text>
+              <View style={[styles.detailSection, { borderBottomColor: theme.border }]}>
+                <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Items:</Text>
                 {selectedQuote.items.map((item: any, index: number) => {
                   const itemPrice = item.unitPrice ?? item.price ?? 0;
                   return (
-                    <View key={index} style={styles.itemDetailRow}>
-                      <Text style={styles.itemDetailText}>
+                    <View key={index} style={[styles.itemDetailRow, { borderBottomColor: theme.border }]}>
+                      <Text style={[styles.itemDetailText, { color: theme.textSecondary }]}>
                         {item.description || item.productName || 'Item'} x{item.quantity}
                       </Text>
-                      <Text style={styles.itemDetailPrice}>
+                      <Text style={[styles.itemDetailPrice, { color: theme.text }]}>
                         S/ {(item.quantity * itemPrice).toFixed(2)}
                       </Text>
                     </View>
@@ -462,26 +465,26 @@ const BudgetsScreen = () => {
             )}
 
             {selectedQuote.laborCost > 0 && (
-              <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Mano de Obra:</Text>
-                <Text style={styles.detailValue}>S/ {selectedQuote.laborCost.toFixed(2)}</Text>
+              <View style={[styles.detailSection, { borderBottomColor: theme.border }]}>
+                <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Mano de Obra:</Text>
+                <Text style={[styles.detailValue, { color: theme.text }]}>S/ {selectedQuote.laborCost.toFixed(2)}</Text>
               </View>
             )}
 
-            <View style={styles.totalSection}>
-              <Text style={styles.totalLabel}>TOTAL:</Text>
-              <Text style={styles.totalAmount}>S/ {selectedQuote.totalAmount?.toFixed(2) || '0.00'}</Text>
+            <View style={[styles.totalSection, { backgroundColor: theme.primaryLight }]}>
+              <Text style={[styles.totalLabel, { color: theme.primary }]}>TOTAL:</Text>
+              <Text style={[styles.totalAmount, { color: theme.primary }]}>S/ {selectedQuote.totalAmount?.toFixed(2) || '0.00'}</Text>
             </View>
 
             {selectedQuote.notes && (
-              <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Notas:</Text>
-                <Text style={styles.detailValue}>{selectedQuote.notes}</Text>
+              <View style={[styles.detailSection, { borderBottomColor: theme.border }]}>
+                <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Notas:</Text>
+                <Text style={[styles.detailValue, { color: theme.text }]}>{selectedQuote.notes}</Text>
               </View>
             )}
           </ScrollView>
 
-          <View style={styles.modalFooter}>
+          <View style={[styles.modalFooter, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
             {selectedQuote.status === 'PENDING' && (
               <>
                 <TouchableOpacity
@@ -513,8 +516,8 @@ const BudgetsScreen = () => {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={styles.loadingText}>Cargando presupuestos...</Text>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Cargando presupuestos...</Text>
       </View>
     );
   }
@@ -523,7 +526,7 @@ const BudgetsScreen = () => {
     return (
       <View style={styles.centered}>
         <MaterialCommunityIcons name="alert-circle" size={48} color="#EF4444" />
-        <Text style={styles.errorText}>{error}</Text>
+        <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={fetchQuotes}>
           <Text style={styles.retryButtonText}>Reintentar</Text>
         </TouchableOpacity>
@@ -532,11 +535,11 @@ const BudgetsScreen = () => {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Presupuestos</Text>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.header, { backgroundColor: theme.headerBg, borderBottomColor: theme.headerBorder }]}>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Presupuestos</Text>
         <TouchableOpacity
-          style={styles.addButton}
+          style={[styles.addButton, { backgroundColor: theme.primary }]}
           onPress={() => setShowNewQuoteModal(true)}
         >
           <MaterialCommunityIcons name="plus" size={20} color="white" />
@@ -554,10 +557,10 @@ const BudgetsScreen = () => {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <MaterialCommunityIcons name="file-document-outline" size={64} color="#D1D5DB" />
-            <Text style={styles.emptyText}>No hay presupuestos</Text>
+            <MaterialCommunityIcons name="file-document-outline" size={64} color={theme.textMuted} />
+            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No hay presupuestos</Text>
             <TouchableOpacity
-              style={styles.emptyButton}
+              style={[styles.emptyButton, { backgroundColor: theme.primary }]}
               onPress={() => setShowNewQuoteModal(true)}
             >
               <Text style={styles.emptyButtonText}>Crear primer presupuesto</Text>
@@ -575,7 +578,7 @@ const BudgetsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: 'transparent',
   },
   centered: {
     flex: 1,
@@ -738,7 +741,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: '#6B7280',
     marginBottom: 12,
   },
   input: {
@@ -815,12 +818,12 @@ const styles = StyleSheet.create({
   totalLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1E40AF',
+    color: '#3B82F6',
   },
   totalAmount: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1E40AF',
+    color: '#3B82F6',
   },
   modalFooter: {
     flexDirection: 'row',
@@ -838,10 +841,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cancelButton: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: 'transparent',
   },
   cancelButtonText: {
-    color: '#374151',
+    color: '#6B7280',
     fontWeight: '600',
   },
   saveButton: {
@@ -862,7 +865,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEE2E2',
   },
   rejectButtonText: {
-    color: '#DC2626',
+    color: '#EF4444',
     fontWeight: '600',
   },
   deleteButton: {
@@ -895,11 +898,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#E5E7EB',
   },
   itemDetailText: {
     fontSize: 14,
-    color: '#374151',
+    color: '#6B7280',
   },
   itemDetailPrice: {
     fontSize: 14,
