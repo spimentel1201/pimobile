@@ -2,8 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../../hooks/useTheme';
-import { typography, spacing, radii } from '../../../constants/theme';
+import { useTheme } from '../../hooks/useTheme';
+import { typography, spacing, radii } from '../../constants/theme';
 
 interface HeaderProps {
   title: string;

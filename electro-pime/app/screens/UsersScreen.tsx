@@ -11,18 +11,18 @@ import {
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { api } from '../services/api';
-import { User } from '../types/api';
-import { useAuth } from '../contexts/AuthContext';
+import { api } from '../../services/api';
+import { User } from '../../types/api';
+import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../hooks/useTheme';
 import { spacing, typography, radii, shadows } from '../../constants/theme';
-import { EmptyState } from '../components/ui/EmptyState';
-import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { Avatar } from '../components/ui/Avatar';
-import { Badge } from '../components/ui/Badge';
-import { FilterChip } from '../components/ui/FilterChip';
-import { SkeletonLoader } from '../components/ui/SkeletonLoader';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { Avatar } from '../../components/ui/Avatar';
+import { Badge } from '../../components/ui/Badge';
+import { FilterChip } from '../../components/ui/FilterChip';
+import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: 'Administrador',

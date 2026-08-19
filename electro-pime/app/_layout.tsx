@@ -6,10 +6,10 @@ import { StatusBar, View, StyleSheet, ActivityIndicator, useColorScheme } from '
 import { useEffect, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
-import BottomTabBar from './components/BottomTabBar';
-import CustomHeader, { StackScreenWithCustomHeader } from './components/CustomHeader';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { ServiceOrderProvider } from './contexts/ServiceOrderContext';
+import BottomTabBar from '../components/BottomTabBar';
+import CustomHeader, { StackScreenWithCustomHeader } from '../components/CustomHeader';
+import { AuthProvider, useAuth } from '../contexts/AuthContext';
+import { ServiceOrderProvider } from '../contexts/ServiceOrderContext';
 import { colors } from '../constants/theme';
 
 SplashScreen.preventAutoHideAsync();

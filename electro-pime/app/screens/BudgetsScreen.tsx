@@ -13,10 +13,10 @@ import {
   TextInput,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { api } from '../services/api';
-import { Quote, CreateQuoteDto, Customer, RepairOrder } from '../types/api';
-import { useAuth } from '../contexts/AuthContext';
-import SearchableSelector from '../components/SearchableSelector';
+import { api } from '../../services/api';
+import { Quote, CreateQuoteDto, Customer, RepairOrder } from '../../types/api';
+import { useAuth } from '../../contexts/AuthContext';
+import SearchableSelector from '../../components/SearchableSelector';
 
 const QUOTE_STATUS = {
   PENDING: { label: 'Pendiente', color: '#F59E0B' },

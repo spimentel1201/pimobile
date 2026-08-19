@@ -13,8 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../hooks/useTheme';
 import { typography, spacing, radii, shadows } from '../constants/theme';
-import { Button } from './components/ui/Button';
-import { Input } from './components/ui/Input';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -126,10 +126,7 @@ export default function LoginScreen() {
   );
 }
 
-function useAuth(): { login: (creds: { email: string; password: string }) => Promise<void> } {
-  const auth = require('./contexts/AuthContext').useAuth();
-  return auth;
-}
+
 
 const styles = StyleSheet.create({
   container: {

@@ -13,9 +13,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../hooks/useTheme';
 import { typography, spacing, radii } from '../constants/theme';
-import { Button } from './components/ui/Button';
-import { Input } from './components/ui/Input';
-import { useAuth } from './contexts/AuthContext';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function RegisterScreen() {
   const router = useRouter();

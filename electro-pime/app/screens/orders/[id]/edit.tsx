@@ -3,9 +3,9 @@ import { View, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
 // Import components and hooks with relative paths from the project root
-import { useServiceOrders } from '../../../contexts/ServiceOrderContext';
-import OrderForm from '../../../components/OrderForm';
-import { Device, User, ServiceOrder } from '../../../types/api';
+import { useServiceOrders } from '../../../../contexts/ServiceOrderContext';
+import OrderForm from '../../../../components/OrderForm';
+import { Device, User, ServiceOrder } from '../../../../types/api';
 
 export default function EditOrderScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

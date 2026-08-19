@@ -14,17 +14,17 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { api } from '../services/api';
-import { Customer, CreateCustomerDto } from '../types/api';
-import { useAuth } from '../contexts/AuthContext';
+import { api } from '../../services/api';
+import { Customer, CreateCustomerDto } from '../../types/api';
+import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../hooks/useTheme';
-import { EmptyState } from '../components/ui/EmptyState';
-import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Avatar } from '../components/ui/Avatar';
-import { SkeletonLoader } from '../components/ui/SkeletonLoader';
-import { Badge } from '../components/ui/Badge';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import { Avatar } from '../../components/ui/Avatar';
+import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
+import { Badge } from '../../components/ui/Badge';
 import { spacing, typography, radii, shadows } from '../../constants/theme';
 
 const CustomersScreen = () => {

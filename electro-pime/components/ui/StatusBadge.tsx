@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { colors, typography, spacing, radii } from '../../../constants/theme';
+import { colors, typography, spacing, radii } from '../../constants/theme';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   RECEIVED: { label: 'Recibido', color: colors.gray[500], bg: colors.gray[100] },

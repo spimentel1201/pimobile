@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, ViewStyle, TextStyle, ImageStyle } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useServiceOrders } from '../../contexts/ServiceOrderContext';
-import { ServiceOrder, ServiceOrderStatus } from '../../types/api';
+import { useServiceOrders } from '../../../contexts/ServiceOrderContext';
+import { ServiceOrder, ServiceOrderStatus } from '../../../types/api';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 

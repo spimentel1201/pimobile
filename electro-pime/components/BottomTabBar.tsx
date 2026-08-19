@@ -5,8 +5,8 @@ import { useRouter, usePathname, useSegments } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { ComponentProps } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme } from '../../hooks/useTheme';
-import { typography, spacing, radii, shadows } from '../../constants/theme';
+import { useTheme } from '../hooks/useTheme';
+import { typography, spacing, radii, shadows } from '../constants/theme';
 
 type TabItem = {
   name: string;

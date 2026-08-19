@@ -16,17 +16,17 @@ import {
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { RepairOrder, BudgetPart, Budget, OrderStatus, StatusInfo, FormData, NotificationData } from '../types/budget';
+import { RepairOrder, BudgetPart, Budget, OrderStatus, StatusInfo, FormData, NotificationData } from '../../types/budget';
 import { useTheme } from '../../hooks/useTheme';
 import { colors, typography, spacing, radii, shadows } from '../../constants/theme';
-import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Badge } from '../components/ui/Badge';
-import { EmptyState } from '../components/ui/EmptyState';
-import { SkeletonLoader } from '../components/ui/SkeletonLoader';
-import { FilterChip } from '../components/ui/FilterChip';
-import { StatusBadge } from '../components/ui/StatusBadge';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import { Badge } from '../../components/ui/Badge';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
+import { FilterChip } from '../../components/ui/FilterChip';
+import { StatusBadge } from '../../components/ui/StatusBadge';
 
 const ORDER_STATUS_OPTIONS: { value: OrderStatus | 'all'; label: string; icon: string }[] = [
   { value: 'all', label: 'Todas', icon: 'apps' },

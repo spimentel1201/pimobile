@@ -4,11 +4,11 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../hooks/useTheme';
-import { Avatar } from './components/ui/Avatar';
-import { Card } from './components/ui/Card';
-import { Button } from './components/ui/Button';
+import { Avatar } from '../components/ui/Avatar';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
 import { spacing, typography, radii } from '../constants/theme';
-import { useAuth } from './contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function ProfileScreen() {
   const router = useRouter();

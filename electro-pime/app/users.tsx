@@ -11,9 +11,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { api } from './services/api';
-import { useAuth } from './contexts/AuthContext';
-import { User } from './types/api';
+import { api } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { User } from '../types/api';
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: 'Administrador',

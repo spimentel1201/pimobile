@@ -18,8 +18,8 @@ import {
   CreateRepairOrderDto,
   RepairOrderStatus,
 } from '../types/api';
-import { useTheme } from '../../hooks/useTheme';
-import { typography, spacing, radii } from '../../constants/theme';
+import { useTheme } from '../hooks/useTheme';
+import { typography, spacing, radii } from '../constants/theme';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';

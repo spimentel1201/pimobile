@@ -10,11 +10,11 @@ import {
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../hooks/useTheme';
 import { typography, spacing, radii, shadows } from '../../constants/theme';
-import { Card } from '../components/ui/Card';
-import { EmptyState } from '../components/ui/EmptyState';
+import { Card } from '../../components/ui/Card';
+import { EmptyState } from '../../components/ui/EmptyState';
 
 interface ServiceItem {
   id: string;

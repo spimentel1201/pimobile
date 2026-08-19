@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
-import { useTheme } from '../../../hooks/useTheme';
-import { spacing, radii, shadows } from '../../../constants/theme';
+import { useTheme } from '../../hooks/useTheme';
+import { spacing, radii, shadows } from '../../constants/theme';
 
 type CardVariant = 'elevated' | 'outlined' | 'flat';
 

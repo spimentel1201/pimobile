@@ -12,14 +12,14 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { api } from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
+import { api } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../hooks/useTheme';
 import { typography, spacing, radii, shadows } from '../../constants/theme';
-import { Card } from '../components/ui/Card';
-import { StatusBadge } from '../components/ui/StatusBadge';
-import { EmptyState } from '../components/ui/EmptyState';
-import { RepairOrder } from '../types/api';
+import { Card } from '../../components/ui/Card';
+import { StatusBadge } from '../../components/ui/StatusBadge';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { RepairOrder } from '../../types/api';
 
 const QUICK_ACTIONS = [
   { icon: 'plus-circle', label: 'Nueva Orden', route: '/orders/new', color: '#2563EB', bg: '#DBEAFE' },

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { api } from '../services/api';
+import { api } from '../../services/api';
 
 const ROLE_OPTIONS: { value: 'ADMIN' | 'TECHNICIAN'; label: string }[] = [
   { value: 'TECHNICIAN', label: 'Técnico' },

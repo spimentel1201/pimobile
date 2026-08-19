@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
-import { useTheme } from '../../../hooks/useTheme';
-import { spacing, radii } from '../../../constants/theme';
+import { useTheme } from '../../hooks/useTheme';
+import { spacing, radii } from '../../constants/theme';
 
 interface SkeletonLoaderProps {
   lines?: number;

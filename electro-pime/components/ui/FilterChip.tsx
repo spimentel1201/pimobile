@@ -1,7 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ViewStyle } from 'react-native';
-import { useTheme } from '../../../hooks/useTheme';
-import { typography, spacing, radii } from '../../../constants/theme';
+import { useTheme } from '../../hooks/useTheme';
+import { typography, spacing, radii } from '../../constants/theme';
 
 interface FilterChipProps {
   label: string;

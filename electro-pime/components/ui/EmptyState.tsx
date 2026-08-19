@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useTheme } from '../../../hooks/useTheme';
-import { typography, spacing } from '../../../constants/theme';
+import { useTheme } from '../../hooks/useTheme';
+import { typography, spacing } from '../../constants/theme';
 
 interface EmptyStateProps {
   icon: string;

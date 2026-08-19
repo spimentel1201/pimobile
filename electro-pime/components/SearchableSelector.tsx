@@ -9,12 +9,12 @@ import {
   Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '../hooks/useTheme';
 import { Input } from './ui/Input';
 import { Card } from './ui/Card';
 import { EmptyState } from './ui/EmptyState';
 import { SkeletonLoader } from './ui/SkeletonLoader';
-import { spacing, typography, radii, shadows, colors } from '../../constants/theme';
+import { spacing, typography, radii, shadows, colors } from '../constants/theme';
 
 interface SearchableSelectorProps<T> {
   label: string;

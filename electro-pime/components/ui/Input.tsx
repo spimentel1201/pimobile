@@ -9,8 +9,8 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../../hooks/useTheme';
-import { typography, spacing, radii } from '../../../constants/theme';
+import { useTheme } from '../../hooks/useTheme';
+import { typography, spacing, radii } from '../../constants/theme';
 
 interface InputProps extends TextInputProps {
   label?: string;

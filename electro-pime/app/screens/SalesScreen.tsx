@@ -16,16 +16,16 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { api } from '../services/api';
-import { Sale, PaymentMethod } from '../types/api';
-import { useAuth } from '../contexts/AuthContext';
+import { api } from '../../services/api';
+import { Sale, PaymentMethod } from '../../types/api';
+import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../hooks/useTheme';
-import { EmptyState } from '../components/ui/EmptyState';
-import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { Badge } from '../components/ui/Badge';
-import { SkeletonLoader } from '../components/ui/SkeletonLoader';
-import { FilterChip } from '../components/ui/FilterChip';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { Badge } from '../../components/ui/Badge';
+import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
+import { FilterChip } from '../../components/ui/FilterChip';
 import { spacing, typography, radii, shadows, colors } from '../../constants/theme';
 
 const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {

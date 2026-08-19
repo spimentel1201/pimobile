@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Alert, SafeAreaView } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { api } from '../services/api';
-import OrderForm from '../components/OrderForm';
-import { CreateRepairOrderDto } from '../types/api';
+import { api } from '../../services/api';
+import OrderForm from '../../components/OrderForm';
+import { CreateRepairOrderDto } from '../../types/api';
 
 export default function NewOrderScreen() {
   const router = useRouter();
