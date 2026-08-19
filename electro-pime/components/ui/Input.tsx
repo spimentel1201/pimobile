@@ -56,7 +56,8 @@ export function Input({
           {
             backgroundColor: theme.inputBg,
             borderColor,
-            alignItems: props.multiline ? 'flex-start' : 'center',
+            flexDirection: props.multiline ? 'column' : 'row',
+            alignItems: props.multiline ? 'stretch' : 'center',
           },
           isFocused && styles.focused,
           error && styles.error,
