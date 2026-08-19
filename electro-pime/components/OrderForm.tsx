@@ -664,11 +664,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   textAreaContainer: {
-    minHeight: 80,
+    minHeight: 100,
   },
   textAreaInput: {
     textAlignVertical: 'top',
-    minHeight: 72,
+    minHeight: 92,
     paddingTop: spacing.md,
   },
   footer: {
