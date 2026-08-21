@@ -108,17 +108,19 @@ export function Button({
       ) : (
         <>
           {icon}
-          <Text
-            style={[
-              styles.text,
-              variantStyles[variant].text,
-              sizeStyles[size].text,
-              icon ? styles.textWithIcon : null,
-              textStyle,
-            ]}
-          >
-            {title}
-          </Text>
+          {title ? (
+            <Text
+              style={[
+                styles.text,
+                variantStyles[variant].text,
+                sizeStyles[size].text,
+                icon ? styles.textWithIcon : null,
+                textStyle,
+              ]}
+            >
+              {title}
+            </Text>
+          ) : null}
         </>
       )}
     </TouchableOpacity>
