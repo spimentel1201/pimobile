@@ -4,9 +4,11 @@ import { Stack, useRouter } from 'expo-router';
 import { api } from '../../../services/api';
 import OrderForm from '../../../components/OrderForm';
 import { CreateRepairOrderDto } from '../../../types/api';
+import { useTheme } from '../../../hooks/useTheme';
 
 export default function NewOrderScreen() {
   const router = useRouter();
+  const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (data: CreateRepairOrderDto) => {
@@ -40,7 +42,7 @@ export default function NewOrderScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Stack.Screen
         options={{
           title: 'Nueva Orden de Reparación',
@@ -59,6 +61,5 @@ export default function NewOrderScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
 });

@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../hooks/useTheme';
-import { typography, spacing, radii, shadows } from '../../constants/theme';
+import { typography, spacing, radii, shadows, brandColors } from '../../constants/theme';
 import { Card } from '../../components/ui/Card';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -28,11 +28,11 @@ const ACTION_GAP = spacing.md;
 const ACTION_CARD_WIDTH = (SCREEN_WIDTH - spacing.lg * 2 - ACTION_GAP * (ACTION_COLUMNS - 1)) / ACTION_COLUMNS;
 
 const QUICK_ACTIONS = [
-  { icon: 'plus-circle', label: 'Nueva Orden', route: '/orders/new', color: '#2563EB', bg: '#DBEAFE' },
-  { icon: 'account-plus', label: 'Clientes', route: '/customers', color: '#10B981', bg: '#D1FAE5' },
-  { icon: 'package-variant', label: 'Productos', route: '/products', color: '#F59E0B', bg: '#FEF3C7' },
-  { icon: 'file-document', label: 'Presupuestos', route: '/budgets', color: '#6366F1', bg: '#E0E7FF' },
-  { icon: 'account-group', label: 'Usuarios', route: '/users', color: '#EC4899', bg: '#FCE7F3', adminOnly: true },
+  { icon: 'plus-circle', label: 'Nueva Orden', route: '/orders/new', color: brandColors.blue.color, bg: brandColors.blue.bg },
+  { icon: 'account-plus', label: 'Clientes', route: '/customers', color: brandColors.emerald.color, bg: brandColors.emerald.bg },
+  { icon: 'package-variant', label: 'Productos', route: '/products', color: brandColors.amber.color, bg: brandColors.amber.bg },
+  { icon: 'file-document', label: 'Presupuestos', route: '/budgets', color: brandColors.indigo.color, bg: brandColors.indigo.bg },
+  { icon: 'account-group', label: 'Usuarios', route: '/users', color: brandColors.pink.color, bg: brandColors.pink.bg, adminOnly: true },
 ];
 
 const DashboardScreen = () => {

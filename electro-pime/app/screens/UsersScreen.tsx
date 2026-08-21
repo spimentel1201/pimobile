@@ -23,6 +23,7 @@ import { Avatar } from '../../components/ui/Avatar';
 import { Badge } from '../../components/ui/Badge';
 import { FilterChip } from '../../components/ui/FilterChip';
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: 'Administrador',
@@ -50,6 +51,13 @@ const UsersScreen = () => {
   const [selectedRole, setSelectedRole] = useState<string>('all');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState<{ title: string; message: string; variant: 'danger' | 'success' | 'warning' | 'info'; onConfirm: () => void }>({ title: '', message: '', variant: 'info', onConfirm: () => {} });
+
+  const showConfirm = (title: string, message: string, variant: 'danger' | 'success' | 'warning' | 'info', onConfirm: () => void) => {
+    setConfirmConfig({ title, message, variant, onConfirm });
+    setConfirmVisible(true);
+  };
 
   const fetchUsers = useCallback(async () => {
     if (!currentUser) {
@@ -84,47 +92,36 @@ const UsersScreen = () => {
   }, [fetchUsers]);
 
   const handleToggleStatus = async (user: User) => {
-    Alert.alert(
+    showConfirm(
       'Cambiar Estado',
       `¿Está seguro que desea ${user.isActive ? 'desactivar' : 'activar'} a ${user.firstName} ${user.lastName}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Confirmar',
-          onPress: async () => {
-            try {
-              await api.updateUser(user.id, { isActive: !user.isActive } as Partial<User>);
-              Alert.alert('Éxito', 'Estado actualizado correctamente');
-              fetchUsers();
-            } catch (err: any) {
-              Alert.alert('Error', err.message || 'No se pudo actualizar el estado');
-            }
-          },
-        },
-      ]
+      'warning',
+      async () => {
+        try {
+          await api.updateUser(user.id, { isActive: !user.isActive } as Partial<User>);
+          showConfirm('Éxito', 'Estado actualizado correctamente', 'success', () => {});
+          fetchUsers();
+        } catch (err: any) {
+          Alert.alert('Error', err.message || 'No se pudo actualizar el estado');
+        }
+      }
     );
   };
 
   const handleDeleteUser = async (user: User) => {
-    Alert.alert(
-      'Confirmar Eliminación',
+    showConfirm(
+      'Eliminar Usuario',
       `¿Está seguro que desea eliminar a ${user.firstName} ${user.lastName}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.deleteUser(user.id);
-              Alert.alert('Éxito', 'Usuario eliminado correctamente');
-              fetchUsers();
-            } catch (err: any) {
-              Alert.alert('Error', err.message || 'No se pudo eliminar el usuario');
-            }
-          },
-        },
-      ]
+      'danger',
+      async () => {
+        try {
+          await api.deleteUser(user.id);
+          showConfirm('Éxito', 'Usuario eliminado correctamente', 'success', () => {});
+          fetchUsers();
+        } catch (err: any) {
+          Alert.alert('Error', err.message || 'No se pudo eliminar el usuario');
+        }
+      }
     );
   };
 
@@ -374,6 +371,15 @@ const UsersScreen = () => {
         }
       />
       {showDetails && renderUserDetails()}
+      <ConfirmDialog
+        visible={confirmVisible}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        variant={confirmConfig.variant}
+        confirmLabel={confirmConfig.variant === 'danger' ? 'Eliminar' : 'Aceptar'}
+        onConfirm={() => { confirmConfig.onConfirm(); setConfirmVisible(false); }}
+        onCancel={() => setConfirmVisible(false)}
+      />
     </View>
   );
 };

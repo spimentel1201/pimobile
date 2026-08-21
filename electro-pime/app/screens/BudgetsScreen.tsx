@@ -17,14 +17,15 @@ import { api } from '../../services/api';
 import { Quote, CreateQuoteDto, Customer, RepairOrder } from '../../types/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../hooks/useTheme';
-import { typography, spacing, radii, shadows } from '../../constants/theme';
+import { colors, typography, spacing, radii, shadows } from '../../constants/theme';
 import SearchableSelector from '../../components/SearchableSelector';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 
 const QUOTE_STATUS = {
-  PENDING: { label: 'Pendiente', color: '#F59E0B' },
-  APPROVED: { label: 'Aprobado', color: '#10B981' },
-  REJECTED: { label: 'Rechazado', color: '#EF4444' },
-  EXPIRED: { label: 'Expirado', color: '#6B7280' },
+  PENDING: { label: 'Pendiente', color: colors.warning },
+  APPROVED: { label: 'Aprobado', color: colors.success },
+  REJECTED: { label: 'Rechazado', color: colors.error },
+  EXPIRED: { label: 'Expirado', color: colors.gray[500] },
 };
 
 interface QuoteItem {
@@ -55,6 +56,29 @@ const BudgetsScreen = () => {
   const [newItemDescription, setNewItemDescription] = useState('');
   const [newItemQuantity, setNewItemQuantity] = useState('1');
   const [newItemPrice, setNewItemPrice] = useState('');
+
+  // ConfirmDialog state
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [confirmTitle, setConfirmTitle] = useState('');
+  const [confirmMessage, setConfirmMessage] = useState('');
+  const [confirmVariant, setConfirmVariant] = useState<'danger' | 'warning' | 'info' | 'success'>('info');
+  const [confirmLabel, setConfirmLabel] = useState('Confirmar');
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
+
+  const showConfirm = (
+    title: string,
+    message: string,
+    variant: 'danger' | 'warning' | 'info' | 'success',
+    action: () => void,
+    label?: string,
+  ) => {
+    setConfirmTitle(title);
+    setConfirmMessage(message);
+    setConfirmVariant(variant);
+    setConfirmLabel(label || 'Confirmar');
+    setConfirmAction(() => action);
+    setConfirmVisible(true);
+  };
 
   const fetchQuotes = useCallback(async () => {
     if (!user) {
@@ -184,10 +208,18 @@ const BudgetsScreen = () => {
       };
 
       await api.createQuote(quoteData);
-      Alert.alert('Éxito', 'Presupuesto creado correctamente');
-      setShowNewQuoteModal(false);
-      resetForm();
-      fetchQuotes();
+      showConfirm(
+        'Presupuesto creado',
+        'Presupuesto creado correctamente.',
+        'success',
+        () => {
+          setConfirmVisible(false);
+          setShowNewQuoteModal(false);
+          resetForm();
+          fetchQuotes();
+        },
+        'OK',
+      );
     } catch (err: any) {
       Alert.alert('Error', err.message || 'No se pudo crear el presupuesto');
     } finally {
@@ -198,9 +230,17 @@ const BudgetsScreen = () => {
   const handleApproveQuote = async (quote: Quote) => {
     try {
       await api.updateQuote(quote.id, { status: 'APPROVED' });
-      Alert.alert('Éxito', 'Presupuesto aprobado');
-      fetchQuotes();
-      setShowQuoteDetails(false);
+      showConfirm(
+        'Presupuesto aprobado',
+        'El presupuesto ha sido aprobado correctamente.',
+        'success',
+        () => {
+          setConfirmVisible(false);
+          fetchQuotes();
+          setShowQuoteDetails(false);
+        },
+        'OK',
+      );
     } catch (err: any) {
       Alert.alert('Error', err.message || 'No se pudo aprobar el presupuesto');
     }
@@ -209,35 +249,48 @@ const BudgetsScreen = () => {
   const handleRejectQuote = async (quote: Quote) => {
     try {
       await api.updateQuote(quote.id, { status: 'REJECTED' });
-      Alert.alert('Éxito', 'Presupuesto rechazado');
-      fetchQuotes();
-      setShowQuoteDetails(false);
+      showConfirm(
+        'Presupuesto rechazado',
+        'El presupuesto ha sido rechazado.',
+        'success',
+        () => {
+          setConfirmVisible(false);
+          fetchQuotes();
+          setShowQuoteDetails(false);
+        },
+        'OK',
+      );
     } catch (err: any) {
       Alert.alert('Error', err.message || 'No se pudo rechazar el presupuesto');
     }
   };
 
   const handleDeleteQuote = (quote: Quote) => {
-    Alert.alert(
+    showConfirm(
       'Eliminar Presupuesto',
-      '¿Está seguro que desea eliminar este presupuesto?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.deleteQuote(quote.id);
-              Alert.alert('Éxito', 'Presupuesto eliminado');
+      '¿Está seguro que desea eliminar este presupuesto? Esta acción no se puede deshacer.',
+      'danger',
+      async () => {
+        try {
+          await api.deleteQuote(quote.id);
+          setConfirmVisible(false);
+          showConfirm(
+            'Presupuesto eliminado',
+            'El presupuesto ha sido eliminado correctamente.',
+            'success',
+            () => {
+              setConfirmVisible(false);
               fetchQuotes();
               setShowQuoteDetails(false);
-            } catch (err: any) {
-              Alert.alert('Error', err.message || 'No se pudo eliminar');
-            }
-          },
-        },
-      ]
+            },
+            'OK',
+          );
+        } catch (err: any) {
+          setConfirmVisible(false);
+          Alert.alert('Error', err.message || 'No se pudo eliminar');
+        }
+      },
+      'Eliminar',
     );
   };
 
@@ -260,7 +313,7 @@ const BudgetsScreen = () => {
         </View>
         <Text style={[styles.customerName, { color: theme.text }]}>{item.customer?.name || item.customerName || 'Cliente'}</Text>
         <View style={styles.quoteInfo}>
-          <Text style={[styles.quoteTotal, { color: '#10B981' }]}>S/ {item.totalAmount?.toFixed(2) || '0.00'}</Text>
+          <Text style={[styles.quoteTotal, { color: theme.success }]}>S/ {item.totalAmount?.toFixed(2) || '0.00'}</Text>
           <Text style={[styles.quoteDate, { color: theme.textMuted }]}>
             {new Date(item.createdAt).toLocaleDateString()}
           </Text>
@@ -322,41 +375,44 @@ const BudgetsScreen = () => {
             {quoteItems.map((item, index) => (
               <View key={index} style={styles.itemRow}>
                 <View style={styles.itemInfo}>
-                  <Text style={styles.itemDescription}>{item.description}</Text>
-                  <Text style={styles.itemPrice}>
+                  <Text style={[styles.itemDescription, { color: theme.text }]}>{item.description}</Text>
+                  <Text style={[styles.itemPrice, { color: theme.textSecondary }]}>
                     {item.quantity} x S/ {item.price.toFixed(2)} = S/ {(item.quantity * item.price).toFixed(2)}
                   </Text>
                 </View>
                 <TouchableOpacity onPress={() => removeItem(index)}>
-                  <MaterialCommunityIcons name="delete" size={24} color="#EF4444" />
+                  <MaterialCommunityIcons name="delete" size={24} color={theme.error} />
                 </TouchableOpacity>
               </View>
             ))}
 
-            <View style={styles.addItemForm}>
+            <View style={[styles.addItemForm, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
               <TextInput
-                style={[styles.input, styles.flexInput]}
+                style={[styles.input, styles.flexInput, { backgroundColor: theme.surface, borderColor: theme.border, color: theme.text }]}
                 placeholder="Descripción del item"
+                placeholderTextColor={theme.textMuted}
                 value={newItemDescription}
                 onChangeText={setNewItemDescription}
               />
               <View style={styles.itemInputRow}>
                 <TextInput
-                  style={[styles.input, styles.smallInput]}
+                  style={[styles.input, styles.smallInput, { backgroundColor: theme.surface, borderColor: theme.border, color: theme.text }]}
                   placeholder="Cant."
+                  placeholderTextColor={theme.textMuted}
                   value={newItemQuantity}
                   onChangeText={setNewItemQuantity}
                   keyboardType="numeric"
                 />
                 <TextInput
-                  style={[styles.input, styles.smallInput]}
+                  style={[styles.input, styles.smallInput, { backgroundColor: theme.surface, borderColor: theme.border, color: theme.text }]}
                   placeholder="Precio"
+                  placeholderTextColor={theme.textMuted}
                   value={newItemPrice}
                   onChangeText={setNewItemPrice}
                   keyboardType="decimal-pad"
                 />
-                <TouchableOpacity style={styles.addItemButton} onPress={addItem}>
-                  <MaterialCommunityIcons name="plus" size={24} color="#fff" />
+                <TouchableOpacity style={[styles.addItemButton, { backgroundColor: theme.primary }]} onPress={addItem}>
+                  <MaterialCommunityIcons name="plus" size={24} color={colors.white} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -366,8 +422,9 @@ const BudgetsScreen = () => {
           <View style={[styles.section, { backgroundColor: theme.surface }]}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Notas</Text>
             <TextInput
-              style={[styles.input, styles.textArea]}
+              style={[styles.input, styles.textArea, { backgroundColor: theme.surface, borderColor: theme.border, color: theme.text }]}
               placeholder="Notas adicionales..."
+              placeholderTextColor={theme.textMuted}
               value={notes}
               onChangeText={setNotes}
               multiline
@@ -384,18 +441,18 @@ const BudgetsScreen = () => {
 
         <View style={[styles.modalFooter, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
           <TouchableOpacity
-            style={[styles.footerButton, styles.cancelButton]}
+            style={[styles.footerButton, styles.cancelButton, { backgroundColor: theme.surfaceVariant }]}
             onPress={() => setShowNewQuoteModal(false)}
           >
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
+            <Text style={[styles.cancelButtonText, { color: theme.textSecondary }]}>Cancelar</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.footerButton, styles.saveButton, saving && styles.buttonDisabled]}
+            style={[styles.footerButton, styles.saveButton, { backgroundColor: theme.primary }, saving && styles.buttonDisabled]}
             onPress={handleCreateQuote}
             disabled={saving}
           >
             {saving ? (
-              <ActivityIndicator color="white" />
+              <ActivityIndicator color={colors.white} />
             ) : (
               <Text style={styles.saveButtonText}>Guardar</Text>
             )}
@@ -488,13 +545,13 @@ const BudgetsScreen = () => {
             {selectedQuote.status === 'PENDING' && (
               <>
                 <TouchableOpacity
-                  style={[styles.footerButton, styles.rejectButton]}
+                  style={[styles.footerButton, styles.rejectButton, { backgroundColor: theme.errorLight }]}
                   onPress={() => handleRejectQuote(selectedQuote)}
                 >
-                  <Text style={styles.rejectButtonText}>Rechazar</Text>
+                  <Text style={[styles.rejectButtonText, { color: theme.error }]}>Rechazar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.footerButton, styles.approveButton]}
+                  style={[styles.footerButton, styles.approveButton, { backgroundColor: theme.success }]}
                   onPress={() => handleApproveQuote(selectedQuote)}
                 >
                   <Text style={styles.approveButtonText}>Aprobar</Text>
@@ -502,10 +559,10 @@ const BudgetsScreen = () => {
               </>
             )}
             <TouchableOpacity
-              style={[styles.footerButton, styles.deleteButton]}
+              style={[styles.footerButton, styles.deleteButton, { backgroundColor: theme.errorLight }]}
               onPress={() => handleDeleteQuote(selectedQuote)}
             >
-              <MaterialCommunityIcons name="delete" size={20} color="#EF4444" />
+              <MaterialCommunityIcons name="delete" size={20} color={theme.error} />
             </TouchableOpacity>
           </View>
         </View>
@@ -525,9 +582,9 @@ const BudgetsScreen = () => {
   if (error) {
     return (
       <View style={styles.centered}>
-        <MaterialCommunityIcons name="alert-circle" size={48} color="#EF4444" />
+        <MaterialCommunityIcons name="alert-circle" size={48} color={theme.error} />
         <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchQuotes}>
+        <TouchableOpacity style={[styles.retryButton, { backgroundColor: theme.primary }]} onPress={fetchQuotes}>
           <Text style={styles.retryButtonText}>Reintentar</Text>
         </TouchableOpacity>
       </View>
@@ -542,7 +599,7 @@ const BudgetsScreen = () => {
           style={[styles.addButton, { backgroundColor: theme.primary }]}
           onPress={() => setShowNewQuoteModal(true)}
         >
-          <MaterialCommunityIcons name="plus" size={20} color="white" />
+          <MaterialCommunityIcons name="plus" size={20} color={colors.white} />
           <Text style={styles.addButtonText}>Nuevo</Text>
         </TouchableOpacity>
       </View>
@@ -571,6 +628,16 @@ const BudgetsScreen = () => {
 
       {renderNewQuoteModal()}
       {renderQuoteDetails()}
+
+      <ConfirmDialog
+        visible={confirmVisible}
+        title={confirmTitle}
+        message={confirmMessage}
+        variant={confirmVariant}
+        confirmLabel={confirmLabel}
+        onConfirm={() => confirmAction?.()}
+        onCancel={() => setConfirmVisible(false)}
+      />
     </View>
   );
 };
@@ -578,7 +645,6 @@ const BudgetsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'transparent',
   },
   centered: {
     flex: 1,
@@ -589,49 +655,42 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#6B7280',
   },
   errorText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#EF4444',
     textAlign: 'center',
   },
   retryButton: {
     marginTop: 16,
-    backgroundColor: '#3B82F6',
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: radii.md,
   },
   retryButtonText: {
-    color: 'white',
+    color: colors.white,
     fontWeight: '600',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'white',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#111827',
   },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3B82F6',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: radii.md,
   },
   addButtonText: {
-    color: 'white',
+    color: colors.white,
     fontWeight: '600',
     marginLeft: 4,
   },
@@ -640,15 +699,11 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   quoteCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
+    borderRadius: radii.lg,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    borderWidth: 1,
+    ...shadows.sm,
   },
   quoteHeader: {
     flexDirection: 'row',
@@ -659,7 +714,6 @@ const styles = StyleSheet.create({
   quoteId: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#3B82F6',
   },
   statusBadge: {
     paddingHorizontal: 10,
@@ -667,14 +721,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   statusText: {
-    color: 'white',
+    color: colors.white,
     fontSize: 12,
     fontWeight: '600',
   },
   customerName: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#111827',
     marginBottom: 8,
   },
   quoteInfo: {
@@ -685,11 +738,9 @@ const styles = StyleSheet.create({
   quoteTotal: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#10B981',
   },
   quoteDate: {
     fontSize: 12,
-    color: '#6B7280',
   },
   emptyContainer: {
     flex: 1,
@@ -700,36 +751,30 @@ const styles = StyleSheet.create({
   emptyText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#6B7280',
   },
   emptyButton: {
     marginTop: 16,
-    backgroundColor: '#3B82F6',
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: radii.md,
   },
   emptyButtonText: {
-    color: 'white',
+    color: colors.white,
     fontWeight: '600',
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
   },
   modalContent: {
     flex: 1,
@@ -741,17 +786,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6B7280',
     marginBottom: 12,
   },
   input: {
-    backgroundColor: 'white',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
+    borderRadius: radii.md,
     padding: 12,
     fontSize: 16,
-    color: '#111827',
   },
   flexInput: {
     flex: 1,
@@ -767,9 +808,8 @@ const styles = StyleSheet.create({
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
     padding: 12,
-    borderRadius: 8,
+    borderRadius: radii.md,
     marginBottom: 8,
   },
   itemInfo: {
@@ -778,19 +818,15 @@ const styles = StyleSheet.create({
   itemDescription: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#111827',
   },
   itemPrice: {
     fontSize: 12,
-    color: '#6B7280',
     marginTop: 2,
   },
   addItemForm: {
-    backgroundColor: '#F9FAFB',
     padding: 12,
-    borderRadius: 8,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
     borderStyle: 'dashed',
   },
   itemInputRow: {
@@ -799,10 +835,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   addItemButton: {
-    backgroundColor: '#3B82F6',
     width: 40,
     height: 40,
-    borderRadius: 8,
+    borderRadius: radii.md,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -810,66 +845,58 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#DBEAFE',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: radii.lg,
     marginVertical: 16,
   },
   totalLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#3B82F6',
   },
   totalAmount: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#3B82F6',
   },
   modalFooter: {
     flexDirection: 'row',
     padding: 16,
-    backgroundColor: 'white',
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
     gap: 12,
   },
   footerButton: {
     flex: 1,
     padding: 14,
-    borderRadius: 8,
+    borderRadius: radii.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cancelButton: {
-    backgroundColor: 'transparent',
+    // backgroundColor set via theme
   },
   cancelButtonText: {
-    color: '#6B7280',
     fontWeight: '600',
   },
   saveButton: {
-    backgroundColor: '#3B82F6',
+    // backgroundColor set via theme
   },
   saveButtonText: {
-    color: 'white',
+    color: colors.white,
     fontWeight: '600',
   },
   approveButton: {
-    backgroundColor: '#10B981',
+    // backgroundColor set via theme
   },
   approveButtonText: {
-    color: 'white',
+    color: colors.white,
     fontWeight: '600',
   },
   rejectButton: {
-    backgroundColor: '#FEE2E2',
+    // backgroundColor set via theme
   },
   rejectButtonText: {
-    color: '#EF4444',
     fontWeight: '600',
   },
   deleteButton: {
-    backgroundColor: '#FEE2E2',
     flex: 0,
     paddingHorizontal: 16,
   },
@@ -886,28 +913,23 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 14,
-    color: '#6B7280',
     marginBottom: 4,
   },
   detailValue: {
     fontSize: 16,
-    color: '#111827',
   },
   itemDetailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   itemDetailText: {
     fontSize: 14,
-    color: '#6B7280',
   },
   itemDetailPrice: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#111827',
   },
 });
 

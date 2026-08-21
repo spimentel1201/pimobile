@@ -28,6 +28,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { colors, spacing, typography, radii, shadows } from '../../constants/theme';
 
 type FilterStatus = RepairOrderStatus | 'ALL';
@@ -45,6 +46,13 @@ const OrdersScreen = () => {
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('ALL');
   const [selectedOrder, setSelectedOrder] = useState<RepairOrder | null>(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState<{ title: string; message: string; variant: 'danger' | 'success' | 'warning' | 'info'; onConfirm: () => void }>({ title: '', message: '', variant: 'info', onConfirm: () => {} });
+
+  const showConfirm = (title: string, message: string, variant: 'danger' | 'success' | 'warning' | 'info', onConfirm: () => void) => {
+    setConfirmConfig({ title, message, variant, onConfirm });
+    setConfirmVisible(true);
+  };
 
   const fetchOrders = useCallback(async () => {
     if (!user) {
@@ -96,7 +104,7 @@ const OrdersScreen = () => {
   const handleStatusUpdate = async (orderId: string, newStatus: RepairOrderStatus) => {
     try {
       await api.updateRepairOrder(orderId, { status: newStatus });
-      Alert.alert('Éxito', 'Estado actualizado correctamente');
+      showConfirm('Éxito', 'Estado actualizado correctamente', 'success', () => {});
       fetchOrders();
     } catch (err: any) {
       console.error('Error updating status:', err);
@@ -105,26 +113,14 @@ const OrdersScreen = () => {
   };
 
   const handleDeleteOrder = async (orderId: string) => {
-    Alert.alert(
-      'Confirmar eliminación',
-      '¿Está seguro que desea eliminar esta orden?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.deleteRepairOrder(orderId);
-              Alert.alert('Éxito', 'Orden eliminada correctamente');
-              fetchOrders();
-            } catch (err: any) {
-              Alert.alert('Error', err.message || 'No se pudo eliminar la orden');
-            }
-          },
-        },
-      ]
-    );
+    showConfirm('Eliminar Orden', '¿Está seguro que desea eliminar esta orden? This action cannot be undone.', 'danger', async () => {
+      try {
+        await api.deleteRepairOrder(orderId);
+        showConfirm('Éxito', 'Orden eliminada correctamente', 'success', () => { fetchOrders(); });
+      } catch (err: any) {
+        Alert.alert('Error', err.message || 'No se pudo eliminar la orden');
+      }
+    });
   };
 
   const filteredOrders = filterStatus === 'ALL'
@@ -682,6 +678,15 @@ const OrdersScreen = () => {
         </View>
       </SafeAreaView>
       {renderOrderDetails()}
+      <ConfirmDialog
+        visible={confirmVisible}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        variant={confirmConfig.variant}
+        confirmLabel={confirmConfig.variant === 'danger' ? 'Eliminar' : 'Aceptar'}
+        onConfirm={() => { confirmConfig.onConfirm(); setConfirmVisible(false); }}
+        onCancel={() => setConfirmVisible(false)}
+      />
     </View>
   );
 };

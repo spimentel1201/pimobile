@@ -244,6 +244,19 @@ export const layout = {
   maxContentWidth: 600,
 } as const;
 
+// ─── Brand Colors (decorative, per-service/per-action) ──
+export const brandColors = {
+  blue: { color: colors.primary, bg: colors.primaryLight },
+  indigo: { color: colors.info, bg: colors.infoLight },
+  violet: { color: '#8B5CF6', bg: '#EDE9FE' },
+  amber: { color: colors.warning, bg: colors.warningLight },
+  emerald: { color: colors.success, bg: colors.successLight },
+  red: { color: colors.error, bg: colors.errorLight },
+  sky: { color: '#0EA5E9', bg: '#E0F2FE' },
+  pink: { color: '#EC4899', bg: '#FCE7F3' },
+  slate: { color: colors.gray[500], bg: colors.gray[100] },
+} as const;
+
 // ─── Full Theme Object ─────────────────────────────────
 export const theme = {
   colors: lightTheme,

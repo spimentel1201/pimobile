@@ -25,6 +25,7 @@ import { Input } from '../../components/ui/Input';
 import { Avatar } from '../../components/ui/Avatar';
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
 import { Badge } from '../../components/ui/Badge';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { spacing, typography, radii, shadows } from '../../constants/theme';
 
 const CustomersScreen = () => {
@@ -39,6 +40,8 @@ const CustomersScreen = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [saving, setSaving] = useState(false);
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState<{ title: string; message: string; variant: 'danger' | 'success' | 'warning' | 'info'; onConfirm: () => void }>({ title: '', message: '', variant: 'info', onConfirm: () => {} });
 
   // Form state
   const [formData, setFormData] = useState<CreateCustomerDto>({
@@ -49,6 +52,11 @@ const CustomersScreen = () => {
     documentNumber: '',
     address: '',
   });
+
+  const showConfirm = (title: string, message: string, variant: 'danger' | 'success' | 'warning' | 'info', onConfirm: () => void) => {
+    setConfirmConfig({ title, message, variant, onConfirm });
+    setConfirmVisible(true);
+  };
 
   const fetchCustomers = useCallback(async () => {
     if (!user) {
@@ -146,13 +154,17 @@ const CustomersScreen = () => {
     try {
       if (editingCustomer) {
         await api.updateCustomer(editingCustomer.id, formData);
-        Alert.alert('Éxito', 'Cliente actualizado correctamente');
+        showConfirm('Éxito', 'Cliente actualizado correctamente', 'success', () => {
+          setShowModal(false);
+          fetchCustomers();
+        });
       } else {
         await api.createCustomer(formData);
-        Alert.alert('Éxito', 'Cliente creado correctamente');
+        showConfirm('Éxito', 'Cliente creado correctamente', 'success', () => {
+          setShowModal(false);
+          fetchCustomers();
+        });
       }
-      setShowModal(false);
-      fetchCustomers();
     } catch (err: any) {
       Alert.alert('Error', err.message || 'No se pudo guardar el cliente');
     } finally {
@@ -161,25 +173,20 @@ const CustomersScreen = () => {
   };
 
   const handleDeleteCustomer = (customer: Customer) => {
-    Alert.alert(
-      'Confirmar eliminación',
+    showConfirm(
+      'Eliminar Cliente',
       `¿Está seguro que desea eliminar a ${customer.name}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.deleteCustomer(customer.id);
-              Alert.alert('Éxito', 'Cliente eliminado correctamente');
-              fetchCustomers();
-            } catch (err: any) {
-              Alert.alert('Error', err.message || 'No se pudo eliminar el cliente');
-            }
-          },
-        },
-      ]
+      'danger',
+      async () => {
+        try {
+          await api.deleteCustomer(customer.id);
+          showConfirm('Éxito', 'Cliente eliminado correctamente', 'success', () => {
+            fetchCustomers();
+          });
+        } catch (err: any) {
+          Alert.alert('Error', err.message || 'No se pudo eliminar el cliente');
+        }
+      }
     );
   };
 
@@ -423,6 +430,15 @@ const CustomersScreen = () => {
         }
       />
       {renderModal()}
+      <ConfirmDialog
+        visible={confirmVisible}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        variant={confirmConfig.variant}
+        confirmLabel={confirmConfig.variant === 'danger' ? 'Eliminar' : 'Aceptar'}
+        onConfirm={() => { confirmConfig.onConfirm(); setConfirmVisible(false); }}
+        onCancel={() => setConfirmVisible(false)}
+      />
     </View>
   );
 };

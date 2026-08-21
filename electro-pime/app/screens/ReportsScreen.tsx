@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../hooks/useTheme';
-import { typography, spacing, radii, shadows } from '../../constants/theme';
+import { typography, spacing, radii, shadows, brandColors } from '../../constants/theme';
 import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
 
@@ -74,22 +74,22 @@ const ReportsScreen = () => {
           icon: 'currency-usd',
           label: 'Ingresos del mes',
           value: `S/ ${income.toFixed(2)}`,
-          color: '#10B981',
-          bg: '#D1FAE5',
+          color: brandColors.emerald.color,
+          bg: brandColors.emerald.bg,
         },
         {
           icon: 'file-document-edit-outline',
           label: 'Presupuestos pendientes',
           value: pendingBudgets,
-          color: '#F59E0B',
-          bg: '#FEF3C7',
+          color: brandColors.amber.color,
+          bg: brandColors.amber.bg,
         },
         {
           icon: 'account-group',
           label: 'Clientes activos',
           value: activeCustomers,
-          color: '#6366F1',
-          bg: '#E0E7FF',
+          color: brandColors.indigo.color,
+          bg: brandColors.indigo.bg,
         },
       ];
 

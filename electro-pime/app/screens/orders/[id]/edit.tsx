@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-
-// Import components and hooks with relative paths from the project root
 import { useServiceOrders } from '../../../../contexts/ServiceOrderContext';
 import OrderForm from '../../../../components/OrderForm';
 import { Device, User, ServiceOrder } from '../../../../types/api';
+import { useTheme } from '../../../../hooks/useTheme';
 
 export default function EditOrderScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { getOrderById, updateOrder, loading: contextLoading } = useServiceOrders();
+  const { theme } = useTheme();
 
   const [loading, setLoading] = useState(true);
   const [order, setOrder] = useState<ServiceOrder | null>(null);
@@ -24,15 +24,11 @@ export default function EditOrderScreen() {
 
       setLoading(true);
       try {
-        // Fetch order data
         const orderData = await getOrderById(id);
         setOrder(orderData);
 
-        // In a real app, you would also fetch related data (devices, customers, technicians)
-        // For now, we'll use mock data
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        // Mock data - replace with actual API calls
         setDevices([
           {
             id: orderData.deviceId,
@@ -45,7 +41,6 @@ export default function EditOrderScreen() {
             createdAt: orderData.device.createdAt,
             updatedAt: orderData.device.updatedAt,
           },
-          // Add more mock devices as needed
         ]);
 
         setCustomers([
@@ -58,7 +53,6 @@ export default function EditOrderScreen() {
             createdAt: orderData.customer.createdAt,
             updatedAt: orderData.customer.updatedAt,
           },
-          // Add more mock customers as needed
         ]);
 
         const techs: User[] = [];
@@ -74,7 +68,6 @@ export default function EditOrderScreen() {
           });
         }
 
-        // Add more mock technicians as needed
         techs.push({
           id: '2',
           name: 'Otro Técnico',
@@ -104,10 +97,8 @@ export default function EditOrderScreen() {
     try {
       setLoading(true);
 
-      // Format data as needed before sending to API
       const orderData = {
         ...data,
-        // Ensure we don't send read-only fields
         device: undefined,
         customer: undefined,
         technician: undefined,
@@ -117,7 +108,6 @@ export default function EditOrderScreen() {
 
       await updateOrder(id, orderData);
 
-      // Show success message and navigate back
       Alert.alert(
         '¡Éxito!',
         'La orden ha sido actualizada correctamente.',
@@ -138,14 +128,14 @@ export default function EditOrderScreen() {
 
   if (loading || !order) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Stack.Screen
         options={{
           title: 'Editar Orden',
@@ -167,12 +157,10 @@ export default function EditOrderScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
   },
 });

@@ -4,10 +4,13 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../../../services/api';
 import OrderForm from '../../../components/OrderForm';
 import { RepairOrder, CreateRepairOrderDto, UpdateRepairOrderDto } from '../../../types/api';
+import { useTheme } from '../../../hooks/useTheme';
+import { typography, spacing } from '../../../constants/theme';
 
 export default function EditOrderScreen() {
     const router = useRouter();
     const { id } = useLocalSearchParams<{ id: string }>();
+    const { theme } = useTheme();
     const [order, setOrder] = useState<RepairOrder | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -51,31 +54,31 @@ export default function EditOrderScreen() {
 
     if (loading) {
         return (
-            <View style={styles.centered}>
-                <ActivityIndicator size="large" color="#3B82F6" />
-                <Text style={styles.loadingText}>Cargando orden...</Text>
+            <View style={[styles.centered, { backgroundColor: theme.background }]}>
+                <ActivityIndicator size="large" color={theme.primary} />
+                <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Cargando orden...</Text>
             </View>
         );
     }
 
     if (error) {
         return (
-            <View style={styles.centered}>
-                <Text style={styles.errorText}>{error}</Text>
+            <View style={[styles.centered, { backgroundColor: theme.background }]}>
+                <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
             </View>
         );
     }
 
     if (!order) {
         return (
-            <View style={styles.centered}>
-                <Text style={styles.errorText}>Orden no encontrada</Text>
+            <View style={[styles.centered, { backgroundColor: theme.background }]}>
+                <Text style={[styles.errorText, { color: theme.error }]}>Orden no encontrada</Text>
             </View>
         );
     }
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: theme.background }]}>
             <OrderForm
                 initialData={order}
                 onSubmit={handleSubmit}
@@ -88,22 +91,19 @@ export default function EditOrderScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F3F4F6',
     },
     centered: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 32,
+        padding: spacing.xl,
     },
     loadingText: {
-        marginTop: 12,
-        fontSize: 16,
-        color: '#6B7280',
+        marginTop: spacing.sm,
+        fontSize: typography.sizes.md,
     },
     errorText: {
-        fontSize: 16,
-        color: '#EF4444',
+        fontSize: typography.sizes.md,
         textAlign: 'center',
     },
 });

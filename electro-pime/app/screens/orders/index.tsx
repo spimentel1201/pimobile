@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, StyleSheet, FlatList, Text, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useServiceOrders } from '../../../contexts/ServiceOrderContext';
@@ -6,14 +6,8 @@ import { ServiceOrder, ServiceOrderStatus } from '../../../types/api';
 import { MaterialIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-
-const statusColors = {
-  pending: '#F59E0B', // amber-500
-  in_progress: '#3B82F6', // blue-500
-  waiting_approval: '#8B5CF6', // violet-500
-  completed: '#10B981', // emerald-500
-  cancelled: '#EF4444', // red-500
-};
+import { useTheme } from '../../../hooks/useTheme';
+import { colors, typography, spacing, radii, shadows } from '../../../constants/theme';
 
 const statusLabels = {
   pending: 'Pendiente',
@@ -26,11 +20,20 @@ const statusLabels = {
 export default function OrdersScreen() {
   const router = useRouter();
   const { orders, loading, error, fetchOrders } = useServiceOrders();
+  const { theme } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<ServiceOrderStatus | 'all'>('all');
 
-  const filteredOrders = selectedStatus === 'all' 
-    ? orders 
+  const statusColors: Record<string, string> = {
+    pending: theme.warning,
+    in_progress: theme.primary,
+    waiting_approval: colors.info,
+    completed: theme.success,
+    cancelled: theme.error,
+  };
+
+  const filteredOrders = selectedStatus === 'all'
+    ? orders
     : orders.filter(order => order.status === selectedStatus);
 
   const onRefresh = async () => {
@@ -40,26 +43,26 @@ export default function OrdersScreen() {
   };
 
   const renderOrderItem = ({ item }: { item: ServiceOrder }) => (
-    <TouchableOpacity 
-      style={styles.orderCard}
+    <TouchableOpacity
+      style={[styles.orderCard, { backgroundColor: theme.surface, ...shadows.sm }]}
       onPress={() => router.push(`/orders/${item.id}`)}
     >
       <View style={styles.orderHeader}>
-        <Text style={styles.orderNumber}>Orden #{item.id.slice(0, 8)}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: statusColors[item.status] }]}>
+        <Text style={[styles.orderNumber, { color: theme.text }]}>Orden #{item.id.slice(0, 8)}</Text>
+        <View style={[styles.statusBadge, { backgroundColor: statusColors[item.status] || theme.primary }]}>
           <Text style={styles.statusText}>{statusLabels[item.status]}</Text>
         </View>
       </View>
-      
-      <Text style={styles.deviceName}>{item.device.name} - {item.device.brand}</Text>
-      <Text style={styles.customerName}>{item.customer.name}</Text>
-      
-      <View style={styles.orderFooter}>
-        <Text style={styles.dateText}>
+
+      <Text style={[styles.deviceName, { color: theme.text }]}>{item.device.name} - {item.device.brand}</Text>
+      <Text style={[styles.customerName, { color: theme.textSecondary }]}>{item.customer.name}</Text>
+
+      <View style={[styles.orderFooter, { borderTopColor: theme.border }]}>
+        <Text style={[styles.dateText, { color: theme.textSecondary }]}>
           {format(new Date(item.createdAt), 'PPP', { locale: es })}
         </Text>
         {item.cost && (
-          <Text style={styles.costText}>${item.cost.toFixed(2)}</Text>
+          <Text style={[styles.costText, { color: theme.text }]}>${item.cost.toFixed(2)}</Text>
         )}
       </View>
     </TouchableOpacity>
@@ -69,13 +72,15 @@ export default function OrdersScreen() {
     <TouchableOpacity
       style={[
         styles.filterButton,
-        selectedStatus === status && styles.filterButtonActive,
+        { backgroundColor: theme.surfaceVariant },
+        selectedStatus === status && [styles.filterButtonActive, { backgroundColor: theme.primary }],
       ]}
       onPress={() => setSelectedStatus(status)}
     >
       <Text
         style={[
           styles.filterButtonText,
+          { color: theme.textSecondary },
           selectedStatus === status && styles.filterButtonTextActive,
         ]}
       >
@@ -86,9 +91,9 @@ export default function OrdersScreen() {
 
   if (error) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>Error al cargar las órdenes</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchOrders}>
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+        <Text style={[styles.errorText, { color: theme.error }]}>Error al cargar las órdenes</Text>
+        <TouchableOpacity style={[styles.retryButton, { backgroundColor: theme.primary }]} onPress={fetchOrders}>
           <Text style={styles.retryButtonText}>Reintentar</Text>
         </TouchableOpacity>
       </View>
@@ -96,39 +101,39 @@ export default function OrdersScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Stack.Screen 
-        options={{ 
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <Stack.Screen
+        options={{
           title: 'Órdenes de Servicio',
           headerRight: () => (
-            <TouchableOpacity 
-              style={styles.addButton}
+            <TouchableOpacity
+              style={[styles.addButton, { backgroundColor: theme.primary }]}
               onPress={() => router.push('/orders/new')}
             >
-              <MaterialIcons name="add" size={24} color="#fff" />
+              <MaterialIcons name="add" size={24} color={theme.textInverse} />
             </TouchableOpacity>
           ),
-        }} 
+        }}
       />
-      
-      <View style={styles.filterContainer}>
+
+      <View style={[styles.filterContainer, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
         {renderFilterButton('all', 'Todas')}
-        {Object.entries(statusLabels).map(([status, label]) => (
+        {Object.entries(statusLabels).map(([status, label]) =>
           renderFilterButton(status as ServiceOrderStatus, label)
-        ))}
+        )}
       </View>
 
       {loading && !refreshing ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#3B82F6" />
+        <View style={[styles.centered, { backgroundColor: theme.background }]}>
+          <ActivityIndicator size="large" color={theme.primary} />
         </View>
       ) : filteredOrders.length === 0 ? (
-        <View style={styles.centered}>
-          <MaterialIcons name="assignment" size={48} color="#9CA3AF" />
-          <Text style={styles.emptyText}>No hay órdenes</Text>
-          <Text style={styles.emptySubtext}>
-            {selectedStatus === 'all' 
-              ? 'No hay órdenes de servicio registradas.' 
+        <View style={[styles.centered, { backgroundColor: theme.background }]}>
+          <MaterialIcons name="assignment" size={48} color={theme.textMuted} />
+          <Text style={[styles.emptyText, { color: theme.text }]}>No hay órdenes</Text>
+          <Text style={[styles.emptySubtext, { color: theme.textSecondary }]}>
+            {selectedStatus === 'all'
+              ? 'No hay órdenes de servicio registradas.'
               : `No hay órdenes con estado "${statusLabels[selectedStatus as ServiceOrderStatus]}".`}
           </Text>
         </View>
@@ -150,138 +155,114 @@ export default function OrdersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   listContent: {
-    padding: 16,
+    padding: spacing.base,
   },
   orderCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    borderRadius: radii.lg,
+    padding: spacing.base,
+    marginBottom: spacing.sm,
   },
   orderHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.xs,
   },
   orderNumber: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.semibold,
   },
   statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.full,
   },
   statusText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '500',
+    color: colors.white,
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.medium,
   },
   deviceName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#111827',
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.medium,
     marginBottom: 4,
   },
   customerName: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 12,
+    fontSize: typography.sizes.sm,
+    marginBottom: spacing.sm,
   },
   orderFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-    paddingTop: 12,
+    paddingTop: spacing.sm,
   },
   dateText: {
-    fontSize: 12,
-    color: '#6B7280',
+    fontSize: typography.sizes.xs,
   },
   costText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.semibold,
   },
   filterContainer: {
     flexDirection: 'row',
-    padding: 8,
-    backgroundColor: '#FFFFFF',
+    padding: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   filterButton: {
-    paddingHorizontal: 12,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: radii.full,
     marginHorizontal: 4,
-    backgroundColor: '#F3F4F6',
   },
-  filterButtonActive: {
-    backgroundColor: '#3B82F6',
-  },
+  filterButtonActive: {},
   filterButtonText: {
-    fontSize: 12,
-    color: '#4B5563',
-    fontWeight: '500',
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.medium,
   },
   filterButtonTextActive: {
-    color: '#FFFFFF',
+    color: colors.white,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: spacing.lg,
   },
   errorText: {
-    color: '#EF4444',
-    fontSize: 16,
-    marginBottom: 16,
+    fontSize: typography.sizes.md,
+    marginBottom: spacing.base,
     textAlign: 'center',
   },
   retryButton: {
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.md,
   },
   retryButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '500',
+    color: colors.white,
+    fontWeight: typography.weights.medium,
   },
   emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginTop: 16,
-    marginBottom: 8,
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.semibold,
+    marginTop: spacing.base,
+    marginBottom: spacing.xs,
   },
   emptySubtext: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: typography.sizes.sm,
     textAlign: 'center',
     lineHeight: 20,
   },
   addButton: {
-    backgroundColor: '#3B82F6',
     width: 36,
     height: 36,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: spacing.base,
   },
 });

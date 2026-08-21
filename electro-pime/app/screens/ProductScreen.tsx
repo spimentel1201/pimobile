@@ -26,6 +26,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 
 const ProductsScreen = () => {
   const { user } = useAuth();
@@ -41,6 +42,13 @@ const ProductsScreen = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [saving, setSaving] = useState(false);
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState<{ title: string; message: string; variant: 'danger' | 'success' | 'warning' | 'info'; onConfirm: () => void }>({ title: '', message: '', variant: 'info', onConfirm: () => {} });
+
+  const showConfirm = (title: string, message: string, variant: 'danger' | 'success' | 'warning' | 'info', onConfirm: () => void) => {
+    setConfirmConfig({ title, message, variant, onConfirm });
+    setConfirmVisible(true);
+  };
 
   // Form state
   const [formData, setFormData] = useState<CreateProductDto>({
@@ -148,13 +156,17 @@ const ProductsScreen = () => {
     try {
       if (editingProduct) {
         await api.updateProduct(editingProduct.id, formData);
-        Alert.alert('Éxito', 'Producto actualizado correctamente');
+        showConfirm('Éxito', 'Producto actualizado correctamente', 'success', () => {
+          setShowModal(false);
+          fetchProducts();
+        });
       } else {
         await api.createProduct(formData);
-        Alert.alert('Éxito', 'Producto creado correctamente');
+        showConfirm('Éxito', 'Producto creado correctamente', 'success', () => {
+          setShowModal(false);
+          fetchProducts();
+        });
       }
-      setShowModal(false);
-      fetchProducts();
     } catch (err: any) {
       Alert.alert('Error', err.message || 'No se pudo guardar el producto');
     } finally {
@@ -163,48 +175,29 @@ const ProductsScreen = () => {
   };
 
   const handleDeleteProduct = (product: Product) => {
-    Alert.alert(
-      'Confirmar eliminación',
-      `¿Está seguro que desea eliminar "${product.name}"?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.deleteProduct(product.id);
-              Alert.alert('Éxito', 'Producto eliminado correctamente');
-              fetchProducts();
-            } catch (err: any) {
-              Alert.alert('Error', err.message || 'No se pudo eliminar el producto');
-            }
-          },
-        },
-      ]
-    );
+    showConfirm('Eliminar Producto', '¿Está seguro que desea eliminar este producto?', 'danger', async () => {
+      try {
+        await api.deleteProduct(product.id);
+        showConfirm('Éxito', 'Producto eliminado correctamente', 'success', () => {
+          fetchProducts();
+        });
+      } catch (err: any) {
+        Alert.alert('Error', err.message || 'No se pudo eliminar el producto');
+      }
+    });
   };
 
   const handleUpdateStock = (product: Product, quantity: number) => {
-    Alert.alert(
-      'Actualizar Stock',
-      `Stock actual: ${product.stock}\n¿Cuántas unidades desea ${quantity > 0 ? 'agregar' : 'restar'}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Confirmar',
-          onPress: async () => {
-            try {
-              await api.updateProductStock(product.id, quantity);
-              Alert.alert('Éxito', 'Stock actualizado correctamente');
-              fetchProducts();
-            } catch (err: any) {
-              Alert.alert('Error', err.message || 'No se pudo actualizar el stock');
-            }
-          },
-        },
-      ]
-    );
+    showConfirm('Actualizar Stock', `Stock actual: ${product.stock}\n¿Cuántas unidades desea ${quantity > 0 ? 'agregar' : 'restar'}?`, 'warning', async () => {
+      try {
+        await api.updateProductStock(product.id, quantity);
+        showConfirm('Éxito', 'Stock actualizado correctamente', 'success', () => {
+          fetchProducts();
+        });
+      } catch (err: any) {
+        Alert.alert('Error', err.message || 'No se pudo actualizar el stock');
+      }
+    });
   };
 
   const renderHeader = () => (
@@ -528,6 +521,15 @@ const ProductsScreen = () => {
         }
       />
       {renderModal()}
+      <ConfirmDialog
+        visible={confirmVisible}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        variant={confirmConfig.variant}
+        confirmLabel={confirmConfig.variant === 'danger' ? 'Eliminar' : 'Aceptar'}
+        onConfirm={() => { confirmConfig.onConfirm(); setConfirmVisible(false); }}
+        onCancel={() => setConfirmVisible(false)}
+      />
     </View>
   );
 };

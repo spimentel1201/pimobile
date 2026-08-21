@@ -483,7 +483,6 @@ const styles = StyleSheet.create({
     },
     footer: {
         padding: spacing.base,
-        paddingBottom: spacing.base + insets.bottom,
         borderTopWidth: 1,
         flexDirection: 'row',
         alignItems: 'center',

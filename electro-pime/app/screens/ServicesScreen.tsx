@@ -12,7 +12,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../hooks/useTheme';
-import { typography, spacing, radii, shadows } from '../../constants/theme';
+import { typography, spacing, radii, shadows, brandColors } from '../../constants/theme';
 import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
 
@@ -33,8 +33,8 @@ const DEFAULT_SERVICES: ServiceItem[] = [
     name: 'Reparación de Celulares',
     description: 'Reparación integral de smartphones: pantalla, batería, puerto de carga y más',
     priceRange: 'S/ 50 – S/ 500',
-    color: '#2563EB',
-    bg: '#DBEAFE',
+    color: brandColors.blue.color,
+    bg: brandColors.blue.bg,
   },
   {
     id: '2',
@@ -42,8 +42,8 @@ const DEFAULT_SERVICES: ServiceItem[] = [
     name: 'Reparación de Laptops',
     description: 'Diagnóstico y reparación de computadoras portátiles de todas las marcas',
     priceRange: 'S/ 100 – S/ 800',
-    color: '#6366F1',
-    bg: '#E0E7FF',
+    color: brandColors.indigo.color,
+    bg: brandColors.indigo.bg,
   },
   {
     id: '3',
@@ -51,8 +51,8 @@ const DEFAULT_SERVICES: ServiceItem[] = [
     name: 'Reparación de Tablets',
     description: 'Servicio de reparación para tablets iPad, Samsung, Huawei y otras',
     priceRange: 'S/ 80 – S/ 600',
-    color: '#8B5CF6',
-    bg: '#EDE9FE',
+    color: brandColors.violet.color,
+    bg: brandColors.violet.bg,
   },
   {
     id: '4',
@@ -60,8 +60,8 @@ const DEFAULT_SERVICES: ServiceItem[] = [
     name: 'Cambio de Pantalla',
     description: 'Reemplazo de pantallas LCD, OLED y touchscreen dañadas',
     priceRange: 'S/ 80 – S/ 700',
-    color: '#F59E0B',
-    bg: '#FEF3C7',
+    color: brandColors.amber.color,
+    bg: brandColors.amber.bg,
   },
   {
     id: '5',
@@ -69,8 +69,8 @@ const DEFAULT_SERVICES: ServiceItem[] = [
     name: 'Cambio de Batería',
     description: 'Sustitución de baterías originales y de alta calidad',
     priceRange: 'S/ 40 – S/ 300',
-    color: '#10B981',
-    bg: '#D1FAE5',
+    color: brandColors.emerald.color,
+    bg: brandColors.emerald.bg,
   },
   {
     id: '6',
@@ -78,8 +78,8 @@ const DEFAULT_SERVICES: ServiceItem[] = [
     name: 'Diagnóstico General',
     description: 'Evaluación completa del dispositivo para identificar problemas',
     priceRange: 'S/ 20 – S/ 50',
-    color: '#EF4444',
-    bg: '#FEE2E2',
+    color: brandColors.red.color,
+    bg: brandColors.red.bg,
   },
   {
     id: '7',
@@ -87,8 +87,8 @@ const DEFAULT_SERVICES: ServiceItem[] = [
     name: 'Cambio de Puerto de Carga',
     description: 'Reparación y reemplazo de puertos USB y conectores de carga',
     priceRange: 'S/ 40 – S/ 200',
-    color: '#0EA5E9',
-    bg: '#E0F2FE',
+    color: brandColors.sky.color,
+    bg: brandColors.sky.bg,
   },
   {
     id: '8',
@@ -96,8 +96,8 @@ const DEFAULT_SERVICES: ServiceItem[] = [
     name: 'Reparación de Audio',
     description: 'Solución de problemas con auriculares, altavoces y micrófonos',
     priceRange: 'S/ 30 – S/ 250',
-    color: '#EC4899',
-    bg: '#FCE7F3',
+    color: brandColors.pink.color,
+    bg: brandColors.pink.bg,
   },
 ];
 
