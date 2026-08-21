@@ -8,6 +8,7 @@ import {
   Switch,
   ScrollView,
   StyleSheet,
+  TouchableOpacity,
   Alert,
   RefreshControl,
 } from 'react-native';
@@ -329,22 +330,18 @@ const ProductsScreen = () => {
               </Text>
             </View>
             <View style={styles.stockActions}>
-              <Button
-                title=""
+              <TouchableOpacity
+                style={[styles.stockButton, { backgroundColor: theme.primaryLight }]}
                 onPress={() => handleUpdateStock(item, 1)}
-                variant="ghost"
-                size="sm"
-                icon={<MaterialIcons name="add" size={18} color={colors.primary} />}
-                style={styles.stockButton}
-              />
-              <Button
-                title=""
+              >
+                <MaterialIcons name="add" size={20} color={colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.stockButton, { backgroundColor: colors.errorLight }]}
                 onPress={() => handleUpdateStock(item, -1)}
-                variant="ghost"
-                size="sm"
-                icon={<MaterialIcons name="remove" size={18} color={colors.error} />}
-                style={styles.stockButton}
-              />
+              >
+                <MaterialIcons name="remove" size={20} color={colors.error} />
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -663,10 +660,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   stockButton: {
-    width: spacing['2xl'],
-    height: spacing['2xl'],
-    borderRadius: radii.xl,
-    backgroundColor: 'transparent',
+    width: 36,
+    height: 36,
+    borderRadius: radii.md,
     justifyContent: 'center',
     alignItems: 'center',
   },
