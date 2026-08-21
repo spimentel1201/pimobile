@@ -672,8 +672,8 @@ const styles = StyleSheet.create({
   },
   productActions: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: spacing.sm,
+    justifyContent: 'center',
+    gap: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 1,
   },
