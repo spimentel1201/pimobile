@@ -363,7 +363,7 @@ export default function NewSaleScreen() {
             </ScrollView>
 
             {/* Footer with Total and Submit */}
-            <View style={[styles.footer, { backgroundColor: theme.surface, borderTopColor: theme.border, paddingBottom: spacing.base + insets.bottom }]}>
+            <View style={[styles.footer, { backgroundColor: theme.surface, borderTopColor: theme.border, marginBottom: 60 + insets.bottom }]}>
                 <View style={styles.totalContainer}>
                     <Text style={[styles.totalLabel, { color: theme.textSecondary }]}>Total:</Text>
                     <Text style={[styles.totalAmount, { color: theme.text }]}>S/ {calculateTotal().toFixed(2)}</Text>
@@ -483,6 +483,7 @@ const styles = StyleSheet.create({
     },
     footer: {
         padding: spacing.base,
+        paddingBottom: spacing.base + insets.bottom,
         borderTopWidth: 1,
         flexDirection: 'row',
         alignItems: 'center',
@@ -490,7 +491,7 @@ const styles = StyleSheet.create({
         ...shadows.md,
     },
     scrollContent: {
-        paddingBottom: spacing.lg,
+        paddingBottom: spacing['3xl'],
     },
     totalContainer: {
         flex: 1,
