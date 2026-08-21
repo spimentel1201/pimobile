@@ -1,13 +1,23 @@
 import { useColorScheme } from 'react-native';
 import { lightTheme, darkTheme, Theme } from '../constants/theme';
+import { useThemeContext } from '../contexts/ThemeContext';
 
 export type ColorScheme = 'light' | 'dark';
 
 export function useTheme(): { theme: Theme; colorScheme: ColorScheme } {
-  const colorScheme = useColorScheme() ?? 'light';
+  const ctx = useThemeContext();
+  const systemScheme = useColorScheme() ?? 'light';
+
+  if (ctx) {
+    return {
+      theme: ctx.theme,
+      colorScheme: ctx.colorScheme,
+    };
+  }
+
   return {
-    theme: colorScheme === 'dark' ? darkTheme : lightTheme,
-    colorScheme,
+    theme: systemScheme === 'dark' ? darkTheme : lightTheme,
+    colorScheme: systemScheme,
   };
 }
 

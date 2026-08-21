@@ -2,7 +2,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { useFonts } from 'expo-font';
 import { Stack, useSegments, useRouter, Redirect } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar, View, StyleSheet, ActivityIndicator, useColorScheme } from 'react-native';
+import { StatusBar, View, StyleSheet, ActivityIndicator } from 'react-native';
 import { useEffect, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
@@ -10,6 +10,7 @@ import BottomTabBar from '../components/BottomTabBar';
 import CustomHeader, { StackScreenWithCustomHeader } from '../components/CustomHeader';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { ServiceOrderProvider } from '../contexts/ServiceOrderContext';
+import { ThemeProvider as AppThemeProvider, useThemeContext } from '../contexts/ThemeContext';
 import { colors } from '../constants/theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -44,7 +45,7 @@ function RootLayoutNav() {
   const { user, loading } = useAuth();
   const segments = useSegments();
   const [isTabBarVisible, setIsTabBarVisible] = useState(true);
-  const colorScheme = useColorScheme();
+  const { colorScheme } = useThemeContext();
   const router = useRouter();
 
   useEffect(() => {
@@ -138,7 +139,9 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <AuthProvider>
         <ServiceOrderProvider>
-          <RootLayoutNav />
+          <AppThemeProvider>
+            <RootLayoutNav />
+          </AppThemeProvider>
         </ServiceOrderProvider>
       </AuthProvider>
     </SafeAreaProvider>
