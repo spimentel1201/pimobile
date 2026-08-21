@@ -24,7 +24,7 @@ const QUOTE_STATUS = {
   PENDING: { label: 'Pendiente', color: '#F59E0B' },
   APPROVED: { label: 'Aprobado', color: '#10B981' },
   REJECTED: { label: 'Rechazado', color: '#EF4444' },
-  EXPIRED: { label: 'Expirado', color: theme.textSecondary },
+  EXPIRED: { label: 'Expirado', color: '#6B7280' },
 };
 
 interface QuoteItem {
