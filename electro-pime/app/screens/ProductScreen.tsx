@@ -277,7 +277,7 @@ const ProductsScreen = () => {
         <Card
           variant="elevated"
           padding={spacing.base}
-          style={!item.isActive ? styles.productCardInactive : undefined}
+          style={[{ marginBottom: spacing.md }, !item.isActive && styles.productCardInactive]}
         >
           <View style={styles.productHeader}>
             <View style={styles.productInfo}>
