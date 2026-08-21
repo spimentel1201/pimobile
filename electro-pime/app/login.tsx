@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../hooks/useTheme';
+import { useAuth } from '../contexts/AuthContext';
 import { typography, spacing, radii, shadows } from '../constants/theme';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
