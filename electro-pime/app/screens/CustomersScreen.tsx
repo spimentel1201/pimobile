@@ -245,9 +245,6 @@ const CustomersScreen = () => {
                 {item.documentNumber}
               </Text>
             </View>
-            {item.email && (
-              <Text style={[styles.customerEmail, { color: theme.primary }]}>{item.email}</Text>
-            )}
           </View>
         </View>
 
@@ -264,14 +261,6 @@ const CustomersScreen = () => {
           >
             <MaterialCommunityIcons name="whatsapp" size={18} color="white" />
           </TouchableOpacity>
-          {item.email && (
-            <TouchableOpacity
-              style={[styles.contactButton, { backgroundColor: theme.error }]}
-              onPress={() => handleContact('email', item.email!)}
-            >
-              <MaterialCommunityIcons name="email" size={18} color="white" />
-            </TouchableOpacity>
-          )}
           <View style={styles.actionsSpacer} />
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: theme.warning }]}
@@ -417,6 +406,7 @@ const CustomersScreen = () => {
         data={customers}
         renderItem={renderCustomerCard}
         keyExtractor={item => item.id}
+        style={styles.flatList}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -427,6 +417,8 @@ const CustomersScreen = () => {
             title="No hay clientes"
             message="Agrega tu primer cliente para comenzar"
           />
+        }
+      />
         }
       />
       {renderModal()}
@@ -500,6 +492,9 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: spacing.base,
     paddingBottom: spacing.base,
+  },
+  flatList: {
+    flex: 1,
   },
   customerCard: {
     marginBottom: spacing.md,
