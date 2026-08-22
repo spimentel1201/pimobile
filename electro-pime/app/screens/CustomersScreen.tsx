@@ -191,7 +191,7 @@ const CustomersScreen = () => {
   };
 
   const renderHeader = () => (
-    <View style={[styles.header, { backgroundColor: theme.headerBg, borderBottomColor: theme.headerBorder }]}>
+    <View style={[styles.header, { backgroundColor: theme.headerBg, borderBottomColor: theme.headerBorder, paddingTop: insets.top + spacing.base }]}>
       <Text style={[styles.headerTitle, { color: theme.text }]}>Clientes</Text>
       <Button
         title="Nuevo"

@@ -86,7 +86,7 @@ const DashboardScreen = () => {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       <Animated.View entering={FadeInDown.delay(100).springify()}>
-        <View style={[styles.header, { backgroundColor: theme.headerBg, borderBottomColor: theme.headerBorder }]}>
+        <View style={[styles.header, { backgroundColor: theme.headerBg, borderBottomColor: theme.headerBorder, paddingTop: insets.top + spacing.base }]}>
           <View>
             <Text style={[styles.companyName, { color: theme.primary }]}>Electrónica Pimentel</Text>
             <Text style={[styles.greeting, { color: theme.text }]}>

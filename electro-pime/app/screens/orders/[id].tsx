@@ -5,6 +5,7 @@ import { useServiceOrders } from '../../../contexts/ServiceOrderContext';
 import { ServiceOrder, ServiceOrderStatus } from '../../../types/api';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../hooks/useTheme';
 import { colors, typography, spacing, radii, shadows } from '../../../constants/theme';
 
@@ -21,6 +22,7 @@ export default function OrderDetailScreen() {
   const router = useRouter();
   const { getOrderById, updateOrderStatus, loading, error } = useServiceOrders();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [order, setOrder] = useState<ServiceOrder | null>(null);
   const [updating, setUpdating] = useState(false);
   const [showStatusActions, setShowStatusActions] = useState(false);
@@ -164,7 +166,7 @@ export default function OrderDetailScreen() {
         }}
       />
 
-      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border, paddingTop: insets.top + spacing.base }]}>
         <View>
           <Text style={[styles.orderNumber, { color: theme.text }]}>Orden #{order.id.slice(0, 8)}</Text>
           <Text style={[styles.date, { color: theme.textSecondary }]}>

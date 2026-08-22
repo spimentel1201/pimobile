@@ -134,7 +134,7 @@ const UsersScreen = () => {
   });
 
   const renderHeader = () => (
-    <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
+    <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border, paddingTop: insets.top + spacing.base }]}>
       <Text style={[styles.headerTitle, { color: theme.text }]}>Usuarios</Text>
       <View style={styles.statsContainer}>
         <View style={[styles.statItem, { backgroundColor: theme.surfaceVariant }]}>
