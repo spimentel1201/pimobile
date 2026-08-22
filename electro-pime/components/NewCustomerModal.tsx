@@ -191,9 +191,11 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: '90%',
-    maxHeight: '85%',
+    height: '80%',
+    maxHeight: '80%',
     borderRadius: radii.lg,
     ...shadows.lg,
+    overflow: 'hidden',
   },
   modalHeader: {
     flexDirection: 'row',
