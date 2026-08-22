@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import SearchableSelector from './SearchableSelector';
+import NewCustomerModal from './NewCustomerModal';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -93,6 +94,7 @@ export default function OrderForm({
 
   // Customer
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
 
   // Order details
   const [description, setDescription] = useState('');
@@ -113,6 +115,25 @@ export default function OrderForm({
       return api.getCustomers();
     }
     return api.searchCustomers(query);
+  };
+
+  // Handle new customer creation
+  const handleCreateCustomer = async (customerData: Partial<Customer>) => {
+    try {
+      const newCustomer = await api.createCustomer({
+        name: customerData.name || '',
+        email: customerData.email,
+        phone: customerData.phone || '',
+        documentType: customerData.documentType || 'dni',
+        documentNumber: customerData.documentNumber || '',
+        address: customerData.address,
+      });
+      setSelectedCustomer(newCustomer);
+      setShowNewCustomerModal(false);
+    } catch (error) {
+      console.error('Error creating customer:', error);
+      Alert.alert('Error', 'No se pudo crear el cliente');
+    }
   };
 
   // Load initial data for editing
@@ -429,6 +450,8 @@ export default function OrderForm({
           renderSubtitle={(c) => `${c.documentType}: ${c.documentNumber} | Tel: ${c.phone}`}
           keyExtractor={(c) => c.id}
           required
+          onCreateNew={() => setShowNewCustomerModal(true)}
+          createNewLabel="Registrar nuevo cliente"
         />
         {errors.customer && <Text style={[styles.errorText, { color: theme.text === '#F8FAFC' ? '#F87171' : '#EF4444' }]}>{errors.customer}</Text>}
       </Card>
@@ -535,6 +558,13 @@ export default function OrderForm({
           icon={!loading ? <Ionicons name="save" size={20} color="#fff" /> : undefined}
         />
       </View>
+
+      {/* New Customer Modal */}
+      <NewCustomerModal
+        visible={showNewCustomerModal}
+        onClose={() => setShowNewCustomerModal(false)}
+        onSave={handleCreateCustomer}
+      />
     </ScrollView>
   );
 }

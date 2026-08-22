@@ -28,6 +28,8 @@ interface SearchableSelectorProps<T> {
   required?: boolean;
   disabled?: boolean;
   debounceMs?: number;
+  onCreateNew?: () => void;
+  createNewLabel?: string;
 }
 
 export default function SearchableSelector<T>({
@@ -42,6 +44,8 @@ export default function SearchableSelector<T>({
   required = false,
   disabled = false,
   debounceMs = 300,
+  onCreateNew,
+  createNewLabel = 'Crear nuevo',
 }: SearchableSelectorProps<T>) {
   const { theme } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
@@ -196,14 +200,28 @@ export default function SearchableSelector<T>({
               <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
             </View>
           ) : results.length === 0 ? (
-            <EmptyState
-              icon="magnify"
-              title={
-                searchQuery.length < 2
-                  ? 'Escribe al menos 2 caracteres para buscar'
-                  : 'No se encontraron resultados'
-              }
-            />
+            <View style={styles.emptyContainer}>
+              <EmptyState
+                icon="magnify"
+                title={
+                  searchQuery.length < 2
+                    ? 'Escribe al menos 2 caracteres para buscar'
+                    : 'No se encontraron resultados'
+                }
+              />
+              {onCreateNew && searchQuery.length >= 2 && (
+                <TouchableOpacity
+                  style={[styles.createNewButton, { backgroundColor: theme.primary }]}
+                  onPress={() => {
+                    setModalVisible(false);
+                    onCreateNew();
+                  }}
+                >
+                  <Ionicons name="person-add-outline" size={20} color="#fff" />
+                  <Text style={styles.createNewText}>{createNewLabel}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           ) : (
             <FlatList
               data={results}
@@ -317,6 +335,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing['2xl'],
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    padding: spacing['2xl'],
+  },
+  createNewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md,
+    borderRadius: radii.md,
+    marginTop: spacing.base,
+  },
+  createNewText: {
+    color: '#fff',
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.semibold,
   },
   loadingText: {
     marginTop: spacing.md,

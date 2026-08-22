@@ -4,13 +4,16 @@ import {
   Text,
   StyleSheet,
   Modal,
-  TextInput,
   TouchableOpacity,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-
 import { Customer } from '../types/customer';
+import { useTheme } from '../hooks/useTheme';
+import { typography, spacing, radii, shadows } from '../constants/theme';
+import { Input } from './ui/Input';
+import { Button } from './ui/Button';
 
 interface NewCustomerModalProps {
   visible: boolean;
@@ -19,6 +22,7 @@ interface NewCustomerModalProps {
 }
 
 const NewCustomerModal = ({ visible, onClose, onSave }: NewCustomerModalProps) => {
+  const { theme } = useTheme();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -29,6 +33,19 @@ const NewCustomerModal = ({ visible, onClose, onSave }: NewCustomerModalProps) =
   });
 
   const handleSave = () => {
+    if (!formData.name.trim()) {
+      Alert.alert('Error', 'El nombre es obligatorio');
+      return;
+    }
+    if (!formData.phone.trim()) {
+      Alert.alert('Error', 'El teléfono es obligatorio');
+      return;
+    }
+    if (!formData.documentNumber.trim()) {
+      Alert.alert('Error', 'El número de documento es obligatorio');
+      return;
+    }
+
     onSave({
       ...formData,
       status: 'active',
@@ -37,7 +54,14 @@ const NewCustomerModal = ({ visible, onClose, onSave }: NewCustomerModalProps) =
       lastOrder: new Date().toISOString().split('T')[0],
       photo: `https://api.dicebear.com/7.x/avataaars/png?seed=${formData.name}`,
     });
-    onClose();
+    setFormData({
+      name: '',
+      email: '',
+      phone: '',
+      address: '',
+      documentType: 'dni',
+      documentNumber: '',
+    });
   };
 
   return (
@@ -48,104 +72,110 @@ const NewCustomerModal = ({ visible, onClose, onSave }: NewCustomerModalProps) =
       onRequestClose={onClose}
     >
       <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Nuevo Cliente</Text>
-            <TouchableOpacity onPress={onClose}>
-              <MaterialCommunityIcons name="close" size={24} color="#0056b3" />
+        <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>Nuevo Cliente</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <MaterialCommunityIcons name="close" size={24} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.formContainer}>
+          <ScrollView style={styles.formContainer} keyboardShouldPersistTaps="handled">
+            {/* Document Type */}
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Tipo de Documento</Text>
+              <Text style={[styles.label, { color: theme.text }]}>Tipo de Documento</Text>
               <View style={styles.documentTypeContainer}>
                 <TouchableOpacity
                   style={[
                     styles.documentTypeButton,
-                    formData.documentType === 'dni' && styles.documentTypeActive,
+                    { backgroundColor: theme.inputBg, borderColor: theme.inputBorder },
+                    formData.documentType === 'dni' && { backgroundColor: theme.primary, borderColor: theme.primary },
                   ]}
                   onPress={() => setFormData({ ...formData, documentType: 'dni' })}
                 >
                   <Text style={[
                     styles.documentTypeText,
-                    formData.documentType === 'dni' && styles.documentTypeTextActive,
+                    { color: formData.documentType === 'dni' ? '#fff' : theme.text },
                   ]}>DNI</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[
                     styles.documentTypeButton,
-                    formData.documentType === 'ruc' && styles.documentTypeActive,
+                    { backgroundColor: theme.inputBg, borderColor: theme.inputBorder },
+                    formData.documentType === 'ruc' && { backgroundColor: theme.primary, borderColor: theme.primary },
                   ]}
                   onPress={() => setFormData({ ...formData, documentType: 'ruc' })}
                 >
                   <Text style={[
                     styles.documentTypeText,
-                    formData.documentType === 'ruc' && styles.documentTypeTextActive,
+                    { color: formData.documentType === 'ruc' ? '#fff' : theme.text },
                   ]}>RUC</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Número de Documento</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.documentNumber}
-                onChangeText={(text) => setFormData({ ...formData, documentNumber: text })}
-                keyboardType="numeric"
-                maxLength={formData.documentType === 'dni' ? 8 : 11}
-                placeholder={formData.documentType === 'dni' ? "12345678" : "20123456789"}
-              />
-            </View>
+            {/* Document Number */}
+            <Input
+              label="Número de Documento"
+              value={formData.documentNumber}
+              onChangeText={(text) => setFormData({ ...formData, documentNumber: text })}
+              keyboardType="numeric"
+              maxLength={formData.documentType === 'dni' ? 8 : 11}
+              placeholder={formData.documentType === 'dni' ? "12345678" : "20123456789"}
+            />
 
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Nombre Completo</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.name}
-                onChangeText={(text) => setFormData({ ...formData, name: text })}
-                placeholder="Juan Pérez"
-              />
-            </View>
+            {/* Name */}
+            <Input
+              label="Nombre Completo *"
+              value={formData.name}
+              onChangeText={(text) => setFormData({ ...formData, name: text })}
+              placeholder="Juan Pérez"
+            />
 
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Correo Electrónico</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.email}
-                onChangeText={(text) => setFormData({ ...formData, email: text })}
-                placeholder="juan@ejemplo.com"
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
+            {/* Email */}
+            <Input
+              label="Correo Electrónico"
+              value={formData.email}
+              onChangeText={(text) => setFormData({ ...formData, email: text })}
+              placeholder="juan@ejemplo.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
 
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Teléfono</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.phone}
-                onChangeText={(text) => setFormData({ ...formData, phone: text })}
-                placeholder="612345678"
-                keyboardType="phone-pad"
-              />
-            </View>
+            {/* Phone */}
+            <Input
+              label="Teléfono *"
+              value={formData.phone}
+              onChangeText={(text) => setFormData({ ...formData, phone: text })}
+              placeholder="612345678"
+              keyboardType="phone-pad"
+            />
 
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Dirección</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.address}
-                onChangeText={(text) => setFormData({ ...formData, address: text })}
-                placeholder="Calle Principal 123"
-              />
-            </View>
+            {/* Address */}
+            <Input
+              label="Dirección"
+              value={formData.address}
+              onChangeText={(text) => setFormData({ ...formData, address: text })}
+              placeholder="Calle Principal 123"
+            />
           </ScrollView>
 
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-            <Text style={styles.saveButtonText}>Guardar Cliente</Text>
-          </TouchableOpacity>
+          <View style={[styles.footer, { borderTopColor: theme.border }]}>
+            <Button
+              title="Cancelar"
+              variant="secondary"
+              size="md"
+              onPress={onClose}
+              style={styles.cancelButton}
+            />
+            <Button
+              title="Guardar Cliente"
+              variant="primary"
+              size="md"
+              onPress={handleSave}
+              icon={<MaterialCommunityIcons name="check" size={18} color="#fff" />}
+            />
+          </View>
         </View>
       </View>
     </Modal>
@@ -160,75 +190,61 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: 'white',
     width: '90%',
-    maxHeight: '90%',
-    borderRadius: 12,
-    padding: 16,
+    maxHeight: '85%',
+    borderRadius: radii.lg,
+    ...shadows.lg,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    padding: spacing.base,
+    borderBottomWidth: 1,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#212529',
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.bold,
+  },
+  closeButton: {
+    padding: spacing.xs,
   },
   formContainer: {
     flex: 1,
+    padding: spacing.base,
   },
   formGroup: {
-    marginBottom: 16,
+    marginBottom: spacing.base,
   },
   label: {
-    fontSize: 16,
-    color: '#212529',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ced4da',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.medium,
+    marginBottom: spacing.sm,
   },
   documentTypeContainer: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
   },
   documentTypeButton: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
+    padding: spacing.md,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: '#ced4da',
     alignItems: 'center',
-  },
-  documentTypeActive: {
-    backgroundColor: '#0056b3',
-    borderColor: '#0056b3',
   },
   documentTypeText: {
-    fontSize: 16,
-    color: '#212529',
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.medium,
   },
-  documentTypeTextActive: {
-    color: 'white',
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.md,
+    padding: spacing.base,
+    borderTopWidth: 1,
   },
-  saveButton: {
-    backgroundColor: '#28a745',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  saveButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
+  cancelButton: {
+    minWidth: 100,
   },
 });
 
