@@ -88,6 +88,9 @@ export const lightTheme = {
   skeletonHighlight: colors.gray[100],
   overlay: colors.scrim,
   shadow: '#000',
+  success: colors.success,
+  error: colors.error,
+  warning: colors.warning,
 };
 
 // ─── Dark Theme ────────────────────────────────────────
@@ -119,6 +122,9 @@ export const darkTheme = {
   skeletonHighlight: colors.gray[600],
   overlay: 'rgba(0, 0, 0, 0.7)',
   shadow: '#000',
+  success: colors.success,
+  error: colors.error,
+  warning: colors.warning,
 };
 
 export type Theme = typeof lightTheme;
