@@ -75,14 +75,16 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           <Text style={[styles.message, { color: theme.textSecondary }]}>{message}</Text>
 
           <View style={styles.actions}>
-            <TouchableOpacity
-              style={[styles.button, styles.cancelButton, { backgroundColor: theme.surfaceVariant }]}
-              onPress={onCancel}
-              disabled={loading}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.buttonText, { color: theme.textSecondary }]}>{cancelLabel}</Text>
-            </TouchableOpacity>
+            {variant !== 'success' && (
+              <TouchableOpacity
+                style={[styles.button, styles.cancelButton, { backgroundColor: theme.surfaceVariant }]}
+                onPress={onCancel}
+                disabled={loading}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.buttonText, { color: theme.textSecondary }]}>{cancelLabel}</Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={[
