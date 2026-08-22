@@ -164,7 +164,7 @@ const DashboardScreen = () => {
                   </Text>
                 )}
                 <Text style={[styles.orderDate, { color: theme.textMuted }]}>
-                  {new Date(order.createdAt).toLocaleDateString()}
+                  {new Date(order.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
                 </Text>
               </TouchableOpacity>
             </Animated.View>

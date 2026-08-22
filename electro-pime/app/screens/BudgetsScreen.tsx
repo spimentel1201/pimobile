@@ -315,7 +315,7 @@ const BudgetsScreen = () => {
         <View style={styles.quoteInfo}>
           <Text style={[styles.quoteTotal, { color: theme.success }]}>S/ {item.totalAmount?.toFixed(2) || '0.00'}</Text>
           <Text style={[styles.quoteDate, { color: theme.textMuted }]}>
-            {new Date(item.createdAt).toLocaleDateString()}
+            {new Date(item.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
           </Text>
         </View>
       </TouchableOpacity>
@@ -498,7 +498,7 @@ const BudgetsScreen = () => {
             <View style={[styles.detailSection, { borderBottomColor: theme.border }]}>
               <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Fecha:</Text>
               <Text style={[styles.detailValue, { color: theme.text }]}>
-                {new Date(selectedQuote.createdAt).toLocaleDateString()}
+                {new Date(selectedQuote.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
               </Text>
             </View>
 

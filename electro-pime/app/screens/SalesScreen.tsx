@@ -205,7 +205,7 @@ const SalesScreen = () => {
             </View>
             <View style={styles.infoRow}>
               <MaterialCommunityIcons name="calendar" size={18} color={theme.textMuted} />
-              <Text style={[styles.infoText, { color: theme.textSecondary }]}>{new Date(item.createdAt).toLocaleDateString()}</Text>
+              <Text style={[styles.infoText, { color: theme.textSecondary }]}>{new Date(item.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}</Text>
             </View>
             <View style={styles.infoRow}>
               <MaterialCommunityIcons name="package-variant" size={18} color={theme.textMuted} />

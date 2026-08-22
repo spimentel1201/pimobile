@@ -395,7 +395,7 @@ const OrdersScreen = () => {
               )}
             </View>
             <Text style={[styles.orderDate, { color: theme.textMuted }]}>
-              {new Date(item.createdAt).toLocaleDateString()}
+              {new Date(item.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
             </Text>
           </View>
         </TouchableOpacity>
@@ -580,13 +580,13 @@ const OrdersScreen = () => {
               <View style={styles.detailRow}>
                 <MaterialCommunityIcons name="calendar" size={20} color={theme.textSecondary} />
                 <Text style={[styles.detailText, { color: theme.textSecondary }]}>
-                  Creada: {new Date(selectedOrder.createdAt).toLocaleDateString()}
+                  Creada: {new Date(selectedOrder.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
                 </Text>
               </View>
               <View style={styles.detailRow}>
                 <MaterialCommunityIcons name="update" size={20} color={theme.textSecondary} />
                 <Text style={[styles.detailText, { color: theme.textSecondary }]}>
-                  Actualizada: {new Date(selectedOrder.updatedAt).toLocaleDateString()}
+                  Actualizada: {new Date(selectedOrder.updatedAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
                 </Text>
               </View>
             </Card>

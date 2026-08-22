@@ -303,7 +303,7 @@ const UsersScreen = () => {
             <View style={[styles.detailRow, { borderBottomColor: theme.borderLight }]}>
               <MaterialCommunityIcons name="calendar" size={20} color={theme.textMuted} />
               <Text style={[styles.detailText, { color: theme.textSecondary }]}>
-                Creado: {new Date(selectedUser.createdAt).toLocaleDateString()}
+                Creado: {new Date(selectedUser.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
               </Text>
             </View>
             <View style={styles.detailRow}>
