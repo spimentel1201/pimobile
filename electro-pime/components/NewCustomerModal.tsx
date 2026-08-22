@@ -74,6 +74,7 @@ const NewCustomerModal = ({ visible, onClose, onSave }: NewCustomerModalProps) =
     >
       <View style={styles.modalContainer}>
         <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
+          {/* Header */}
           <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
             <Text style={[styles.modalTitle, { color: theme.text }]}>Nuevo Cliente</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -81,7 +82,12 @@ const NewCustomerModal = ({ visible, onClose, onSave }: NewCustomerModalProps) =
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.formContainer} keyboardShouldPersistTaps="handled">
+          {/* Form - using ScrollView without flex */}
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
             {/* Document Type */}
             <View style={styles.formGroup}>
               <Text style={[styles.label, { color: theme.text }]}>Tipo de Documento</Text>
@@ -116,52 +122,63 @@ const NewCustomerModal = ({ visible, onClose, onSave }: NewCustomerModalProps) =
             </View>
 
             {/* Document Number */}
-            <Input
-              label="Número de Documento"
-              value={formData.documentNumber}
-              onChangeText={(text) => setFormData({ ...formData, documentNumber: text })}
-              keyboardType="numeric"
-              maxLength={formData.documentType === 'dni' ? 8 : 11}
-              placeholder={formData.documentType === 'dni' ? "12345678" : "20123456789"}
-            />
+            <View style={styles.formGroup}>
+              <Input
+                label="Número de Documento *"
+                value={formData.documentNumber}
+                onChangeText={(text) => setFormData({ ...formData, documentNumber: text })}
+                keyboardType="numeric"
+                maxLength={formData.documentType === 'dni' ? 8 : 11}
+                placeholder={formData.documentType === 'dni' ? "12345678" : "20123456789"}
+              />
+            </View>
 
             {/* Name */}
-            <Input
-              label="Nombre Completo *"
-              value={formData.name}
-              onChangeText={(text) => setFormData({ ...formData, name: text })}
-              placeholder="Juan Pérez"
-            />
-
-            {/* Email */}
-            <Input
-              label="Correo Electrónico"
-              value={formData.email}
-              onChangeText={(text) => setFormData({ ...formData, email: text })}
-              placeholder="juan@ejemplo.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
+            <View style={styles.formGroup}>
+              <Input
+                label="Nombre Completo *"
+                value={formData.name}
+                onChangeText={(text) => setFormData({ ...formData, name: text })}
+                placeholder="Juan Pérez"
+              />
+            </View>
 
             {/* Phone */}
-            <Input
-              label="Teléfono *"
-              value={formData.phone}
-              onChangeText={(text) => setFormData({ ...formData, phone: text })}
-              placeholder="612345678"
-              keyboardType="phone-pad"
-            />
+            <View style={styles.formGroup}>
+              <Input
+                label="Teléfono *"
+                value={formData.phone}
+                onChangeText={(text) => setFormData({ ...formData, phone: text })}
+                placeholder="612345678"
+                keyboardType="phone-pad"
+              />
+            </View>
+
+            {/* Email */}
+            <View style={styles.formGroup}>
+              <Input
+                label="Correo Electrónico (opcional)"
+                value={formData.email}
+                onChangeText={(text) => setFormData({ ...formData, email: text })}
+                placeholder="juan@ejemplo.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
 
             {/* Address */}
-            <Input
-              label="Dirección"
-              value={formData.address}
-              onChangeText={(text) => setFormData({ ...formData, address: text })}
-              placeholder="Calle Principal 123"
-            />
+            <View style={styles.formGroup}>
+              <Input
+                label="Dirección (opcional)"
+                value={formData.address}
+                onChangeText={(text) => setFormData({ ...formData, address: text })}
+                placeholder="Calle Principal 123"
+              />
+            </View>
           </ScrollView>
 
-          <View style={[styles.footer, { borderTopColor: theme.border }]}>
+          {/* Footer */}
+          <View style={[styles.footer, { borderTopColor: theme.border, backgroundColor: theme.surface }]}>
             <Button
               title="Cancelar"
               variant="secondary"
@@ -170,7 +187,7 @@ const NewCustomerModal = ({ visible, onClose, onSave }: NewCustomerModalProps) =
               style={styles.cancelButton}
             />
             <Button
-              title="Guardar Cliente"
+              title="Guardar"
               variant="primary"
               size="md"
               onPress={handleSave}
@@ -187,16 +204,16 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   modalContent: {
-    width: '90%',
-    height: '80%',
-    maxHeight: '80%',
-    borderRadius: radii.lg,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '85%',
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
     ...shadows.lg,
-    overflow: 'hidden',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -212,9 +229,12 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: spacing.xs,
   },
-  formContainer: {
+  scrollView: {
     flex: 1,
+  },
+  scrollContent: {
     padding: spacing.base,
+    paddingBottom: spacing.lg,
   },
   formGroup: {
     marginBottom: spacing.base,
