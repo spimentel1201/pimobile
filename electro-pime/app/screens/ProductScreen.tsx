@@ -44,6 +44,10 @@ const ProductsScreen = () => {
   const [saving, setSaving] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [confirmConfig, setConfirmConfig] = useState<{ title: string; message: string; variant: 'danger' | 'success' | 'warning' | 'info'; onConfirm: () => void }>({ title: '', message: '', variant: 'info', onConfirm: () => {} });
+  const [showStockModal, setShowStockModal] = useState(false);
+  const [stockProduct, setStockProduct] = useState<Product | null>(null);
+  const [stockAdjustType, setStockAdjustType] = useState<'add' | 'remove'>('add');
+  const [stockQuantity, setStockQuantity] = useState('');
 
   const showConfirm = (title: string, message: string, variant: 'danger' | 'success' | 'warning' | 'info', onConfirm: () => void) => {
     setConfirmConfig({ title, message, variant, onConfirm });
@@ -187,17 +191,28 @@ const ProductsScreen = () => {
     });
   };
 
-  const handleUpdateStock = (product: Product, quantity: number) => {
-    showConfirm('Actualizar Stock', `Stock actual: ${product.stock}\n¿Cuántas unidades desea ${quantity > 0 ? 'agregar' : 'restar'}?`, 'warning', async () => {
-      try {
-        await api.updateProductStock(product.id, quantity);
-        showConfirm('Éxito', 'Stock actualizado correctamente', 'success', () => {
-          fetchProducts();
-        });
-      } catch (err: any) {
-        Alert.alert('Error', err.message || 'No se pudo actualizar el stock');
-      }
-    });
+  const handleUpdateStock = (product: Product, type: 'add' | 'remove') => {
+    setStockProduct(product);
+    setStockAdjustType(type);
+    setStockQuantity('');
+    setShowStockModal(true);
+  };
+
+  const confirmStockUpdate = async () => {
+    if (!stockProduct || !stockQuantity || parseInt(stockQuantity) <= 0) {
+      Alert.alert('Error', 'Ingrese una cantidad válida');
+      return;
+    }
+    const quantity = stockAdjustType === 'add' ? parseInt(stockQuantity) : -parseInt(stockQuantity);
+    try {
+      await api.updateProductStock(stockProduct.id, quantity);
+      setShowStockModal(false);
+      showConfirm('Éxito', 'Stock actualizado correctamente', 'success', () => {
+        fetchProducts();
+      });
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'No se pudo actualizar el stock');
+    }
   };
 
   const renderHeader = () => (
@@ -325,13 +340,13 @@ const ProductsScreen = () => {
             <View style={styles.stockActions}>
               <TouchableOpacity
                 style={[styles.stockButton, { backgroundColor: theme.primaryLight }]}
-                onPress={() => handleUpdateStock(item, 1)}
+                onPress={() => handleUpdateStock(item, 'add')}
               >
                 <MaterialIcons name="add" size={20} color={colors.primary} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.stockButton, { backgroundColor: colors.errorLight }]}
-                onPress={() => handleUpdateStock(item, -1)}
+                onPress={() => handleUpdateStock(item, 'remove')}
               >
                 <MaterialIcons name="remove" size={20} color={colors.error} />
               </TouchableOpacity>
@@ -360,6 +375,54 @@ const ProductsScreen = () => {
       </Animated.View>
     );
   };
+
+  const renderStockModal = () => (
+    <Modal
+      visible={showStockModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowStockModal(false)}
+    >
+      <View style={styles.stockModalOverlay}>
+        <View style={[styles.stockModalContent, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.stockModalTitle, { color: theme.text }]}>Actualizar Stock</Text>
+          <Text style={[styles.stockModalSubtitle, { color: theme.textSecondary }]}>
+            {stockProduct?.name}
+          </Text>
+          <Text style={[styles.stockModalCurrent, { color: theme.textSecondary }]}>
+            Stock actual: {stockProduct?.stock} unidades
+          </Text>
+          <Text style={[styles.stockModalLabel, { color: theme.text }]}>
+            {stockAdjustType === 'add' ? '¿Cuántas unidades desea agregar?' : '¿Cuántas unidades desea restar?'}
+          </Text>
+          <TextInput
+            style={[styles.stockModalInput, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text }]}
+            placeholder="Cantidad"
+            placeholderTextColor={theme.textMuted}
+            keyboardType="numeric"
+            value={stockQuantity}
+            onChangeText={setStockQuantity}
+            autoFocus
+          />
+          <View style={styles.stockModalButtons}>
+            <Button
+              title="Cancelar"
+              variant="secondary"
+              size="md"
+              onPress={() => setShowStockModal(false)}
+              style={styles.stockModalCancelButton}
+            />
+            <Button
+              title="Aceptar"
+              variant={stockAdjustType === 'add' ? 'primary' : 'danger'}
+              size="md"
+              onPress={confirmStockUpdate}
+            />
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
 
   const renderModal = () => (
     <Modal
@@ -520,6 +583,7 @@ const ProductsScreen = () => {
           />
         }
       />
+      {renderStockModal()}
       {renderModal()}
       <ConfirmDialog
         visible={confirmVisible}
@@ -681,6 +745,50 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  // Stock Modal styles
+  stockModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stockModalContent: {
+    width: '85%',
+    borderRadius: radii.lg,
+    padding: spacing.base,
+  },
+  stockModalTitle: {
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.bold,
+    marginBottom: spacing.xs,
+  },
+  stockModalSubtitle: {
+    fontSize: typography.sizes.base,
+    marginBottom: spacing.xs,
+  },
+  stockModalCurrent: {
+    fontSize: typography.sizes.sm,
+    marginBottom: spacing.base,
+  },
+  stockModalLabel: {
+    fontSize: typography.sizes.base,
+    marginBottom: spacing.sm,
+  },
+  stockModalInput: {
+    borderWidth: 1,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    fontSize: typography.sizes.base,
+    marginBottom: spacing.base,
+  },
+  stockModalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.md,
+  },
+  stockModalCancelButton: {
+    minWidth: 100,
   },
   // Modal styles
   modalContainer: {
