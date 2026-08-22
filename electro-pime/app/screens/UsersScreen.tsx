@@ -7,6 +7,8 @@ import {
   Alert,
   RefreshControl,
   ScrollView,
+  Modal,
+  TouchableOpacity,
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,6 +26,7 @@ import { Badge } from '../../components/ui/Badge';
 import { FilterChip } from '../../components/ui/FilterChip';
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { Input } from '../../components/ui/Input';
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: 'Administrador',
@@ -53,6 +56,14 @@ const UsersScreen = () => {
   const [showDetails, setShowDetails] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [confirmConfig, setConfirmConfig] = useState<{ title: string; message: string; variant: 'danger' | 'success' | 'warning' | 'info'; onConfirm: () => void }>({ title: '', message: '', variant: 'info', onConfirm: () => {} });
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    role: '' as string,
+  });
 
   const showConfirm = (title: string, message: string, variant: 'danger' | 'success' | 'warning' | 'info', onConfirm: () => void) => {
     setConfirmConfig({ title, message, variant, onConfirm });
@@ -123,6 +134,39 @@ const UsersScreen = () => {
         }
       }
     );
+  };
+
+  const openEditUserModal = (user: User) => {
+    setEditingUser(user);
+    setEditFormData({
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role,
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSaveUser = async () => {
+    if (!editFormData.firstName.trim() || !editFormData.lastName.trim() || !editFormData.email.trim()) {
+      Alert.alert('Error', 'Por favor complete todos los campos requeridos');
+      return;
+    }
+
+    try {
+      await api.updateUser(editingUser!.id, {
+        firstName: editFormData.firstName.trim(),
+        lastName: editFormData.lastName.trim(),
+        email: editFormData.email.trim(),
+        role: editFormData.role,
+      } as Partial<User>);
+      setShowEditModal(false);
+      showConfirm('Éxito', 'Usuario actualizado correctamente', 'success', () => {
+        fetchUsers();
+      });
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'No se pudo actualizar el usuario');
+    }
   };
 
   const filteredUsers = users.filter(user => {
@@ -227,6 +271,16 @@ const UsersScreen = () => {
           <View style={styles.actionButtons}>
             <Button
               title=""
+              variant="primary"
+              size="sm"
+              onPress={() => openEditUserModal(item)}
+              icon={
+                <MaterialCommunityIcons name="pencil" size={18} color={theme.textInverse} />
+              }
+              style={styles.actionButton}
+            />
+            <Button
+              title=""
               variant={item.isActive ? 'success' : 'primary'}
               size="sm"
               onPress={() => handleToggleStatus(item)}
@@ -253,6 +307,82 @@ const UsersScreen = () => {
         </View>
       </Card>
     </Animated.View>
+  );
+
+  const renderEditModal = () => (
+    <Modal
+      visible={showEditModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowEditModal(false)}
+    >
+      <View style={styles.stockModalOverlay}>
+        <View style={[styles.stockModalContent, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.stockModalTitle, { color: theme.text }]}>Editar Usuario</Text>
+          
+          <Input
+            label="Nombre *"
+            value={editFormData.firstName}
+            onChangeText={(text) => setEditFormData({ ...editFormData, firstName: text })}
+            placeholder="Nombre"
+          />
+          
+          <Input
+            label="Apellido *"
+            value={editFormData.lastName}
+            onChangeText={(text) => setEditFormData({ ...editFormData, lastName: text })}
+            placeholder="Apellido"
+          />
+          
+          <Input
+            label="Correo Electrónico *"
+            value={editFormData.email}
+            onChangeText={(text) => setEditFormData({ ...editFormData, email: text })}
+            placeholder="correo@ejemplo.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          
+          <Text style={[styles.label, { color: theme.text }]}>Rol</Text>
+          <View style={styles.roleOptions}>
+            {['ADMIN', 'TECHNICIAN', 'SELLER', 'CUSTOMER'].map((role) => (
+              <TouchableOpacity
+                key={role}
+                style={[
+                  styles.roleOption,
+                  { backgroundColor: theme.inputBg, borderColor: theme.inputBorder },
+                  editFormData.role === role && { backgroundColor: theme.primary, borderColor: theme.primary },
+                ]}
+                onPress={() => setEditFormData({ ...editFormData, role })}
+              >
+                <Text style={[
+                  styles.roleOptionText,
+                  { color: editFormData.role === role ? '#fff' : theme.text },
+                ]}>
+                  {ROLE_LABELS[role]}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={styles.stockModalButtons}>
+            <Button
+              title="Cancelar"
+              variant="secondary"
+              size="md"
+              onPress={() => setShowEditModal(false)}
+              style={styles.stockModalCancelButton}
+            />
+            <Button
+              title="Guardar"
+              variant="primary"
+              size="md"
+              onPress={handleSaveUser}
+            />
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 
   const renderUserDetails = () => {
@@ -371,6 +501,7 @@ const UsersScreen = () => {
         }
       />
       {showDetails && renderUserDetails()}
+      {renderEditModal()}
       <ConfirmDialog
         visible={confirmVisible}
         title={confirmConfig.title}
@@ -532,6 +663,53 @@ const styles = StyleSheet.create({
   detailText: {
     marginLeft: spacing.md,
     fontSize: typography.sizes.sm,
+  },
+  // Edit Modal styles
+  stockModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stockModalContent: {
+    width: '85%',
+    borderRadius: radii.lg,
+    padding: spacing.base,
+  },
+  stockModalTitle: {
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.bold,
+    marginBottom: spacing.base,
+  },
+  label: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.medium,
+    marginBottom: spacing.sm,
+  },
+  roleOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.base,
+  },
+  roleOption: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.md,
+    borderWidth: 1,
+  },
+  roleOptionText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.medium,
+  },
+  stockModalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.md,
+    marginTop: spacing.sm,
+  },
+  stockModalCancelButton: {
+    minWidth: 100,
   },
 });
 
