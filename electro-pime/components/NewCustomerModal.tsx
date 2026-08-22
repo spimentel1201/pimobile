@@ -48,7 +48,7 @@ const NewCustomerModal = ({ visible, onClose, onSave }: NewCustomerModalProps) =
 
     onSave({
       ...formData,
-      email: formData.email.trim() || `noemail-${formData.documentNumber}@placeholder.com`,
+      email: formData.email.trim() || `noemail-${Date.now()}-${Math.random().toString(36).slice(2)}@placeholder.com`,
       status: 'active',
       totalOrders: 0,
       totalSpent: 0,
