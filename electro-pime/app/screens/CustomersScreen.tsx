@@ -419,8 +419,6 @@ const CustomersScreen = () => {
           />
         }
       />
-        }
-      />
       {renderModal()}
       <ConfirmDialog
         visible={confirmVisible}
