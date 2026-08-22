@@ -74,7 +74,7 @@ export default function ProfileScreen() {
           styles.header,
           {
             backgroundColor: theme.primary,
-            paddingTop: insets.top + spacing.xl,
+            paddingTop: spacing.xl,
           },
         ]}
       >

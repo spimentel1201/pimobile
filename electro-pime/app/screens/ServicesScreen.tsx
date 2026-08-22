@@ -158,7 +158,7 @@ const ServicesScreen = () => {
         <View
           style={[
             styles.header,
-            { backgroundColor: theme.headerBg, borderBottomColor: theme.headerBorder, paddingTop: insets.top + spacing.base },
+            { backgroundColor: theme.headerBg, borderBottomColor: theme.headerBorder },
           ]}
         >
           <Text style={[styles.headerTitle, { color: theme.text }]}>Servicios</Text>

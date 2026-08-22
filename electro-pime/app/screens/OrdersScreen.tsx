@@ -612,7 +612,7 @@ const OrdersScreen = () => {
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
-    <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border, paddingTop: insets.top + spacing.base }]}>
+    <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
           <View style={styles.headerContent}>
             <Text style={[styles.headerTitle, { color: theme.text }]}>Órdenes de Reparación</Text>
           </View>

@@ -96,7 +96,7 @@ export default function RegisterScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingTop: insets.top + spacing['2xl'], paddingBottom: insets.bottom + spacing.xl },
+          { paddingTop: spacing['2xl'], paddingBottom: insets.bottom + spacing.xl },
         ]}
         keyboardShouldPersistTaps="handled"
       >

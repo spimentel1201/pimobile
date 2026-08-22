@@ -66,7 +66,7 @@ export default function LoginScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingTop: insets.top + spacing['3xl'], paddingBottom: insets.bottom + spacing.xl },
+          { paddingTop: spacing['3xl'], paddingBottom: insets.bottom + spacing.xl },
         ]}
         keyboardShouldPersistTaps="handled"
       >

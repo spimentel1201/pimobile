@@ -631,7 +631,7 @@ const SalesScreen = () => {
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={[styles.header, { backgroundColor: theme.headerBg, borderBottomColor: theme.headerBorder, paddingTop: insets.top + spacing.base }]}>
+      <View style={[styles.header, { backgroundColor: theme.headerBg, borderBottomColor: theme.headerBorder }]}>
           <SkeletonLoader lines={1} lineHeight={22} />
         </View>
         <SkeletonLoader lines={3} lineHeight={spacing.lg} borderRadius={radii.lg} />

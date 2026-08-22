@@ -4,7 +4,7 @@ import { Stack, useSegments, useRouter, Redirect } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar, View, StyleSheet, ActivityIndicator } from 'react-native';
 import { useEffect, useState } from 'react';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 import BottomTabBar from '../components/BottomTabBar';
 import CustomHeader, { StackScreenWithCustomHeader } from '../components/CustomHeader';
@@ -73,7 +73,7 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? AppDarkTheme : AppLightTheme}>
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <Stack
           screenOptions={{
             header: (props) => <CustomHeader {...props} />,
@@ -99,7 +99,7 @@ function RootLayoutNav() {
 
         {isTabBarVisible && <BottomTabBar />}
         <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
-      </View>
+      </SafeAreaView>
     </ThemeProvider>
   );
 }

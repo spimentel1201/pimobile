@@ -769,7 +769,7 @@ const BudgetScreen = () => {
 
   // ─── Renderizar encabezado ───────────────────────────
   const renderHeader = () => (
-    <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.divider, paddingTop: insets.top + spacing.base }]}>
+    <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.divider }]}>
       <View style={styles.headerLeft}>
         <Text style={[styles.headerTitle, { color: theme.primary }]}>Órdenes de Reparación</Text>
         <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>{filteredOrders.length} órdenes en total</Text>

@@ -593,7 +593,7 @@ const BudgetsScreen = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={[styles.header, { backgroundColor: theme.headerBg, borderBottomColor: theme.headerBorder, paddingTop: insets.top + spacing.base }]}>
+      <View style={[styles.header, { backgroundColor: theme.headerBg, borderBottomColor: theme.headerBorder }]}>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Presupuestos</Text>
         <TouchableOpacity
           style={[styles.addButton, { backgroundColor: theme.primary }]}

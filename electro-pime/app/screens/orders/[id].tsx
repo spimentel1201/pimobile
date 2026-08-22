@@ -166,7 +166,7 @@ export default function OrderDetailScreen() {
         }}
       />
 
-      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border, paddingTop: insets.top + spacing.base }]}>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
         <View>
           <Text style={[styles.orderNumber, { color: theme.text }]}>Orden #{order.id.slice(0, 8)}</Text>
           <Text style={[styles.date, { color: theme.textSecondary }]}>
