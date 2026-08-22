@@ -143,6 +143,17 @@ export default function OrderForm({
     }
   }, [initialData]);
 
+  // Auto-calculate initialReviewCost from items sum (create mode only)
+  useEffect(() => {
+    if (!initialData) {
+      const total = items.reduce((sum, item) => {
+        const price = parseFloat(item.price) || 0;
+        return sum + (price * (item.quantity || 1));
+      }, 0);
+      setInitialReviewCost(total > 0 ? total.toFixed(2) : '');
+    }
+  }, [items, initialData]);
+
   // Item handlers
   const updateItem = (index: number, field: keyof OrderItem, value: any) => {
     setItems(prev => {
@@ -223,9 +234,9 @@ export default function OrderForm({
       initialReviewCost: initialReviewCost ? parseFloat(initialReviewCost) : undefined,
       items: items.map(item => ({
         deviceType: item.deviceType,
-        brand: item.brand.trim(),
-        model: item.model.trim(),
-        serialNumber: item.serialNumber.trim() || undefined,
+        brand: item.brand.trim().toUpperCase(),
+        model: item.model.trim().toUpperCase(),
+        serialNumber: item.serialNumber.trim().toUpperCase() || undefined,
         problemDescription: item.problemDescription.trim(),
         accessories: item.accessories,
         quantity: item.quantity || 1,
@@ -299,18 +310,20 @@ export default function OrderForm({
         <View style={[styles.inputContainer, styles.halfWidth]}>
           <Input
             label="Marca *"
-            placeholder="Ej: Samsung, LG..."
+            placeholder="Ej: SAMSUNG, LG..."
             value={item.brand}
-            onChangeText={(text) => updateItem(index, 'brand', text)}
+            onChangeText={(text) => updateItem(index, 'brand', text.toUpperCase())}
+            autoCapitalize="characters"
             error={errors[`item_${index}_brand`]}
           />
         </View>
         <View style={[styles.inputContainer, styles.halfWidth]}>
           <Input
             label="Modelo *"
-            placeholder="Ej: Galaxy S21..."
+            placeholder="Ej: GALAXY S21..."
             value={item.model}
-            onChangeText={(text) => updateItem(index, 'model', text)}
+            onChangeText={(text) => updateItem(index, 'model', text.toUpperCase())}
+            autoCapitalize="characters"
             error={errors[`item_${index}_model`]}
           />
         </View>
@@ -321,7 +334,8 @@ export default function OrderForm({
         label="Número de Serie (opcional)"
         placeholder="Ingrese el número de serie"
         value={item.serialNumber}
-        onChangeText={(text) => updateItem(index, 'serialNumber', text)}
+        onChangeText={(text) => updateItem(index, 'serialNumber', text.toUpperCase())}
+        autoCapitalize="characters"
       />
 
       {/* Problem Description */}
@@ -467,8 +481,9 @@ export default function OrderForm({
           label="Costo de revisión inicial"
           placeholder="S/ 0.00"
           value={initialReviewCost}
-          onChangeText={setInitialReviewCost}
+          onChangeText={initialData ? setInitialReviewCost : undefined}
           keyboardType="decimal-pad"
+          editable={!!initialData}
         />
 
         {/* Status (for editing) */}
