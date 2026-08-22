@@ -38,8 +38,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const userData = await api.getProfile();
           setUser(userData);
         } catch (profileError) {
-          console.error('Token invalid or expired:', profileError);
-          // Token is invalid, clear it
           await secureStorage.deleteItem(TOKEN_KEY);
           api.setToken('');
         }
