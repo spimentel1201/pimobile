@@ -1,72 +1,92 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, FlatList, Text, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { useServiceOrders } from '../../contexts/ServiceOrderContext';
-import { ServiceOrder, ServiceOrderStatus } from '../../types/api';
+import { api } from '../../services/api';
+import { RepairOrder, RepairOrderStatus } from '../../types/api';
 import { MaterialIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-const statusColors = {
-  pending: '#F59E0B', // amber-500
-  in_progress: '#3B82F6', // blue-500
-  waiting_approval: '#8B5CF6', // violet-500
-  completed: '#10B981', // emerald-500
-  cancelled: '#EF4444', // red-500
+const statusMeta: Record<RepairOrderStatus, { label: string; color: string }> = {
+  RECEIVED: { label: 'Recibido', color: '#F59E0B' },
+  DIAGNOSED: { label: 'Diagnosticado', color: '#8B5CF6' },
+  IN_PROGRESS: { label: 'En Progreso', color: '#3B82F6' },
+  WAITING_FOR_PARTS: { label: 'Esperando Repuestos', color: '#6366F1' },
+  COMPLETED: { label: 'Completado', color: '#10B981' },
+  DELIVERED: { label: 'Entregado', color: '#059669' },
+  CANCELLED: { label: 'Cancelado', color: '#EF4444' },
 };
 
-const statusLabels = {
-  pending: 'Pendiente',
-  in_progress: 'En Progreso',
-  waiting_approval: 'Esperando Aprobación',
-  completed: 'Completado',
-  cancelled: 'Cancelado',
-};
-
-export default function OrdersScreen() {
+export default function OrdersIndexScreen() {
   const router = useRouter();
-  const { orders, loading, error, fetchOrders } = useServiceOrders();
+  const [orders, setOrders] = useState<RepairOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState<ServiceOrderStatus | 'all'>('all');
+  const [selectedStatus, setSelectedStatus] = useState<RepairOrderStatus | 'all'>('all');
 
-  const filteredOrders = selectedStatus === 'all' 
-    ? orders 
-    : orders.filter(order => order.status === selectedStatus);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchOrders();
-    setRefreshing(false);
+  const fetchOrders = async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
+    setError(null);
+    try {
+      const data = await api.getRepairOrders();
+      setOrders(data);
+    } catch (err) {
+      console.error('Error fetching orders:', err);
+      setError('Error al cargar las órdenes');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
-  const renderOrderItem = ({ item }: { item: ServiceOrder }) => (
-    <TouchableOpacity 
-      style={styles.orderCard}
-      onPress={() => router.push(`/orders/${item.id}`)}
-    >
-      <View style={styles.orderHeader}>
-        <Text style={styles.orderNumber}>Orden #{item.id.slice(0, 8)}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: statusColors[item.status] }]}>
-          <Text style={styles.statusText}>{statusLabels[item.status]}</Text>
-        </View>
-      </View>
-      
-      <Text style={styles.deviceName}>{item.device.name} - {item.device.brand}</Text>
-      <Text style={styles.customerName}>{item.customer.name}</Text>
-      
-      <View style={styles.orderFooter}>
-        <Text style={styles.dateText}>
-          {format(new Date(item.createdAt), 'PPP', { locale: es })}
-        </Text>
-        {item.cost && (
-          <Text style={styles.costText}>${item.cost.toFixed(2)}</Text>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
+  useEffect(() => {
+    fetchOrders();
+  }, []);
 
-  const renderFilterButton = (status: ServiceOrderStatus | 'all', label: string) => (
+  const filteredOrders = selectedStatus === 'all'
+    ? orders
+    : orders.filter(order => order.status === selectedStatus);
+
+  const onRefresh = () => fetchOrders(true);
+
+  const renderOrderItem = ({ item }: { item: RepairOrder }) => {
+    const meta = statusMeta[item.status];
+    return (
+      <TouchableOpacity
+        style={styles.orderCard}
+        onPress={() => router.push(`/orders/${item.id}` as never)}
+      >
+        <View style={styles.orderHeader}>
+          <Text style={styles.orderNumber}>Orden #{item.id.slice(0, 8)}</Text>
+          <View style={[styles.statusBadge, { backgroundColor: `${meta.color}1A` }]}>
+            <Text style={[styles.statusText, { color: meta.color }]}>{meta.label}</Text>
+          </View>
+        </View>
+
+        <Text style={styles.deviceName}>
+          {item.items?.length
+            ? item.items.map(i => `${i.deviceType} ${i.brand}`).join(' • ')
+            : item.description}
+        </Text>
+        <Text style={styles.customerName}>{item.customerName || 'Cliente no especificado'}</Text>
+
+        <View style={styles.orderFooter}>
+          <Text style={styles.dateText}>
+            {format(new Date(item.createdAt), "d 'de' MMM, yyyy", { locale: es })}
+          </Text>
+          {item.totalCost != null && (
+            <Text style={styles.costText}>S/ {item.totalCost.toFixed(2)}</Text>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderFilterButton = (status: RepairOrderStatus | 'all', label: string) => (
     <TouchableOpacity
+      key={status}
       style={[
         styles.filterButton,
         selectedStatus === status && styles.filterButtonActive,
@@ -88,7 +108,7 @@ export default function OrdersScreen() {
     return (
       <View style={styles.centered}>
         <Text style={styles.errorText}>Error al cargar las órdenes</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchOrders}>
+        <TouchableOpacity style={styles.retryButton} onPress={() => fetchOrders()}>
           <Text style={styles.retryButtonText}>Reintentar</Text>
         </TouchableOpacity>
       </View>
@@ -97,25 +117,25 @@ export default function OrdersScreen() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen 
-        options={{ 
+      <Stack.Screen
+        options={{
           title: 'Órdenes de Servicio',
           headerRight: () => (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.addButton}
               onPress={() => router.push('/orders/new')}
             >
               <MaterialIcons name="add" size={24} color="#fff" />
             </TouchableOpacity>
           ),
-        }} 
+        }}
       />
-      
+
       <View style={styles.filterContainer}>
         {renderFilterButton('all', 'Todas')}
-        {Object.entries(statusLabels).map(([status, label]) => (
-          renderFilterButton(status as ServiceOrderStatus, label)
-        ))}
+        {(Object.keys(statusMeta) as RepairOrderStatus[]).map(status =>
+          renderFilterButton(status, statusMeta[status].label)
+        )}
       </View>
 
       {loading && !refreshing ? (
@@ -127,9 +147,9 @@ export default function OrdersScreen() {
           <MaterialIcons name="assignment" size={48} color="#9CA3AF" />
           <Text style={styles.emptyText}>No hay órdenes</Text>
           <Text style={styles.emptySubtext}>
-            {selectedStatus === 'all' 
-              ? 'No hay órdenes de servicio registradas.' 
-              : `No hay órdenes con estado "${statusLabels[selectedStatus as ServiceOrderStatus]}".`}
+            {selectedStatus === 'all'
+              ? 'No hay órdenes de servicio registradas.'
+              : `No hay órdenes con estado "${statusMeta[selectedStatus].label}".`}
           </Text>
         </View>
       ) : (
@@ -183,7 +203,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   statusText: {
-    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '500',
   },
@@ -217,6 +236,7 @@ const styles = StyleSheet.create({
   },
   filterContainer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     padding: 8,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
@@ -227,6 +247,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
     marginHorizontal: 4,
+    marginVertical: 2,
     backgroundColor: '#F3F4F6',
   },
   filterButtonActive: {
