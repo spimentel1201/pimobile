@@ -5,9 +5,11 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 type AppHeaderProps = {
   title: string;
   showBackButton?: boolean;
+  /** Nodo opcional renderizado a la derecha (ej. botón de editar) */
+  headerRight?: React.ReactNode;
 };
 
-export default function AppHeader({ title, showBackButton = false }: AppHeaderProps) {
+export default function AppHeader({ title, showBackButton = false, headerRight }: AppHeaderProps) {
   const navigation = useNavigation();
 
   const handleBack = () => {
@@ -28,6 +30,7 @@ export default function AppHeader({ title, showBackButton = false }: AppHeaderPr
           {title}
         </Text>
       </View>
+      {headerRight}
     </View>
   );
 }
