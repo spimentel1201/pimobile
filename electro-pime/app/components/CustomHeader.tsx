@@ -34,6 +34,7 @@ const CustomHeader = ({ route, options, back }: { route: any; options: any; back
     <AppHeader 
       title={getScreenTitle()} 
       showBackButton={!!back}
+      headerRight={typeof options.headerRight === 'function' ? options.headerRight({}) : options.headerRight}
     />
   );
 };

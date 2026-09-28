@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text, Alert } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../../services/api';
 import OrderForm from '../../components/OrderForm';
 import { RepairOrder, CreateRepairOrderDto, UpdateRepairOrderDto } from '../../types/api';
@@ -76,6 +76,12 @@ export default function EditOrderScreen() {
 
     return (
         <View style={styles.container}>
+            <Stack.Screen
+                options={{
+                    title: 'Editar Orden',
+                    headerShown: true,
+                }}
+            />
             <OrderForm
                 initialData={order}
                 onSubmit={handleSubmit}

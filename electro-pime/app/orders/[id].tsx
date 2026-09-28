@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { api } from '../../services/api';
-import { RepairOrder, RepairOrderStatus } from '../../types/api';
+import { api } from '../services/api';
+import { RepairOrder, RepairOrderStatus } from '../types/api';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -133,6 +133,7 @@ export default function OrderDetailScreen() {
       <Stack.Screen
         options={{
           title: `Orden #${order.id.slice(0, 8)}`,
+          headerShown: true,
           headerRight: () => (
             <TouchableOpacity
               style={styles.editButton}
