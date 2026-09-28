@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet, StyleProp, ViewStyle } from 'react-native';
-import { colors, radii, shadow } from '../../theme';
+import { colors, radii, shadow, spacing } from '../../theme';
 
 interface CardProps {
   children: React.ReactNode;
@@ -59,5 +59,8 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
+    // Padding interno para que el contenido quede encajado tras la barra de acento
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.lg,
   },
 });

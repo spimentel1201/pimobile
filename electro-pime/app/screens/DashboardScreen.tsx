@@ -237,16 +237,18 @@ const DashboardScreen = () => {
             >
               <View style={styles.orderTopRow}>
                 <StatusBadge label={status.label} color={status.color} soft={status.soft} />
-                <Text style={styles.orderAmount}>
-                  {order.totalCost != null ? `S/ ${order.totalCost.toFixed(2)}` : ''}
-                </Text>
+                {order.totalCost != null && (
+                  <Text style={styles.orderAmount}>S/ {order.totalCost.toFixed(2)}</Text>
+                )}
               </View>
-              <Text style={styles.orderCustomer}>{order.customerName || 'Cliente'}</Text>
+              <Text style={styles.orderCustomer} numberOfLines={1}>
+                {order.customerName || 'Cliente'}
+              </Text>
               <View style={styles.orderBottomRow}>
-                <Text style={styles.orderMeta} numberOfLines={1}>
+                <Text style={styles.orderDevice} numberOfLines={1}>
                   {device ? `${device.brand || ''} ${device.model || ''}`.trim() || device.deviceType : order.description}
                 </Text>
-                <Text style={styles.orderMeta}>{formatRelativeDate(order.createdAt)}</Text>
+                <Text style={styles.orderDate}>{formatRelativeDate(order.createdAt)}</Text>
               </View>
             </Card>
           );
@@ -432,12 +434,15 @@ const styles = StyleSheet.create({
   orderTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
   },
   orderAmount: {
     ...typography.display,
-    fontSize: 20,
+    fontSize: 18,
+    flexShrink: 0,
+    textAlign: 'right',
   },
   orderCustomer: {
     ...typography.bodyStrong,
@@ -446,11 +451,16 @@ const styles = StyleSheet.create({
   orderBottomRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     gap: spacing.sm,
   },
-  orderMeta: {
+  orderDevice: {
     ...typography.caption,
-    flexShrink: 1,
+    flex: 1,
+  },
+  orderDate: {
+    ...typography.caption,
+    flexShrink: 0,
   },
 });
 
