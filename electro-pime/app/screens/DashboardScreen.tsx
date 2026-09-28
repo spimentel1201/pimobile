@@ -7,33 +7,40 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  Dimensions,
 } from 'react-native';
-import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { RepairOrder, RepairOrderStatus } from '../types/api';
+import { RepairOrder } from '../types/api';
+import { colors, typography, spacing, radii, shadow, ORDER_STATUS, RepairOrderStatus } from '../theme';
+import Card from '../components/ui/Card';
+import StatusBadge from '../components/ui/StatusBadge';
+import SectionHeader from '../components/ui/SectionHeader';
+import EmptyState from '../components/ui/EmptyState';
 
-const STATUS_COLORS: Record<RepairOrderStatus, string> = {
-  RECEIVED: '#9CA3AF',
-  DIAGNOSED: '#3B82F6',
-  IN_PROGRESS: '#F59E0B',
-  WAITING_FOR_PARTS: '#8B5CF6',
-  COMPLETED: '#10B981',
-  DELIVERED: '#059669',
-  CANCELLED: '#EF4444',
-};
+const ACTIVE_STATUSES: RepairOrderStatus[] = [
+  'RECEIVED',
+  'DIAGNOSED',
+  'IN_PROGRESS',
+  'WAITING_FOR_PARTS',
+];
 
-const STATUS_LABELS: Record<RepairOrderStatus, string> = {
-  RECEIVED: 'Recibido',
-  DIAGNOSED: 'Diagnosticado',
-  IN_PROGRESS: 'En Progreso',
-  WAITING_FOR_PARTS: 'Esperando',
-  COMPLETED: 'Completado',
-  DELIVERED: 'Entregado',
-  CANCELLED: 'Cancelado',
-};
+// Fecha relativa: "Hoy 12:40", "Ayer", "3 mar"
+function formatRelativeDate(iso: string): string {
+  const date = new Date(iso);
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfYesterday = new Date(startOfToday.getTime() - 24 * 60 * 60 * 1000);
+
+  const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+
+  if (date >= startOfToday) return `Hoy ${time}`;
+  if (date >= startOfYesterday) return `Ayer ${time}`;
+  const day = date.getDate();
+  const month = date.toLocaleDateString('es-ES', { month: 'short' }).replace('.', '');
+  return `${day} ${month}`;
+}
 
 const DashboardScreen = () => {
   const router = useRouter();
@@ -42,6 +49,11 @@ const DashboardScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recentOrders, setRecentOrders] = useState<RepairOrder[]>([]);
+  const [kpis, setKpis] = useState<{ active: number | null; pending: number | null; salesToday: number | null }>({
+    active: null,
+    pending: null,
+    salesToday: null,
+  });
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) {
@@ -51,17 +63,35 @@ const DashboardScreen = () => {
 
     try {
       setError(null);
-      // Fetch only orders to show recent ones
-      const orders = await api.getRepairOrders();
-      // Sort by newest and take 5
-      const sorted = orders.sort((a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      ).slice(0, 5);
 
-      setRecentOrders(sorted);
-    } catch (err: any) {
-      console.error('Error fetching dashboard data:', err);
-      // Don't show error if it fails, just show empty list
+      // KPIs y órdenes en paralelo; los KPIs degradan a "—" si fallan
+      const [orders, salesResult] = await Promise.allSettled([
+        api.getRepairOrders(),
+        api.getSales({ startDate: new Date().toISOString().split('T')[0] }),
+      ]);
+
+      if (orders.status === 'fulfilled') {
+        const sorted = orders.value
+          .slice()
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+        setRecentOrders(sorted.slice(0, 5));
+        setKpis((prev) => ({
+          ...prev,
+          active: sorted.filter((o) => ACTIVE_STATUSES.includes(o.status)).length,
+          pending: sorted.filter((o) => o.status === 'COMPLETED').length,
+        }));
+      } else {
+        console.error('Error fetching orders:', orders.reason);
+        setError('No se pudieron cargar las órdenes');
+      }
+
+      if (salesResult.status === 'fulfilled') {
+        const totalToday = salesResult.value.reduce((sum, sale) => sum + sale.totalAmount, 0);
+        setKpis((prev) => ({ ...prev, salesToday: totalToday }));
+      } else {
+        console.error('Error fetching sales for KPIs:', salesResult.reason);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -81,122 +111,146 @@ const DashboardScreen = () => {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  const renderHeader = () => (
-    <View style={styles.header}>
-      <View>
-        <Text style={styles.companyName}>Electrónica Pimentel</Text>
-        <Text style={styles.greeting}>
-          ¡Hola, {user?.firstName || 'Usuario'}!
-        </Text>
-        <Text style={styles.date}>
-          {new Date().toLocaleDateString('es-ES', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          })}
-        </Text>
+  const renderHeader = () => {
+    const initials = `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || user?.firstName?.[1] || ''}`.toUpperCase();
+    const dateStr = new Date().toLocaleDateString('es-ES', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    return (
+      <View style={styles.header}>
+        <View style={styles.headerText}>
+          <Text style={styles.companyLabel}>Electrónica Pimentel</Text>
+          <Text style={styles.greeting}>¡Hola, {user?.firstName || 'Usuario'} 👋</Text>
+          <Text style={styles.date}>{dateStr}</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.avatar}
+          onPress={() => router.push('/profile')}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.avatarText}>{initials || 'EP'}</Text>
+        </TouchableOpacity>
       </View>
-    </View>
-  );
+    );
+  };
 
-  const renderQuickActions = () => (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Acciones Rápidas</Text>
-      <View style={styles.actionsGrid}>
-        <TouchableOpacity
-          style={styles.actionCard}
-          onPress={() => router.push('/orders/new')}
-        >
-          <View style={[styles.actionIcon, { backgroundColor: '#DBEAFE' }]}>
-            <MaterialCommunityIcons name="plus-circle" size={24} color="#3B82F6" />
-          </View>
-          <Text style={styles.actionText}>Nueva Orden</Text>
-        </TouchableOpacity>
+  const renderKpis = () => {
+    const fmt = (v: number | null, isMoney: boolean) =>
+      v === null ? '—' : isMoney ? `S/ ${v.toFixed(2)}` : String(v);
 
-        <TouchableOpacity
-          style={styles.actionCard}
-          onPress={() => router.push('/customers')}
-        >
-          <View style={[styles.actionIcon, { backgroundColor: '#D1FAE5' }]}>
-            <MaterialCommunityIcons name="account-plus" size={24} color="#10B981" />
-          </View>
-          <Text style={styles.actionText}>Clientes</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.actionCard}
-          onPress={() => router.push('/products')}
-        >
-          <View style={[styles.actionIcon, { backgroundColor: '#FEF3C7' }]}>
-            <MaterialCommunityIcons name="package-variant" size={24} color="#F59E0B" />
-          </View>
-          <Text style={styles.actionText}>Productos</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.actionCard}
-          onPress={() => router.push('/budgets')}
-        >
-          <View style={[styles.actionIcon, { backgroundColor: '#E0E7FF' }]}>
-            <MaterialCommunityIcons name="file-document" size={24} color="#6366F1" />
-          </View>
-          <Text style={styles.actionText}>Presupuestos</Text>
-        </TouchableOpacity>
-
-        {user?.role === 'ADMIN' && (
-          <TouchableOpacity
-            style={styles.actionCard}
-            onPress={() => router.push('/users')}
-          >
-            <View style={[styles.actionIcon, { backgroundColor: '#FCE7F3' }]}>
-              <MaterialCommunityIcons name="account-group" size={24} color="#EC4899" />
-            </View>
-            <Text style={styles.actionText}>Usuarios</Text>
-          </TouchableOpacity>
-        )}
+    return (
+      <View style={styles.kpiRow}>
+        <View style={styles.kpiCard}>
+          <Text style={styles.kpiValue}>{fmt(kpis.active, false)}</Text>
+          <Text style={styles.kpiLabel}>Activas</Text>
+        </View>
+        <View style={styles.kpiCard}>
+          <Text style={styles.kpiValue}>{fmt(kpis.pending, false)}</Text>
+          <Text style={styles.kpiLabel}>Por cobrar</Text>
+        </View>
+        <View style={styles.kpiCard}>
+          <Text style={[styles.kpiValue, kpis.salesToday !== null && styles.kpiMoney]} numberOfLines={1} adjustsFontSizeToFit>
+            {fmt(kpis.salesToday, true)}
+          </Text>
+          <Text style={styles.kpiLabel}>Ventas hoy</Text>
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
+
+  const renderQuickActions = () => {
+    const actions: {
+      icon: keyof typeof MaterialCommunityIcons.glyphMap;
+      label: string;
+      route: string;
+      primary?: boolean;
+    }[] = [
+      { icon: 'plus', label: 'Nueva Orden', route: '/orders/new', primary: true },
+      { icon: 'account-plus-outline', label: 'Clientes', route: '/customers' },
+      { icon: 'package-variant-closed', label: 'Productos', route: '/products' },
+      { icon: 'file-document-outline', label: 'Presupuestos', route: '/budgets' },
+    ];
+
+    if (user?.role === 'ADMIN') {
+      actions.push({ icon: 'account-group-outline', label: 'Usuarios', route: '/users' });
+    }
+
+    return (
+      <View style={styles.section}>
+        <SectionHeader title="Acciones Rápidas" />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.actionsRow}>
+          {actions.map((action) => (
+            <TouchableOpacity
+              key={action.label}
+              style={styles.actionPill}
+              onPress={() => router.push(action.route as never)}
+              activeOpacity={0.85}
+            >
+              <View style={[styles.actionIcon, action.primary && styles.actionIconPrimary]}>
+                <MaterialCommunityIcons
+                  name={action.icon}
+                  size={22}
+                  color={action.primary ? colors.white : colors.primary}
+                />
+              </View>
+              <Text style={styles.actionLabel}>{action.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    );
+  };
 
   const renderRecentOrders = () => (
     <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Órdenes Recientes</Text>
-        <TouchableOpacity onPress={() => router.push('/orders')}>
-          <Text style={styles.seeAll}>Ver todas</Text>
-        </TouchableOpacity>
-      </View>
+      <SectionHeader
+        title="Órdenes Recientes"
+        actionLabel="Ver todas"
+        onAction={() => router.push('/orders')}
+      />
 
       {recentOrders.length === 0 ? (
-        <View style={styles.emptyState}>
-          <MaterialCommunityIcons name="clipboard-text-outline" size={48} color="#D1D5DB" />
-          <Text style={styles.emptyText}>No hay órdenes recientes</Text>
-        </View>
+        <Card>
+          <EmptyState
+            icon="clipboard-text-outline"
+            title="Aún no hay órdenes"
+            description="Las órdenes de reparación que crees aparecerán aquí."
+            ctaLabel="Crear primera orden"
+            onCta={() => router.push('/orders/new')}
+          />
+        </Card>
       ) : (
-        recentOrders.map((order) => (
-          <TouchableOpacity
-            key={order.id}
-            style={styles.orderCard}
-            onPress={() => router.push(`/orders?openOrderId=${order.id}` as any)}
-          >
-            <View style={styles.orderHeader}>
-              <Text style={styles.orderId}>#{order.id.slice(0, 8)}</Text>
-              <View style={[styles.statusBadge, { backgroundColor: STATUS_COLORS[order.status] }]}>
-                <Text style={styles.statusText}>{STATUS_LABELS[order.status]}</Text>
+        recentOrders.map((order) => {
+          const status = ORDER_STATUS[order.status];
+          const device = order.items?.[0];
+
+          return (
+            <Card
+              key={order.id}
+              accentColor={status.color}
+              style={styles.orderCard}
+              onPress={() => router.push(`/orders/${order.id}` as never)}
+            >
+              <View style={styles.orderTopRow}>
+                <StatusBadge label={status.label} color={status.color} soft={status.soft} />
+                <Text style={styles.orderAmount}>
+                  {order.totalCost != null ? `S/ ${order.totalCost.toFixed(2)}` : ''}
+                </Text>
               </View>
-            </View>
-            <Text style={styles.orderCustomer}>{order.customerName}</Text>
-            {order.items && order.items[0] && (
-              <Text style={styles.orderDevice}>
-                {order.items[0].brand} {order.items[0].model}
-              </Text>
-            )}
-            <Text style={styles.orderDate}>
-              {new Date(order.createdAt).toLocaleDateString()}
-            </Text>
-          </TouchableOpacity>
-        ))
+              <Text style={styles.orderCustomer}>{order.customerName || 'Cliente'}</Text>
+              <View style={styles.orderBottomRow}>
+                <Text style={styles.orderMeta} numberOfLines={1}>
+                  {device ? `${device.brand || ''} ${device.model || ''}`.trim() || device.deviceType : order.description}
+                </Text>
+                <Text style={styles.orderMeta}>{formatRelativeDate(order.createdAt)}</Text>
+              </View>
+            </Card>
+          );
+        })
       )}
     </View>
   );
@@ -204,7 +258,7 @@ const DashboardScreen = () => {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -212,11 +266,21 @@ const DashboardScreen = () => {
   return (
     <ScrollView
       style={styles.container}
+      contentContainerStyle={styles.content}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
       }
     >
       {renderHeader()}
+      {renderKpis()}
+
+      {error && (
+        <View style={styles.errorBanner}>
+          <MaterialCommunityIcons name="alert-circle-outline" size={18} color={colors.danger} />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+
       {renderQuickActions()}
       {renderRecentOrders()}
     </ScrollView>
@@ -226,157 +290,167 @@ const DashboardScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.canvas,
+  },
+  content: {
+    paddingBottom: 48,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.canvas,
   },
+
+  // Header hero
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
+  },
+  headerText: {
+    flex: 1,
+    marginRight: spacing.md,
+  },
+  companyLabel: {
+    ...typography.micro,
+    color: colors.primary,
+    marginBottom: spacing.xs,
   },
   greeting: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  companyName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#3B82F6',
-    marginBottom: 2,
-    textTransform: 'uppercase',
+    ...typography.display,
+    fontSize: 24,
   },
   date: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 4,
+    ...typography.caption,
+    marginTop: spacing.xs,
     textTransform: 'capitalize',
   },
-  notificationButton: {
-    padding: 8,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 8,
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primarySoft,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
+  avatarText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+
+  // KPIs
+  kpiRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    paddingHorizontal: spacing.xl,
+    marginBottom: spacing.xl,
+  },
+  kpiCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    alignItems: 'center',
+    ...shadow,
+  },
+  kpiValue: {
+    ...typography.title,
+    fontSize: 20,
+  },
+  kpiMoney: {
+    color: colors.success,
+  },
+  kpiLabel: {
+    ...typography.caption,
+    marginTop: 2,
+  },
+
+  // Error
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.lg,
+    backgroundColor: colors.dangerSoft,
+    borderRadius: radii.button,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.danger,
+  },
+
+  // Secciones
   section: {
-    padding: 20,
+    paddingHorizontal: spacing.xl,
+    marginBottom: spacing.lg,
   },
-  sectionHeader: {
+
+  // Acciones rápidas
+  actionsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  actionPill: {
+    width: 88,
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 16,
-  },
-  seeAll: {
-    fontSize: 14,
-    color: '#3B82F6',
-    fontWeight: '500',
-  },
-  actionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-  },
-  actionCard: {
-    width: '30%',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-    marginBottom: 8,
   },
   actionIcon: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: radii.button,
+    backgroundColor: colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
-  actionText: {
+  actionIconPrimary: {
+    backgroundColor: colors.primary,
+  },
+  actionLabel: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#374151',
+    color: colors.textSecondary,
     textAlign: 'center',
   },
-  emptyState: {
-    alignItems: 'center',
-    padding: 24,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderStyle: 'dashed',
-  },
-  emptyText: {
-    marginTop: 8,
-    color: '#9CA3AF',
-    fontSize: 14,
-  },
+
+  // Cards de orden
   orderCard: {
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    marginBottom: spacing.md,
   },
-  orderHeader: {
+  orderTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.xs,
   },
-  orderId: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    fontSize: 10,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+  orderAmount: {
+    ...typography.display,
+    fontSize: 20,
   },
   orderCustomer: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#111827',
-    marginBottom: 4,
+    ...typography.bodyStrong,
+    marginBottom: spacing.xs,
   },
-  orderDevice: {
-    fontSize: 14,
-    color: '#4B5563',
-    marginBottom: 8,
+  orderBottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
   },
-  orderDate: {
-    fontSize: 12,
-    color: '#9CA3AF',
+  orderMeta: {
+    ...typography.caption,
+    flexShrink: 1,
   },
 });
 
