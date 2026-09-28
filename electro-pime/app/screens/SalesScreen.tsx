@@ -17,26 +17,41 @@ import { useRouter } from 'expo-router';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { api } from '../services/api';
-import { Sale, PaymentMethod } from '../types/api';
+import { Sale } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
+import {
+  colors,
+  typography,
+  spacing,
+  radii,
+  shadow,
+  PAYMENT_METHOD,
+  PaymentMethod,
+} from '../theme';
+import Card from '../components/ui/Card';
+import StatusBadge from '../components/ui/StatusBadge';
+import SectionHeader from '../components/ui/SectionHeader';
+import MetricCard from '../components/ui/MetricCard';
+import EmptyState from '../components/ui/EmptyState';
+import SegmentedControl from '../components/ui/SegmentedControl';
 
-const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  CASH: 'Efectivo',
-  CREDIT_CARD: 'Tarjeta de Crédito',
-  DEBIT_CARD: 'Tarjeta de Débito',
-  TRANSFER: 'Transferencia',
-  YAPE: 'Yape',
-  PLIN: 'Plin',
-};
+type DateFilter = 'today' | 'week' | 'month' | 'all';
 
-const PAYMENT_METHOD_ICONS: Record<PaymentMethod, string> = {
-  CASH: 'cash',
-  CREDIT_CARD: 'credit-card',
-  DEBIT_CARD: 'credit-card-outline',
-  TRANSFER: 'bank-transfer',
-  YAPE: 'cellphone',
-  PLIN: 'cellphone',
-};
+// Fecha relativa: "Hoy 14:22", "Ayer", "3 mar"
+function formatRelativeDate(iso: string): string {
+  const date = new Date(iso);
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfYesterday = new Date(startOfToday.getTime() - 24 * 60 * 60 * 1000);
+
+  const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+
+  if (date >= startOfToday) return `Hoy ${time}`;
+  if (date >= startOfYesterday) return `Ayer ${time}`;
+  const day = date.getDate();
+  const month = date.toLocaleDateString('es-ES', { month: 'short' }).replace('.', '');
+  return `${day} ${month}`;
+}
 
 const SalesScreen = () => {
   const router = useRouter();
@@ -48,7 +63,7 @@ const SalesScreen = () => {
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [showTicket, setShowTicket] = useState(false);
-  const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'all'>('all');
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
 
   const fetchSales = useCallback(async () => {
     if (!user) {
@@ -102,7 +117,7 @@ const SalesScreen = () => {
     fetchSales();
   }, [fetchSales]);
 
-  const handleViewInvoice = async (sale: Sale) => {
+  const handleViewInvoice = (sale: Sale) => {
     setSelectedSale(sale);
     setShowDetails(true);
   };
@@ -121,108 +136,94 @@ const SalesScreen = () => {
   const metrics = calculateMetrics();
 
   const renderMetrics = () => (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.metricsContainer}>
-      <View style={styles.metricCard}>
-        <MaterialCommunityIcons name="cash-multiple" size={24} color="#10B981" />
-        <Text style={styles.metricValue}>S/ {metrics.total.toFixed(2)}</Text>
-        <Text style={styles.metricLabel}>Total Ventas</Text>
+    <View style={styles.metricsGrid}>
+      <MetricCard
+        variant="hero"
+        label="TOTAL VENTAS"
+        value={`S/ ${metrics.total.toFixed(2)}`}
+        icon="cash-multiple"
+        style={styles.metricsHero}
+      />
+      <View style={styles.metricsRow}>
+        <MetricCard label="TRANSACCIONES" value={String(metrics.count)} icon="receipt" />
+        <MetricCard
+          label="TICKET PROMEDIO"
+          value={`S/ ${metrics.avgTicket.toFixed(2)}`}
+          icon="chart-line"
+        />
       </View>
-      <View style={styles.metricCard}>
-        <MaterialCommunityIcons name="receipt" size={24} color="#3B82F6" />
-        <Text style={styles.metricValue}>{metrics.count}</Text>
-        <Text style={styles.metricLabel}>N° Transacciones</Text>
-      </View>
-      <View style={styles.metricCard}>
-        <MaterialCommunityIcons name="chart-line" size={24} color="#F59E0B" />
-        <Text style={styles.metricValue}>S/ {metrics.avgTicket.toFixed(2)}</Text>
-        <Text style={styles.metricLabel}>Ticket Promedio</Text>
-      </View>
-    </ScrollView>
+    </View>
   );
 
   const renderFilters = () => (
     <View style={styles.filterContainer}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        {[
-          { key: 'today', label: 'Hoy' },
-          { key: 'week', label: 'Semana' },
-          { key: 'month', label: 'Mes' },
-          { key: 'all', label: 'Todas' },
-        ].map((filter) => (
-          <TouchableOpacity
-            key={filter.key}
-            style={[
-              styles.filterChip,
-              dateFilter === filter.key && styles.filterChipActive
-            ]}
-            onPress={() => setDateFilter(filter.key as typeof dateFilter)}
-          >
-            <Text style={[
-              styles.filterChipText,
-              dateFilter === filter.key && styles.filterChipTextActive
-            ]}>
-              {filter.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <SegmentedControl<DateFilter>
+        options={[
+          { value: 'today', label: 'Hoy' },
+          { value: 'week', label: 'Semana' },
+          { value: 'month', label: 'Mes' },
+          { value: 'all', label: 'Todas' },
+        ]}
+        value={dateFilter}
+        onChange={setDateFilter}
+      />
     </View>
   );
 
-  const renderSaleCard = ({ item }: { item: Sale }) => (
-    <TouchableOpacity
-      style={styles.saleCard}
-      onPress={() => {
-        setSelectedSale(item);
-        setShowDetails(true);
-      }}
-    >
-      <View style={styles.saleHeader}>
-        <Text style={styles.saleId}>#{item.id.slice(0, 8)}</Text>
-        <View style={styles.paymentBadge}>
-          <MaterialCommunityIcons
-            name={PAYMENT_METHOD_ICONS[item.paymentMethod] as any}
-            size={14}
-            color="#3B82F6"
-          />
-          <Text style={styles.paymentText}>{PAYMENT_METHOD_LABELS[item.paymentMethod]}</Text>
-        </View>
-      </View>
+  const renderSaleCard = ({ item }: { item: Sale }) => {
+    const method = PAYMENT_METHOD[item.paymentMethod as PaymentMethod];
 
-      <View style={styles.saleInfo}>
-        <View style={styles.infoRow}>
-          <MaterialCommunityIcons name="account" size={18} color="#6B7280" />
-          <Text style={styles.infoText}>{item.customerFullName || item.customerName || 'Cliente General'}</Text>
+    return (
+      <Card
+        style={styles.saleCard}
+        onPress={() => {
+          setSelectedSale(item);
+          setShowDetails(true);
+        }}
+      >
+        <View style={styles.saleTopRow}>
+          {method ? (
+            <StatusBadge label={method.label} color={method.color} soft={method.soft} />
+          ) : (
+            <StatusBadge
+              label={String(item.paymentMethod)}
+              color={colors.textSecondary}
+              soft={colors.surfaceMuted}
+            />
+          )}
+          <Text style={styles.saleAmount}>S/ {item.totalAmount.toFixed(2)}</Text>
         </View>
-        <View style={styles.infoRow}>
-          <MaterialCommunityIcons name="calendar" size={18} color="#6B7280" />
-          <Text style={styles.infoText}>{new Date(item.createdAt).toLocaleDateString()}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <MaterialCommunityIcons name="package-variant" size={18} color="#6B7280" />
-          <Text style={styles.infoText}>{item.items?.length || 0} productos</Text>
-        </View>
-      </View>
 
-      <View style={styles.saleFooter}>
-        <Text style={styles.saleTotal}>S/ {item.totalAmount.toFixed(2)}</Text>
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
-            onPress={() => handleViewInvoice(item)}
-          >
-            <MaterialCommunityIcons name="file-document" size={18} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: '#10B981' }]}
-            onPress={() => handlePrintTicket(item)}
-          >
-            <MaterialCommunityIcons name="printer" size={18} color="white" />
-          </TouchableOpacity>
+        <Text style={styles.saleMeta} numberOfLines={1}>
+          {item.customerFullName || item.customerName || 'Cliente General'}
+          {' · '}
+          {item.items?.length || 0} productos
+        </Text>
+
+        <View style={styles.saleBottomRow}>
+          <Text style={styles.saleIdText}>
+            #{item.id.slice(0, 8).toUpperCase()} · {formatRelativeDate(item.createdAt)}
+          </Text>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleViewInvoice(item)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <MaterialCommunityIcons name="file-document-outline" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handlePrintTicket(item)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <MaterialCommunityIcons name="printer" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </Card>
+    );
+  };
 
   const renderSaleDetails = () => {
     if (!selectedSale) return null;
@@ -235,65 +236,73 @@ const SalesScreen = () => {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Venta #{selectedSale.id.slice(0, 8)}</Text>
-            <TouchableOpacity onPress={() => setShowDetails(false)}>
-              <MaterialCommunityIcons name="close" size={24} color="#374151" />
+            <Text style={styles.modalTitle}>Venta #{selectedSale.id.slice(0, 8).toUpperCase()}</Text>
+            <TouchableOpacity
+              onPress={() => setShowDetails(false)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <MaterialCommunityIcons name="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.modalContent}>
-            <View style={styles.detailSection}>
-              <Text style={styles.sectionTitle}>Información General</Text>
+            <Card style={styles.detailSection}>
+              <SectionHeader title="Información general" />
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Cliente:</Text>
+                <Text style={styles.detailLabel}>Cliente</Text>
                 <Text style={styles.detailValue}>
                   {selectedSale.customerFullName || selectedSale.customerName || 'Cliente General'}
                 </Text>
               </View>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Vendedor:</Text>
-                <Text style={styles.detailValue}>{selectedSale.userName}</Text>
+                <Text style={styles.detailLabel}>Vendedor</Text>
+                <Text style={styles.detailValue}>{selectedSale.userName || '—'}</Text>
               </View>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Método de Pago:</Text>
-                <Text style={styles.detailValue}>{PAYMENT_METHOD_LABELS[selectedSale.paymentMethod]}</Text>
+                <Text style={styles.detailLabel}>Método de pago</Text>
+                <Text style={styles.detailValue}>
+                  {PAYMENT_METHOD[selectedSale.paymentMethod as PaymentMethod]?.label || selectedSale.paymentMethod}
+                </Text>
               </View>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Fecha:</Text>
+                <Text style={styles.detailLabel}>Fecha</Text>
                 <Text style={styles.detailValue}>
                   {new Date(selectedSale.createdAt).toLocaleString()}
                 </Text>
               </View>
-            </View>
+            </Card>
 
-            <View style={styles.detailSection}>
-              <Text style={styles.sectionTitle}>Productos</Text>
+            <Card style={styles.detailSection}>
+              <SectionHeader title="Productos" />
               {selectedSale.items?.map((item, index) => (
                 <View key={index} style={styles.productItem}>
                   <View style={styles.productInfo}>
                     <Text style={styles.productName}>{item.productName || 'Producto'}</Text>
-                    <Text style={styles.productQty}>{item.quantity} x S/ {item.price.toFixed(2)}</Text>
+                    <Text style={styles.productQty}>
+                      {item.quantity} x S/ {item.price.toFixed(2)}
+                    </Text>
                   </View>
                   <Text style={styles.productTotal}>S/ {(item.quantity * item.price).toFixed(2)}</Text>
                 </View>
               ))}
-            </View>
+            </Card>
 
-            <View style={styles.totalSection}>
-              <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>S/ {selectedSale.totalAmount.toFixed(2)}</Text>
+            <View style={styles.totalBand}>
+              <Text style={styles.totalBandLabel}>Total</Text>
+              <Text style={styles.totalBandValue}>S/ {selectedSale.totalAmount.toFixed(2)}</Text>
             </View>
           </ScrollView>
 
           <View style={styles.modalFooter}>
             <TouchableOpacity
-              style={[styles.footerButton, { backgroundColor: '#10B981' }]}
+              style={styles.footerButton}
+              activeOpacity={0.85}
               onPress={() => {
                 setShowDetails(false);
                 handlePrintTicket(selectedSale);
               }}
             >
-              <MaterialCommunityIcons name="printer" size={20} color="white" />
+              <MaterialCommunityIcons name="printer" size={20} color={colors.white} />
               <Text style={styles.footerButtonText}>Ver Ticket</Text>
             </TouchableOpacity>
           </View>
@@ -312,11 +321,14 @@ const SalesScreen = () => {
         onRequestClose={() => setShowTicket(false)}
       >
         <View style={styles.ticketContainer}>
-          <View style={styles.ticketHeader}>
-            <TouchableOpacity onPress={() => setShowTicket(false)}>
-              <MaterialCommunityIcons name="close" size={24} color="#374151" />
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              onPress={() => setShowTicket(false)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <MaterialCommunityIcons name="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
-            <Text style={styles.ticketHeaderTitle}>Ticket de Venta</Text>
+            <Text style={styles.modalTitle}>Ticket de Venta</Text>
             <View style={{ width: 24 }} />
           </View>
 
@@ -334,7 +346,7 @@ const SalesScreen = () => {
                 <Text style={styles.ticketInfoText}>Fecha: {new Date(selectedSale.createdAt).toLocaleString()}</Text>
                 <Text style={styles.ticketInfoText}>Ticket: #{selectedSale.id.slice(0, 8).toUpperCase()}</Text>
                 <Text style={styles.ticketInfoText}>Cliente: {selectedSale.customerFullName || selectedSale.customerName || 'Cliente General'}</Text>
-                <Text style={styles.ticketInfoText}>Método: {PAYMENT_METHOD_LABELS[selectedSale.paymentMethod]}</Text>
+                <Text style={styles.ticketInfoText}>Método: {PAYMENT_METHOD[selectedSale.paymentMethod as PaymentMethod]?.label || selectedSale.paymentMethod}</Text>
               </View>
 
               <View style={styles.ticketDivider} />
@@ -374,17 +386,19 @@ const SalesScreen = () => {
 
           <View style={styles.ticketActions}>
             <TouchableOpacity
-              style={[styles.ticketActionButton, { backgroundColor: '#10B981' }]}
+              style={[styles.ticketActionButton, { backgroundColor: colors.success }]}
+              activeOpacity={0.85}
               onPress={() => handleShareTicket(selectedSale)}
             >
-              <MaterialCommunityIcons name="share-variant" size={20} color="white" />
+              <MaterialCommunityIcons name="share-variant" size={20} color={colors.white} />
               <Text style={styles.ticketActionText}>Compartir</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.ticketActionButton, { backgroundColor: '#3B82F6' }]}
+              style={[styles.ticketActionButton, { backgroundColor: colors.primary }]}
+              activeOpacity={0.85}
               onPress={() => handlePrintPDF(selectedSale)}
             >
-              <MaterialCommunityIcons name="file-pdf-box" size={20} color="white" />
+              <MaterialCommunityIcons name="file-pdf-box" size={20} color={colors.white} />
               <Text style={styles.ticketActionText}>Descargar PDF</Text>
             </TouchableOpacity>
           </View>
@@ -404,48 +418,48 @@ const SalesScreen = () => {
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
             body { font-family: 'Roboto', Helvetica, Arial, sans-serif; padding: 40px; max-width: 500px; margin: 0 auto; background: #fff; color: #333; }
-            
+
             .header { text-align: center; margin-bottom: 30px; }
-            .logo-placeholder { width: 48px; height: 48px; background: #E0E7FF; border-radius: 50%; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; color: #2563EB; font-weight: bold; font-size: 24px; }
-            .company-name { font-size: 22px; font-weight: 900; color: #2563EB; text-transform: uppercase; margin-bottom: 5px; letter-spacing: -0.5px; }
-            .company-details { font-size: 10px; color: #6B7280; line-height: 1.4; max-width: 80%; margin: 0 auto; }
-            
+            .logo-placeholder { width: 48px; height: 48px; background: #EFF4FF; border-radius: 50%; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; color: #1D4ED8; font-weight: bold; font-size: 24px; }
+            .company-name { font-size: 22px; font-weight: 900; color: #1D4ED8; text-transform: uppercase; margin-bottom: 5px; letter-spacing: -0.5px; }
+            .company-details { font-size: 10px; color: #98A2B3; line-height: 1.4; max-width: 80%; margin: 0 auto; }
+
             .receipt-title { margin-top: 25px; text-align: center; }
-            .receipt-label { font-size: 18px; font-weight: 900; color: #000; text-transform: uppercase; margin-bottom: 2px; }
-            .receipt-no { font-size: 16px; font-weight: 700; color: #2563EB; margin-bottom: 5px; }
-            .receipt-date { font-size: 10px; color: #6B7280; text-transform: uppercase; font-weight: 500; }
-            
-            .section-divider { border-top: 1px dotted #D1D5DB; margin: 20px 0; }
-            
+            .receipt-label { font-size: 18px; font-weight: 900; color: #101828; text-transform: uppercase; margin-bottom: 2px; }
+            .receipt-no { font-size: 16px; font-weight: 700; color: #1D4ED8; margin-bottom: 5px; }
+            .receipt-date { font-size: 10px; color: #98A2B3; text-transform: uppercase; font-weight: 500; }
+
+            .section-divider { border-top: 1px dotted #E4E7EC; margin: 20px 0; }
+
             .info-block { margin-bottom: 15px; }
-            .info-label { font-size: 10px; font-weight: 700; color: #6B7280; text-transform: uppercase; margin-bottom: 3px; }
-            .info-main { font-size: 13px; font-weight: 700; color: #111827; }
-            .info-sub { font-size: 11px; color: #6B7280; font-style: italic; }
-            
-            .table-title { font-size: 10px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; border-bottom: 2px solid #2563EB; padding-bottom: 5px; display: inline-block; }
-            
+            .info-label { font-size: 10px; font-weight: 700; color: #98A2B3; text-transform: uppercase; margin-bottom: 3px; }
+            .info-main { font-size: 13px; font-weight: 700; color: #101828; }
+            .info-sub { font-size: 11px; color: #98A2B3; font-style: italic; }
+
+            .table-title { font-size: 10px; font-weight: 700; color: #98A2B3; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; border-bottom: 2px solid #1D4ED8; padding-bottom: 5px; display: inline-block; }
+
             .product-row { margin-bottom: 15px; }
             .sku-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
-            .sku { font-size: 10px; font-weight: 700; color: #2563EB; }
-            .badge { background: #EEF2FF; color: #4F46E5; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; }
-            .product-name { font-size: 13px; font-weight: 700; color: #111827; margin-bottom: 2px; }
-            .price-row { display: flex; justify-content: space-between; font-size: 12px; color: #4B5563; }
-            .price-total { font-weight: 700; color: #000; }
-            
-            .summary-section { margin-top: 20px; border-top: 1px solid #E5E7EB; padding-top: 15px; }
-            .summary-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12px; color: #6B7280; }
-            .total-row { display: flex; justify-content: space-between; margin-top: 10px; align-items: center; border-top: 2px solid #2563EB; padding-top: 10px; }
-            .total-label { font-size: 16px; font-weight: 900; color: #000; text-transform: uppercase; }
-            .total-value { font-size: 28px; font-weight: 900; color: #2563EB; }
-            
-            .warranty-box { margin-top: 30px; border: 1px dashed #D1D5DB; padding: 15px; border-radius: 8px; position: relative; }
-            .warranty-title { display: flex; align-items: center; font-size: 10px; font-weight: 900; color: #2563EB; text-transform: uppercase; margin-bottom: 5px; }
-            .warranty-text { font-size: 9px; color: #6B7280; line-height: 1.4; }
-            
-            .signatures { margin-top: 50px; border-top: 1px solid #E5E7EB; padding-top: 10px; text-align: center; }
-            .sign-label { font-size: 9px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: 0.5px; }
-            
-            .footer-strip { margin-top: 30px; background: #2563EB; color: #fff; text-align: center; padding: 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; border-radius: 4px; }
+            .sku { font-size: 10px; font-weight: 700; color: #1D4ED8; }
+            .badge { background: #F4F3FF; color: #5925DC; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; }
+            .product-name { font-size: 13px; font-weight: 700; color: #101828; margin-bottom: 2px; }
+            .price-row { display: flex; justify-content: space-between; font-size: 12px; color: #475467; }
+            .price-total { font-weight: 700; color: #101828; }
+
+            .summary-section { margin-top: 20px; border-top: 1px solid #E4E7EC; padding-top: 15px; }
+            .summary-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12px; color: #475467; }
+            .total-row { display: flex; justify-content: space-between; margin-top: 10px; align-items: center; border-top: 2px solid #1D4ED8; padding-top: 10px; }
+            .total-label { font-size: 16px; font-weight: 900; color: #101828; text-transform: uppercase; }
+            .total-value { font-size: 28px; font-weight: 900; color: #1D4ED8; }
+
+            .warranty-box { margin-top: 30px; border: 1px dashed #E4E7EC; padding: 15px; border-radius: 8px; position: relative; }
+            .warranty-title { display: flex; align-items: center; font-size: 10px; font-weight: 900; color: #1D4ED8; text-transform: uppercase; margin-bottom: 5px; }
+            .warranty-text { font-size: 9px; color: #475467; line-height: 1.4; }
+
+            .signatures { margin-top: 50px; border-top: 1px solid #E4E7EC; padding-top: 10px; text-align: center; }
+            .sign-label { font-size: 9px; font-weight: 700; color: #98A2B3; text-transform: uppercase; letter-spacing: 0.5px; }
+
+            .footer-strip { margin-top: 30px; background: #1D4ED8; color: #fff; text-align: center; padding: 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; border-radius: 4px; }
           </style>
         </head>
         <body>
@@ -457,28 +471,27 @@ const SalesScreen = () => {
               Tel: +51 555-123-456 • contacto@pimentel.com
             </div>
           </div>
-          
+
           <div class="receipt-title">
             <div class="receipt-label">Recibo de Venta</div>
             <div class="receipt-no">No. ${sale.id.slice(0, 8).toUpperCase()}</div>
             <div class="receipt-date">${new Date(sale.createdAt).toLocaleDateString()} - ${new Date(sale.createdAt).toLocaleTimeString()}</div>
           </div>
-          
+
           <div class="section-divider"></div>
-          
+
           <div class="info-block">
             <div class="info-label">Facturado a:</div>
             <div class="info-main">${sale.customerFullName || sale.customerName || 'Cliente General'}</div>
-            <!-- <div class="info-sub">ID: 12345678</div> -->
           </div>
-          
+
           <div class="info-block">
             <div class="info-label">Vendedor:</div>
             <div class="info-main">${sale.userName || 'Administrador'}</div>
           </div>
-          
+
           <div class="section-divider"></div>
-          
+
           <div style="margin-bottom: 20px;">
             <div class="table-title">Detalle de Productos</div>
             ${sale.items?.map((item, i) => `
@@ -495,7 +508,7 @@ const SalesScreen = () => {
               </div>
             `).join('') || ''}
           </div>
-          
+
           <div class="summary-section">
             <div class="summary-row">
               <span>Subtotal</span>
@@ -510,7 +523,7 @@ const SalesScreen = () => {
               <span class="total-value">S/ ${sale.totalAmount.toFixed(2)}</span>
             </div>
           </div>
-          
+
           <div class="warranty-box">
             <div class="warranty-title">
               <span style="font-size: 14px; margin-right: 5px;">✓</span> GARANTÍA
@@ -519,11 +532,11 @@ const SalesScreen = () => {
               Componentes electrónicos: garantía por defectos de fábrica (30 días). No aplica en semiconductores con rastros de soldadura o mala manipulación.
             </div>
           </div>
-          
+
           <div class="signatures">
             <div class="sign-label">FIRMA AUTORIZADA</div>
           </div>
-          
+
           <div class="footer-strip">
             Gracias por su compra. Expertos desde 2010.
           </div>
@@ -615,7 +628,7 @@ const SalesScreen = () => {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Cargando ventas...</Text>
       </View>
     );
@@ -624,9 +637,9 @@ const SalesScreen = () => {
   if (error) {
     return (
       <View style={styles.centered}>
-        <MaterialCommunityIcons name="alert-circle" size={48} color="#EF4444" />
+        <MaterialCommunityIcons name="alert-circle" size={48} color={colors.danger} />
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchSales}>
+        <TouchableOpacity style={styles.retryButton} onPress={fetchSales} activeOpacity={0.85}>
           <Text style={styles.retryButtonText}>Reintentar</Text>
         </TouchableOpacity>
       </View>
@@ -639,9 +652,10 @@ const SalesScreen = () => {
         <Text style={styles.headerTitle}>Ventas</Text>
         <TouchableOpacity
           style={styles.newSaleButton}
-          onPress={() => router.push('/sales/new')}
+          activeOpacity={0.85}
+          onPress={() => router.push('/sales/new' as never)}
         >
-          <MaterialCommunityIcons name="plus" size={20} color="white" />
+          <MaterialCommunityIcons name="plus" size={20} color={colors.white} />
           <Text style={styles.newSaleButtonText}>Nueva Venta</Text>
         </TouchableOpacity>
       </View>
@@ -655,13 +669,22 @@ const SalesScreen = () => {
         keyExtractor={item => item.id}
         contentContainerStyle={styles.salesList}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <MaterialCommunityIcons name="cash-register" size={64} color="#D1D5DB" />
-            <Text style={styles.emptyText}>No hay ventas</Text>
-          </View>
+          <Card style={styles.emptyCard}>
+            <EmptyState
+              icon="cash-register"
+              title="No hay ventas"
+              description={
+                dateFilter === 'all'
+                  ? 'Las ventas que registres aparecerán aquí.'
+                  : 'No hay ventas en el período seleccionado.'
+              }
+              ctaLabel="Registrar venta"
+              onCta={() => router.push('/sales/new' as never)}
+            />
+          </Card>
         }
       />
 
@@ -674,453 +697,368 @@ const SalesScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.canvas,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 32,
+    backgroundColor: colors.canvas,
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#6B7280',
+    ...typography.body,
+    marginTop: spacing.md,
   },
   errorText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#EF4444',
+    ...typography.body,
+    marginTop: spacing.md,
+    color: colors.danger,
     textAlign: 'center',
   },
   retryButton: {
-    marginTop: 16,
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    marginTop: spacing.lg,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radii.button,
   },
   retryButtonText: {
-    color: 'white',
+    color: colors.white,
     fontWeight: '600',
   },
+
+  // Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'white',
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   headerTitle: {
+    ...typography.title,
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
   },
   newSaleButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#10B981',
-    paddingHorizontal: 16,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: radii.button,
+    gap: spacing.xs,
+    ...shadow,
   },
   newSaleButtonText: {
-    color: 'white',
+    color: colors.white,
     fontWeight: '600',
-    marginLeft: 4,
-  },
-  metricsContainer: {
-    padding: 16,
-    backgroundColor: 'white',
-  },
-  metricCard: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    padding: 16,
-    marginRight: 12,
-    minWidth: 140,
-    alignItems: 'center',
-  },
-  metricValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginTop: 8,
-  },
-  metricLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
-  },
-  filterContainer: {
-    padding: 12,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  filterChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-    marginRight: 8,
-  },
-  filterChipActive: {
-    backgroundColor: '#3B82F6',
-  },
-  filterChipText: {
     fontSize: 14,
-    color: '#4B5563',
   },
-  filterChipTextActive: {
-    color: 'white',
+
+  // KPIs jerarquizados
+  metricsGrid: {
+    padding: spacing.lg,
+    paddingBottom: 0,
   },
+  metricsHero: {
+    marginBottom: spacing.md,
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+
+  // Filtros
+  filterContainer: {
+    padding: spacing.lg,
+    paddingTop: spacing.md,
+  },
+
+  // Lista de ventas
   salesList: {
-    padding: 16,
+    padding: spacing.lg,
+    paddingTop: 0,
     paddingBottom: 100,
   },
   saleCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    marginBottom: spacing.md,
   },
-  saleHeader: {
+  saleTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.xs,
   },
-  saleId: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#3B82F6',
+  saleAmount: {
+    ...typography.display,
+    fontSize: 22,
+    color: colors.success,
   },
-  paymentBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
+  saleMeta: {
+    ...typography.body,
+    marginBottom: spacing.sm,
   },
-  paymentText: {
-    fontSize: 12,
-    color: '#3B82F6',
-    fontWeight: '500',
-  },
-  saleInfo: {
-    marginBottom: 12,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  infoText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: '#4B5563',
-  },
-  saleFooter: {
+  saleBottomRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
   },
-  saleTotal: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#10B981',
+  saleIdText: {
+    ...typography.caption,
+    flexShrink: 1,
   },
   actionButtons: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.xs,
   },
   actionButton: {
     width: 36,
     height: 36,
-    borderRadius: 8,
+    borderRadius: radii.button,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.surface,
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 64,
+  emptyCard: {
+    marginTop: spacing.lg,
   },
-  emptyText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  // Modal styles
+
+  // Modal detalle
   modalContainer: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.canvas,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'white',
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
+    ...typography.title,
   },
   modalContent: {
     flex: 1,
-    padding: 16,
+    padding: spacing.lg,
   },
   modalFooter: {
-    padding: 16,
-    backgroundColor: 'white',
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: colors.border,
   },
   footerButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 14,
-    borderRadius: 8,
-    gap: 8,
+    borderRadius: radii.button,
+    backgroundColor: colors.primary,
+    gap: spacing.sm,
   },
   footerButtonText: {
-    color: 'white',
+    color: colors.white,
     fontWeight: '600',
     fontSize: 16,
   },
   detailSection: {
-    backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 12,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
+    gap: spacing.md,
   },
   detailLabel: {
-    fontSize: 14,
-    color: '#6B7280',
+    ...typography.caption,
   },
   detailValue: {
+    ...typography.bodyStrong,
     fontSize: 14,
-    color: '#111827',
-    fontWeight: '500',
+    flexShrink: 1,
+    textAlign: 'right',
   },
   productItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.border,
   },
   productInfo: {
     flex: 1,
+    marginRight: spacing.md,
   },
   productName: {
-    fontSize: 14,
-    color: '#111827',
+    ...typography.body,
+    color: colors.textPrimary,
   },
   productQty: {
-    fontSize: 12,
-    color: '#6B7280',
+    ...typography.caption,
   },
   productTotal: {
+    ...typography.bodyStrong,
     fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
   },
-  totalSection: {
+  totalBand: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: colors.successSoft,
+    padding: spacing.lg,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  totalLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
+  totalBandLabel: {
+    ...typography.title,
   },
-  totalValue: {
+  totalBandValue: {
+    ...typography.display,
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#10B981',
+    color: colors.success,
   },
-  // Ticket styles
+
+  // Ticket (estética de recibo conservada, tokens migrados)
   ticketContainer: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
-  },
-  ticketHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  ticketHeaderTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
+    backgroundColor: colors.canvas,
   },
   ticketContent: {
     flex: 1,
-    padding: 16,
+    padding: spacing.lg,
   },
   ticket: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: colors.surface,
+    borderRadius: radii.card,
+    padding: spacing.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow,
   },
   ticketBrand: {
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: spacing.lg,
   },
   ticketBrandName: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#3B82F6',
+    color: colors.primary,
     letterSpacing: 1,
   },
   ticketBrandSubtitle: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
+    ...typography.caption,
+    marginTop: spacing.xs,
+    textAlign: 'center',
   },
   ticketDivider: {
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
     borderStyle: 'dashed',
-    marginVertical: 12,
+    marginVertical: spacing.md,
   },
   ticketInfo: {
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
   },
   ticketInfoText: {
     fontSize: 13,
-    color: '#4B5563',
+    color: colors.textSecondary,
     marginBottom: 6,
   },
   ticketItems: {
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
   },
   ticketItemHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingBottom: 8,
+    paddingBottom: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   ticketItemHeaderText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#6B7280',
+    ...typography.micro,
+    textTransform: 'none',
     flex: 1,
     textAlign: 'center',
   },
   ticketItemRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.border,
   },
   ticketItemName: {
     flex: 2,
     fontSize: 12,
-    color: '#111827',
+    color: colors.textPrimary,
   },
   ticketItemQty: {
     flex: 1,
     fontSize: 12,
-    color: '#4B5563',
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   ticketItemPrice: {
     flex: 1,
     fontSize: 12,
-    color: '#4B5563',
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   ticketItemSubtotal: {
     flex: 1,
     fontSize: 12,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.textPrimary,
     textAlign: 'right',
   },
   ticketTotal: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
   },
   ticketTotalLabel: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#111827',
+    ...typography.title,
   },
   ticketTotalValue: {
+    ...typography.display,
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#10B981',
+    color: colors.success,
   },
   ticketFooter: {
     textAlign: 'center',
     fontSize: 14,
-    color: '#374151',
-    marginTop: 8,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
   },
   ticketFooterSmall: {
+    ...typography.caption,
     textAlign: 'center',
-    fontSize: 11,
-    color: '#9CA3AF',
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   ticketActions: {
     flexDirection: 'row',
-    gap: 12,
-    padding: 16,
+    gap: spacing.md,
+    padding: spacing.lg,
     paddingBottom: 32,
-    backgroundColor: 'white',
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: colors.border,
   },
   ticketActionButton: {
     flex: 1,
@@ -1128,11 +1066,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
-    borderRadius: 8,
-    gap: 8,
+    borderRadius: radii.button,
+    gap: spacing.sm,
   },
   ticketActionText: {
-    color: 'white',
+    color: colors.white,
     fontSize: 16,
     fontWeight: '600',
   },

@@ -1,11 +1,10 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Dimensions, Text } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Text } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter, usePathname, useSegments } from 'expo-router';
+import { useRouter, useSegments } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { ComponentProps } from 'react';
-
-const { width } = Dimensions.get('window');
+import { colors, radii, shadow, spacing } from '../theme';
 
 type TabItem = {
   name: string;
@@ -22,13 +21,12 @@ const tabs: TabItem[] = [
 
 export default function BottomTabBar() {
   const router = useRouter();
-  const pathname = usePathname();
   const segments = useSegments();
 
   const isActive = (route: string) => {
     const currentPath = `/${segments.join('/')}`;
     const targetRoute = route === 'dashboard' ? '/' : `/${route}`;
-    return currentPath === targetRoute || (route === 'dashboard' && currentPath === '/');
+    return currentPath === targetRoute || (route === 'dashboard' && currentPath === '/dashboard');
   };
 
   const handleNavigation = (route: string) => {
@@ -39,7 +37,7 @@ export default function BottomTabBar() {
       'sales': '/sales',
       'profile': '/profile'
     } as const;
-    
+
     // Verificar si la ruta es válida
     const targetRoute = allowedRoutes[route as keyof typeof allowedRoutes];
     if (targetRoute) {
@@ -51,30 +49,28 @@ export default function BottomTabBar() {
 
   return (
     <View style={styles.container}>
-      <BlurView intensity={90} tint="light" style={styles.blurContainer}>
+      <BlurView intensity={90} tint="light" style={styles.pill}>
         <View style={styles.tabContainer}>
-          {tabs.map((tab) => (
-            <TouchableOpacity
-              key={tab.name}
-              style={styles.tab}
-              onPress={() => handleNavigation(tab.route)}
-              activeOpacity={0.7}
-            >
-              <MaterialCommunityIcons
-                name={tab.icon as ComponentProps<typeof MaterialCommunityIcons>['name']}
-                size={24}
-                color={isActive(tab.route) ? '#2563eb' : '#64748b'}
-              />
-              <Text 
-                style={[
-                  styles.tabText, 
-                  { color: isActive(tab.route) ? '#2563eb' : '#64748b' }
-                ]}
+          {tabs.map((tab) => {
+            const active = isActive(tab.route);
+            return (
+              <TouchableOpacity
+                key={tab.name}
+                style={[styles.tab, active && styles.tabActive]}
+                onPress={() => handleNavigation(tab.route)}
+                activeOpacity={0.7}
               >
-                {tab.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <MaterialCommunityIcons
+                  name={tab.icon as ComponentProps<typeof MaterialCommunityIcons>['name']}
+                  size={22}
+                  color={active ? colors.primary : colors.textSecondary}
+                />
+                <Text style={[styles.tabText, active && styles.tabTextActive]}>
+                  {tab.name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </BlurView>
     </View>
@@ -82,36 +78,50 @@ export default function BottomTabBar() {
 }
 
 const styles = StyleSheet.create({
+  // Pill flotante despegada del borde: margin 12 + radio completo
   container: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.1)',
-    backgroundColor: 'transparent',
+    bottom: spacing.md,
+    left: spacing.md,
+    right: spacing.md,
     zIndex: 100,
+    ...shadow,
   },
-  blurContainer: {
-    width: '100%',
+  pill: {
+    borderRadius: radii.pill,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
   },
   tabContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
     alignItems: 'center',
-    height: 70,
-    paddingBottom: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    justifyContent: 'space-between',
+    padding: 6,
+    gap: 4,
   },
   tab: {
     flex: 1,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.pill,
+    gap: 6,
+    minHeight: 44,
+  },
+  tabActive: {
+    backgroundColor: colors.primarySoft,
   },
   tabText: {
     fontSize: 12,
-    marginTop: 4,
-    fontFamily: 'SpaceMono',
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
+  tabTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
   },
 });
