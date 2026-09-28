@@ -295,7 +295,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.canvas,
   },
   content: {
-    paddingBottom: 48,
+    // Deja espacio para el TabBar flotante (pill margin 12 + altura ~66)
+    paddingBottom: 110,
   },
   centered: {
     flex: 1,
