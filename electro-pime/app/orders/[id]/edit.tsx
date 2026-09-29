@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ActivityIndicator, Text, Alert } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../../services/api';
 import OrderForm from '../../components/OrderForm';
+import Toast from '../../components/ui/Toast';
 import { RepairOrder, CreateRepairOrderDto, UpdateRepairOrderDto } from '../../types/api';
 
 export default function EditOrderScreen() {
@@ -12,6 +13,7 @@ export default function EditOrderScreen() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
     useEffect(() => {
         if (id) {
@@ -34,16 +36,18 @@ export default function EditOrderScreen() {
 
     const handleSubmit = async (data: CreateRepairOrderDto) => {
         setSaving(true);
+        setFeedback(null);
         try {
             const updateData: UpdateRepairOrderDto = {
                 ...data,
             };
             await api.updateRepairOrder(id!, updateData);
-            Alert.alert('Éxito', 'Orden actualizada correctamente', [
-                { text: 'OK', onPress: () => router.back() }
-            ]);
+            // Confirmación rápida y redirección a la lista (que se refresca al recuperar el foco)
+            setFeedback({ message: 'Orden actualizada correctamente', type: 'success' });
+            setTimeout(() => router.replace('/orders'), 1200);
         } catch (err: any) {
-            Alert.alert('Error', err.message || 'No se pudo actualizar la orden');
+            console.error('Error updating order:', err);
+            setFeedback({ message: err.message || 'No se pudo actualizar la orden', type: 'error' });
         } finally {
             setSaving(false);
         }
@@ -76,6 +80,7 @@ export default function EditOrderScreen() {
 
     return (
         <View style={styles.container}>
+            {feedback && <Toast message={feedback.message} type={feedback.type} />}
             <Stack.Screen
                 options={{
                     title: 'Editar Orden',
