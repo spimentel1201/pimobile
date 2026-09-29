@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,12 +14,13 @@ import {
   Platform,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { api } from '../services/api';
 import { RepairOrder, RepairOrderStatus } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
+import Toast from '../components/ui/Toast';
 
 const STATUS_COLORS: Record<RepairOrderStatus, string> = {
   RECEIVED: '#9CA3AF',
@@ -54,6 +55,9 @@ const OrdersScreen = () => {
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('ALL');
   const [selectedOrder, setSelectedOrder] = useState<RepairOrder | null>(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
+  const [statusPickerOrder, setStatusPickerOrder] = useState<RepairOrder | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchOrders = useCallback(async () => {
     if (!user) {
@@ -78,13 +82,17 @@ const OrdersScreen = () => {
     }
   }, [user]);
 
-  useEffect(() => {
-    if (user) {
-      fetchOrders();
-    } else {
-      setLoading(false);
-    }
-  }, [user, fetchOrders]);
+  // Refresca la lista cada vez que la pantalla recupera el foco (p. ej. al
+  // volver de editar una orden) para que el estado mostrado siempre esté al día.
+  useFocusEffect(
+    useCallback(() => {
+      if (user) {
+        fetchOrders();
+      } else {
+        setLoading(false);
+      }
+    }, [user, fetchOrders])
+  );
 
   // Handle deep linking / query param to open modal
   useEffect(() => {
@@ -102,14 +110,21 @@ const OrdersScreen = () => {
     fetchOrders();
   }, [fetchOrders]);
 
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ message, type });
+    toastTimer.current = setTimeout(() => setToast(null), 2600);
+  };
+
   const handleStatusUpdate = async (orderId: string, newStatus: RepairOrderStatus) => {
     try {
       await api.updateRepairOrder(orderId, { status: newStatus });
-      Alert.alert('Éxito', 'Estado actualizado correctamente');
+      setStatusPickerOrder(null);
+      showToast('Estado actualizado correctamente');
       fetchOrders();
     } catch (err: any) {
       console.error('Error updating status:', err);
-      Alert.alert('Error', err.message || 'No se pudo actualizar el estado');
+      showToast(err.message || 'No se pudo actualizar el estado', 'error');
     }
   };
 
@@ -433,15 +448,7 @@ const OrdersScreen = () => {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionButton, { backgroundColor: '#10B981' }]}
-          onPress={() => {
-            Alert.alert('Cambiar Estado', 'Seleccione el nuevo estado', [
-              ...Object.entries(STATUS_LABELS).map(([status, label]) => ({
-                text: label,
-                onPress: () => handleStatusUpdate(item.id, status as RepairOrderStatus),
-              })),
-              { text: 'Cancelar', style: 'cancel' },
-            ]);
-          }}
+          onPress={() => setStatusPickerOrder(item)}
           activeOpacity={0.7}
         >
           <MaterialCommunityIcons name="swap-horizontal" size={18} color="white" />
@@ -463,6 +470,58 @@ const OrdersScreen = () => {
       </View>
     </View>
   );
+
+  const renderStatusPicker = () => {
+    if (!statusPickerOrder) return null;
+
+    return (
+      <Modal
+        visible
+        transparent
+        animationType="fade"
+        onRequestClose={() => setStatusPickerOrder(null)}
+      >
+        <TouchableOpacity
+          style={styles.statusOverlay}
+          activeOpacity={1}
+          onPress={() => setStatusPickerOrder(null)}
+        >
+          <TouchableOpacity
+            style={styles.statusSheet}
+            activeOpacity={1}
+            onPress={() => {}}
+          >
+            <Text style={styles.statusSheetTitle}>Cambiar estado</Text>
+            <Text style={styles.statusSheetSubtitle}>
+              Orden #{statusPickerOrder.id.slice(0, 8)} · Estado actual: {STATUS_LABELS[statusPickerOrder.status]}
+            </Text>
+            {(Object.entries(STATUS_LABELS) as [RepairOrderStatus, string][]).map(([status, label]) => {
+              const isActive = status === statusPickerOrder.status;
+              return (
+                <TouchableOpacity
+                  key={status}
+                  style={[styles.statusOption, isActive && styles.statusOptionActive]}
+                  activeOpacity={0.85}
+                  disabled={isActive}
+                  onPress={() => handleStatusUpdate(statusPickerOrder.id, status)}
+                >
+                  <View style={[styles.statusDot, { backgroundColor: STATUS_COLORS[status] }]} />
+                  <Text
+                    style={[styles.statusOptionText, isActive && styles.statusOptionTextActive]}
+                  >
+                    {label}
+                  </Text>
+                  {isActive && (
+                    <MaterialCommunityIcons name="check-circle" size={20} color="#3B82F6" />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+    );
+  };
 
   const renderOrderDetails = () => {
     if (!selectedOrder) return null;
@@ -630,6 +689,7 @@ const OrdersScreen = () => {
 
   return (
     <View style={styles.container}>
+      {toast && <Toast message={toast.message} type={toast.type} />}
       <SafeAreaView style={styles.safeArea}>
         {renderHeader()}
         <View style={styles.contentContainer}>
@@ -657,6 +717,7 @@ const OrdersScreen = () => {
           />
         </View>
       </SafeAreaView>
+      {renderStatusPicker()}
       {renderOrderDetails()}
     </View>
   );
@@ -669,6 +730,55 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
+  },
+  statusOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(16, 24, 40, 0.45)',
+    justifyContent: 'flex-end',
+  },
+  statusSheet: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 32,
+  },
+  statusSheetTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  statusSheetSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  statusOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginBottom: 6,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  statusOptionActive: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#3B82F6',
+  },
+  statusOptionText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#374151',
+    marginLeft: 8,
+  },
+  statusOptionTextActive: {
+    color: '#3B82F6',
   },
   centered: {
     flex: 1,
