@@ -53,6 +53,73 @@ function formatRelativeDate(iso: string): string {
   return `${day} ${month}`;
 }
 
+// Tamaños de papel para el ticket — ticketeras térmicas usuales (58 mm / 80 mm)
+// y hoja completa (A4 / Carta). El CSS resultante adapta la impresión al ancho.
+type TicketSize = '58' | '80' | 'A4' | 'LETTER';
+
+function ticketSizeCss(size: TicketSize): string {
+  if (size === '58') {
+    return `
+            @page { size: 58mm auto; margin: 0; }
+            body { width: 58mm; padding: 4mm; font-size: 10px; }
+            .logo-placeholder { width: 32px; height: 32px; font-size: 15px; margin-bottom: 6px; }
+            .company-name { font-size: 13px; letter-spacing: 0; }
+            .company-details { font-size: 8px; max-width: 100%; }
+            .receipt-label { font-size: 12px; }
+            .receipt-no { font-size: 11px; }
+            .receipt-date { font-size: 8px; }
+            .section-divider { margin: 10px 0; }
+            .info-label, .table-title, .sign-label { font-size: 8px; letter-spacing: 0.5px; }
+            .info-main { font-size: 10px; }
+            .info-sub { font-size: 8px; }
+            .badge { font-size: 7px; padding: 1px 4px; }
+            .sku { font-size: 8px; }
+            .product-name { font-size: 10px; }
+            .product-row { margin-bottom: 9px; }
+            .price-row, .summary-row { font-size: 9px; }
+            .summary-section { margin-top: 12px; padding-top: 10px; }
+            .total-label { font-size: 11px; }
+            .total-value { font-size: 16px; }
+            .total-row { margin-top: 8px; padding-top: 8px; }
+            .warranty-box { margin-top: 14px; padding: 8px; }
+            .warranty-title { font-size: 8px; }
+            .warranty-text { font-size: 7.5px; }
+            .signatures { margin-top: 22px; }
+            .footer-strip { margin-top: 14px; padding: 7px; font-size: 7.5px; letter-spacing: 0.5px; }
+          `;
+  }
+  if (size === '80') {
+    return `
+            @page { size: 80mm auto; margin: 0; }
+            body { width: 80mm; padding: 5mm; font-size: 11px; }
+            .logo-placeholder { width: 40px; height: 40px; font-size: 20px; }
+            .company-name { font-size: 16px; }
+            .company-details { font-size: 9px; max-width: 100%; }
+            .receipt-label { font-size: 15px; }
+            .receipt-no { font-size: 13px; }
+            .receipt-date { font-size: 9px; }
+            .info-label, .table-title, .sign-label { font-size: 9px; }
+            .info-main { font-size: 11px; }
+            .product-name { font-size: 11.5px; }
+            .price-row, .summary-row { font-size: 10px; }
+            .total-label { font-size: 13px; }
+            .total-value { font-size: 20px; }
+            .warranty-box { padding: 10px; }
+            .footer-strip { font-size: 9px; }
+          `;
+  }
+  if (size === 'A4') {
+    return `
+            @page { size: A4; margin: 14mm; }
+            body { padding: 12px; }
+          `;
+  }
+  return `
+            @page { size: letter; margin: 14mm; }
+            body { padding: 12px; }
+          `;
+}
+
 const SalesScreen = () => {
   const router = useRouter();
   const { user } = useAuth();
@@ -63,6 +130,7 @@ const SalesScreen = () => {
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [showTicket, setShowTicket] = useState(false);
+  const [ticketSize, setTicketSize] = useState<TicketSize>('80');
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
 
   const fetchSales = useCallback(async () => {
@@ -336,6 +404,12 @@ const SalesScreen = () => {
   const renderTicketModal = () => {
     if (!selectedSale) return null;
 
+    // Previsualización adaptada al tamaño de papel elegido
+    const isRoll = ticketSize === '58' || ticketSize === '80';
+    const scale = ticketSize === '58' ? 0.72 : ticketSize === '80' ? 0.88 : 1;
+    const fs = (n: number) => Math.round(n * scale);
+    const rollWidth = ticketSize === '58' ? 236 : ticketSize === '80' ? 302 : undefined;
+
     return (
       <Modal
         visible={showTicket}
@@ -354,55 +428,78 @@ const SalesScreen = () => {
             <View style={{ width: 24 }} />
           </View>
 
+          <View style={styles.sizeSelectorWrap}>
+            <Text style={styles.sizeSelectorLabel}>Tamaño de papel</Text>
+            <SegmentedControl<TicketSize>
+              options={[
+                { value: '58', label: '58 mm' },
+                { value: '80', label: '80 mm' },
+                { value: 'A4', label: 'A4' },
+                { value: 'LETTER', label: 'Carta' },
+              ]}
+              value={ticketSize}
+              onChange={setTicketSize}
+            />
+          </View>
+
           <ScrollView style={styles.ticketContent}>
-            <View style={styles.ticket}>
+            <View
+              style={[
+                styles.ticket,
+                rollWidth !== undefined && {
+                  width: rollWidth,
+                  alignSelf: 'center',
+                  padding: ticketSize === '58' ? spacing.md : spacing.lg,
+                },
+              ]}
+            >
               {/* Ticket Header */}
-              <View style={styles.ticketBrand}>
-                <Text style={styles.ticketBrandName}>ELECTRONICA PIMENTEL</Text>
-                <Text style={styles.ticketBrandSubtitle}>Reparación de Electrodomésticos en general y venta de componentes electrónicos</Text>
+              <View style={[styles.ticketBrand, isRoll && { paddingVertical: spacing.sm }]}>
+                <Text style={[styles.ticketBrandName, { fontSize: fs(22) }]}>ELECTRONICA PIMENTEL</Text>
+                <Text style={[styles.ticketBrandSubtitle, { fontSize: fs(12) }]}>Reparación de Electrodomésticos en general y venta de componentes electrónicos</Text>
               </View>
 
-              <View style={styles.ticketDivider} />
+              <View style={[styles.ticketDivider, isRoll && { marginVertical: spacing.sm }]} />
 
               <View style={styles.ticketInfo}>
-                <Text style={styles.ticketInfoText}>Fecha: {new Date(selectedSale.createdAt).toLocaleString()}</Text>
-                <Text style={styles.ticketInfoText}>Ticket: #{selectedSale.id.slice(0, 8).toUpperCase()}</Text>
-                <Text style={styles.ticketInfoText}>Cliente: {selectedSale.customerFullName || selectedSale.customerName || 'Cliente General'}</Text>
-                <Text style={styles.ticketInfoText}>Método: {PAYMENT_METHOD[selectedSale.paymentMethod as PaymentMethod]?.label || selectedSale.paymentMethod}</Text>
+                <Text style={[styles.ticketInfoText, { fontSize: fs(13) }]}>Fecha: {new Date(selectedSale.createdAt).toLocaleString()}</Text>
+                <Text style={[styles.ticketInfoText, { fontSize: fs(13) }]}>Ticket: #{selectedSale.id.slice(0, 8).toUpperCase()}</Text>
+                <Text style={[styles.ticketInfoText, { fontSize: fs(13) }]}>Cliente: {selectedSale.customerFullName || selectedSale.customerName || 'Cliente General'}</Text>
+                <Text style={[styles.ticketInfoText, { fontSize: fs(13) }]}>Método: {PAYMENT_METHOD[selectedSale.paymentMethod as PaymentMethod]?.label || selectedSale.paymentMethod}</Text>
               </View>
 
-              <View style={styles.ticketDivider} />
+              <View style={[styles.ticketDivider, isRoll && { marginVertical: spacing.sm }]} />
 
               {/* Items */}
               <View style={styles.ticketItems}>
                 <View style={styles.ticketItemHeader}>
-                  <Text style={styles.ticketItemHeaderText}>ITEM</Text>
-                  <Text style={styles.ticketItemHeaderText}>CANT</Text>
-                  <Text style={styles.ticketItemHeaderText}>P.U</Text>
-                  <Text style={styles.ticketItemHeaderText}>TOTAL</Text>
+                  <Text style={[styles.ticketItemHeaderText, { fontSize: fs(11) }]}>ITEM</Text>
+                  <Text style={[styles.ticketItemHeaderText, { fontSize: fs(11) }]}>CANT</Text>
+                  <Text style={[styles.ticketItemHeaderText, { fontSize: fs(11) }]}>P.U</Text>
+                  <Text style={[styles.ticketItemHeaderText, { fontSize: fs(11) }]}>TOTAL</Text>
                 </View>
                 {selectedSale.items?.map((item, index) => (
                   <View key={index} style={styles.ticketItemRow}>
-                    <Text style={styles.ticketItemName}>{item.productName || 'Producto'}</Text>
-                    <Text style={styles.ticketItemQty}>{item.quantity}</Text>
-                    <Text style={styles.ticketItemPrice}>{item.price.toFixed(2)}</Text>
-                    <Text style={styles.ticketItemSubtotal}>{(item.quantity * item.price).toFixed(2)}</Text>
+                    <Text style={[styles.ticketItemName, { fontSize: fs(12) }]}>{item.productName || 'Producto'}</Text>
+                    <Text style={[styles.ticketItemQty, { fontSize: fs(12) }]}>{item.quantity}</Text>
+                    <Text style={[styles.ticketItemPrice, { fontSize: fs(12) }]}>{item.price.toFixed(2)}</Text>
+                    <Text style={[styles.ticketItemSubtotal, { fontSize: fs(12) }]}>{(item.quantity * item.price).toFixed(2)}</Text>
                   </View>
                 ))}
               </View>
 
-              <View style={styles.ticketDivider} />
+              <View style={[styles.ticketDivider, isRoll && { marginVertical: spacing.sm }]} />
 
               {/* Total */}
               <View style={styles.ticketTotal}>
-                <Text style={styles.ticketTotalLabel}>TOTAL:</Text>
-                <Text style={styles.ticketTotalValue}>S/ {selectedSale.totalAmount.toFixed(2)}</Text>
+                <Text style={[styles.ticketTotalLabel, { fontSize: fs(18) }]}>TOTAL:</Text>
+                <Text style={[styles.ticketTotalValue, { fontSize: fs(24) }]}>S/ {selectedSale.totalAmount.toFixed(2)}</Text>
               </View>
 
-              <View style={styles.ticketDivider} />
+              <View style={[styles.ticketDivider, isRoll && { marginVertical: spacing.sm }]} />
 
-              <Text style={styles.ticketFooter}>¡Gracias por su compra!</Text>
-              <Text style={styles.ticketFooterSmall}>Conserve su ticket</Text>
+              <Text style={[styles.ticketFooter, { fontSize: fs(14) }]}>¡Gracias por su compra!</Text>
+              <Text style={[styles.ticketFooterSmall, { fontSize: fs(12) }]}>Conserve su ticket</Text>
             </View>
           </ScrollView>
 
@@ -410,7 +507,7 @@ const SalesScreen = () => {
             <TouchableOpacity
               style={[styles.ticketActionButton, { backgroundColor: colors.success }]}
               activeOpacity={0.85}
-              onPress={() => handleShareTicket(selectedSale)}
+              onPress={() => handleShareTicket(selectedSale, ticketSize)}
             >
               <MaterialCommunityIcons name="share-variant" size={20} color={colors.white} />
               <Text style={styles.ticketActionText}>Compartir</Text>
@@ -418,7 +515,7 @@ const SalesScreen = () => {
             <TouchableOpacity
               style={[styles.ticketActionButton, { backgroundColor: colors.primary }]}
               activeOpacity={0.85}
-              onPress={() => handlePrintPDF(selectedSale)}
+              onPress={() => handlePrintPDF(selectedSale, ticketSize)}
             >
               <MaterialCommunityIcons name="file-pdf-box" size={20} color={colors.white} />
               <Text style={styles.ticketActionText}>Descargar PDF</Text>
@@ -429,7 +526,7 @@ const SalesScreen = () => {
     );
   };
 
-  const generateTicketHTML = (sale: Sale) => {
+  const generateTicketHTML = (sale: Sale, size: TicketSize = '80') => {
     return `
       <!DOCTYPE html>
       <html>
@@ -482,6 +579,9 @@ const SalesScreen = () => {
             .sign-label { font-size: 9px; font-weight: 700; color: #98A2B3; text-transform: uppercase; letter-spacing: 0.5px; }
 
             .footer-strip { margin-top: 30px; background: #1D4ED8; color: #fff; text-align: center; padding: 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; border-radius: 4px; }
+
+            /* Tamaño de papel seleccionado — adapta ancho y escala tipográfica */
+            ${ticketSizeCss(size)}
           </style>
         </head>
         <body>
@@ -567,9 +667,9 @@ const SalesScreen = () => {
     `;
   };
 
-  const handlePrintPDF = async (sale: Sale) => {
+  const handlePrintPDF = async (sale: Sale, size: TicketSize = '80') => {
     try {
-      const html = generateTicketHTML(sale);
+      const html = generateTicketHTML(sale, size);
 
       if (Platform.OS === 'web') {
         const printWindow = window.open('', '_blank');
@@ -589,7 +689,9 @@ const SalesScreen = () => {
         return;
       }
 
-      const { uri } = await Print.printToFileAsync({ html });
+      // En ticketeras térmicas el ancho del PDF se fija en puntos (58 mm ≈ 164 pt, 80 mm ≈ 227 pt)
+      const widthPt = size === '58' ? 164 : size === '80' ? 227 : undefined;
+      const { uri } = await Print.printToFileAsync(widthPt ? { html, width: widthPt } : { html });
       const isAvailable = await Sharing.isAvailableAsync();
 
       if (isAvailable) {
@@ -607,9 +709,9 @@ const SalesScreen = () => {
     }
   };
 
-  const handleShareTicket = async (sale: Sale) => {
+  const handleShareTicket = async (sale: Sale, size: TicketSize = '80') => {
     try {
-      const html = generateTicketHTML(sale);
+      const html = generateTicketHTML(sale, size);
 
       if (Platform.OS === 'web') {
         const printWindow = window.open('', '_blank');
@@ -629,7 +731,9 @@ const SalesScreen = () => {
         return;
       }
 
-      const { uri } = await Print.printToFileAsync({ html });
+      // En ticketeras térmicas el ancho del PDF se fija en puntos (58 mm ≈ 164 pt, 80 mm ≈ 227 pt)
+      const widthPt = size === '58' ? 164 : size === '80' ? 227 : undefined;
+      const { uri } = await Print.printToFileAsync(widthPt ? { html, width: widthPt } : { html });
 
       const isAvailable = await Sharing.isAvailableAsync();
       if (isAvailable) {
@@ -983,6 +1087,17 @@ const styles = StyleSheet.create({
   ticketContent: {
     flex: 1,
     padding: spacing.lg,
+  },
+  sizeSelectorWrap: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  sizeSelectorLabel: {
+    ...typography.micro,
+    marginBottom: spacing.xs,
   },
   ticket: {
     backgroundColor: colors.surface,
