@@ -30,6 +30,7 @@ const ProductsScreen = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [saving, setSaving] = useState(false);
+  const [stockError, setStockError] = useState<string | null>(null);
 
   // Form state
   const [formData, setFormData] = useState<CreateProductDto>({
@@ -174,26 +175,34 @@ const ProductsScreen = () => {
     );
   };
 
-  const handleUpdateStock = (product: Product, quantity: number) => {
-    Alert.alert(
-      'Actualizar Stock',
-      `Stock actual: ${product.stock}\n¿Cuántas unidades desea ${quantity > 0 ? 'agregar' : 'restar'}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Confirmar',
-          onPress: async () => {
-            try {
-              await api.updateProductStock(product.id, quantity);
-              Alert.alert('Éxito', 'Stock actualizado correctamente');
-              fetchProducts();
-            } catch (err: any) {
-              Alert.alert('Error', err.message || 'No se pudo actualizar el stock');
-            }
-          },
-        },
-      ]
+  const handleUpdateStock = async (product: Product, quantity: number) => {
+    const nextStock = product.stock + quantity;
+    if (nextStock < 0) {
+      setStockError('El stock no puede ser negativo');
+      setTimeout(() => setStockError(null), 2600);
+      return;
+    }
+
+    // Actualización optimista: la tarjeta refleja el nuevo saldo al instante
+    setProducts(prev =>
+      prev.map(p => (p.id === product.id ? { ...p, stock: nextStock } : p))
     );
+
+    try {
+      const updated = await api.updateProductStock(product.id, quantity);
+      // Sincroniza con el valor real devuelto por el servidor
+      setProducts(prev =>
+        prev.map(p => (p.id === product.id ? { ...p, stock: updated.stock } : p))
+      );
+    } catch (err: any) {
+      console.error('Error updating stock:', err);
+      // Revierte si el servidor no aceptó el cambio
+      setProducts(prev =>
+        prev.map(p => (p.id === product.id ? { ...p, stock: product.stock } : p))
+      );
+      setStockError(err.message || 'No se pudo actualizar el stock');
+      setTimeout(() => setStockError(null), 2600);
+    }
   };
 
   const renderHeader = () => (
@@ -300,12 +309,15 @@ const ProductsScreen = () => {
             <TouchableOpacity
               style={styles.stockButton}
               onPress={() => handleUpdateStock(item, 1)}
+              activeOpacity={0.7}
             >
               <MaterialIcons name="add" size={18} color="#3B82F6" />
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.stockButton}
+              style={[styles.stockButton, item.stock <= 0 && styles.stockButtonDisabled]}
               onPress={() => handleUpdateStock(item, -1)}
+              disabled={item.stock <= 0}
+              activeOpacity={0.7}
             >
               <MaterialIcons name="remove" size={18} color="#EF4444" />
             </TouchableOpacity>
@@ -478,6 +490,12 @@ const ProductsScreen = () => {
 
   return (
     <View style={styles.container}>
+      {stockError && (
+        <View style={styles.stockBanner} pointerEvents="none">
+          <MaterialCommunityIcons name="alert-circle" size={18} color="white" />
+          <Text style={styles.stockBannerText}>{stockError}</Text>
+        </View>
+      )}
       {renderHeader()}
       {renderSearchAndFilters()}
       <FlatList
@@ -507,6 +525,33 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F3F4F6',
+  },
+  stockBanner: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    right: 16,
+    zIndex: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#EF4444',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  stockBannerText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+    flexShrink: 1,
+    textAlign: 'center',
   },
   centered: {
     flex: 1,
@@ -714,6 +759,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  stockButtonDisabled: {
+    opacity: 0.4,
   },
   productActions: {
     flexDirection: 'row',
