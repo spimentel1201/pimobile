@@ -163,26 +163,28 @@ const DashboardScreen = () => {
   };
 
   const renderQuickActions = () => {
+    // Cada acción con su propio color (pareja soft + color AA sobre blanco)
     const actions: {
       icon: keyof typeof MaterialCommunityIcons.glyphMap;
       label: string;
       route: string;
-      primary?: boolean;
+      fg: string;
+      bg: string;
     }[] = [
-      { icon: 'plus', label: 'Nueva Orden', route: '/orders/new', primary: true },
-      { icon: 'account-plus-outline', label: 'Clientes', route: '/customers' },
-      { icon: 'package-variant-closed', label: 'Productos', route: '/products' },
-      { icon: 'file-document-outline', label: 'Presupuestos', route: '/budgets' },
+      { icon: 'plus', label: 'Nueva Orden', route: '/orders/new', fg: colors.white, bg: colors.primary },
+      { icon: 'account-plus-outline', label: 'Clientes', route: '/customers', fg: colors.violet, bg: colors.violetSoft },
+      { icon: 'package-variant-closed', label: 'Productos', route: '/products', fg: colors.warning, bg: colors.warningSoft },
+      { icon: 'file-document-outline', label: 'Presupuestos', route: '/budgets', fg: colors.success, bg: colors.successSoft },
     ];
 
     if (user?.role === 'ADMIN') {
-      actions.push({ icon: 'account-group-outline', label: 'Usuarios', route: '/users' });
+      actions.push({ icon: 'account-group-outline', label: 'Usuarios', route: '/users', fg: colors.danger, bg: colors.dangerSoft });
     }
 
     return (
       <View style={styles.section}>
         <SectionHeader title="Acciones Rápidas" />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.actionsRow}>
+        <View style={styles.actionsGrid}>
           {actions.map((action) => (
             <TouchableOpacity
               key={action.label}
@@ -190,17 +192,13 @@ const DashboardScreen = () => {
               onPress={() => router.push(action.route as never)}
               activeOpacity={0.85}
             >
-              <View style={[styles.actionIcon, action.primary && styles.actionIconPrimary]}>
-                <MaterialCommunityIcons
-                  name={action.icon}
-                  size={22}
-                  color={action.primary ? colors.white : colors.primary}
-                />
+              <View style={[styles.actionIcon, { backgroundColor: action.bg }]}>
+                <MaterialCommunityIcons name={action.icon} size={22} color={action.fg} />
               </View>
               <Text style={styles.actionLabel}>{action.label}</Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </View>
       </View>
     );
   };
@@ -400,26 +398,24 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
 
-  // Acciones rápidas
-  actionsRow: {
+  // Acciones rápidas — grilla envolvente de 4 por fila: se muestran todas
+  actionsGrid: {
     flexDirection: 'row',
-    gap: spacing.md,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
   },
   actionPill: {
-    width: 88,
+    width: '25%',
     alignItems: 'center',
+    marginBottom: spacing.md,
   },
   actionIcon: {
     width: 48,
     height: 48,
     borderRadius: radii.button,
-    backgroundColor: colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.sm,
-  },
-  actionIconPrimary: {
-    backgroundColor: colors.primary,
   },
   actionLabel: {
     fontSize: 12,
