@@ -172,15 +172,19 @@ const SalesScreen = () => {
 
   const renderSaleCard = ({ item }: { item: Sale }) => {
     const method = PAYMENT_METHOD[item.paymentMethod as PaymentMethod];
+    const customer = item.customerFullName || item.customerName || 'Cliente General';
+    const itemCount = item.items?.length || 0;
 
     return (
       <Card
         style={styles.saleCard}
+        accentColor={method?.color ?? colors.borderStrong}
         onPress={() => {
           setSelectedSale(item);
           setShowDetails(true);
         }}
       >
+        {/* Fila 1: método de pago + monto héroe */}
         <View style={styles.saleTopRow}>
           {method ? (
             <StatusBadge label={method.label} color={method.color} soft={method.soft} />
@@ -194,30 +198,48 @@ const SalesScreen = () => {
           <Text style={styles.saleAmount}>S/ {item.totalAmount.toFixed(2)}</Text>
         </View>
 
-        <Text style={styles.saleMeta} numberOfLines={1}>
-          {item.customerFullName || item.customerName || 'Cliente General'}
-          {' · '}
-          {item.items?.length || 0} productos
+        {/* Fila 2: cliente como protagonista secundario */}
+        <Text style={styles.saleCustomer} numberOfLines={1}>
+          {customer}
         </Text>
 
+        {/* Fila 3: ID + productos en caption */}
+        <Text style={styles.saleMetaRow} numberOfLines={1}>
+          #{item.id.slice(0, 8).toUpperCase()}
+          {' · '}
+          {itemCount} {itemCount === 1 ? 'producto' : 'productos'}
+        </Text>
+
+        {/* Fila 4: fecha relativa + acciones de contorno etiquetadas */}
         <View style={styles.saleBottomRow}>
-          <Text style={styles.saleIdText}>
-            #{item.id.slice(0, 8).toUpperCase()} · {formatRelativeDate(item.createdAt)}
-          </Text>
+          <View style={styles.saleDate}>
+            <MaterialCommunityIcons name="clock-outline" size={14} color={colors.textMuted} />
+            <Text style={styles.saleDateText} numberOfLines={1}>
+              {formatRelativeDate(item.createdAt)}
+            </Text>
+          </View>
           <View style={styles.actionButtons}>
             <TouchableOpacity
               style={styles.actionButton}
               onPress={() => handleViewInvoice(item)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
+              activeOpacity={0.85}
             >
-              <MaterialCommunityIcons name="file-document-outline" size={20} color={colors.textSecondary} />
+              <MaterialCommunityIcons
+                name="file-document-outline"
+                size={16}
+                color={colors.textSecondary}
+              />
+              <Text style={styles.actionButtonText}>Detalle</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.actionButton}
               onPress={() => handlePrintTicket(item)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
+              activeOpacity={0.85}
             >
-              <MaterialCommunityIcons name="printer" size={20} color={colors.textSecondary} />
+              <MaterialCommunityIcons name="printer" size={16} color={colors.textSecondary} />
+              <Text style={styles.actionButtonText}>Ticket</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -790,26 +812,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.xs,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
   },
   saleAmount: {
     ...typography.display,
-    fontSize: 22,
+    fontSize: 24,
     color: colors.success,
+    letterSpacing: -0.5,
   },
-  saleMeta: {
-    ...typography.body,
-    marginBottom: spacing.sm,
+  saleCustomer: {
+    ...typography.bodyStrong,
+    marginBottom: spacing.xs,
+  },
+  saleMetaRow: {
+    ...typography.caption,
+    marginBottom: spacing.md,
   },
   saleBottomRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     paddingTop: spacing.sm,
   },
-  saleIdText: {
+  saleDate: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    flexShrink: 1,
+  },
+  saleDateText: {
     ...typography.caption,
     flexShrink: 1,
   },
@@ -818,14 +853,21 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   actionButton: {
-    width: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
     height: 36,
+    paddingHorizontal: spacing.sm + 2,
     borderRadius: radii.button,
     borderWidth: 1,
     borderColor: colors.borderStrong,
-    justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: colors.surface,
+  },
+  actionButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
   emptyCard: {
     marginTop: spacing.lg,
