@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -94,9 +94,13 @@ const ProductsScreen = () => {
     }
   };
 
-  const filteredProducts = selectedCategory === 'all'
-    ? products
-    : products.filter(p => p.category === selectedCategory);
+  const filteredProducts = useMemo(
+    () =>
+      selectedCategory === 'all'
+        ? products
+        : products.filter(p => p.category === selectedCategory),
+    [products, selectedCategory]
+  );
 
   const openNewProductModal = () => {
     setEditingProduct(null);
@@ -503,6 +507,10 @@ const ProductsScreen = () => {
         renderItem={renderProductCard}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContent}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        removeClippedSubviews
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
