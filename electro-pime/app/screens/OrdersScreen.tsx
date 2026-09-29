@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -151,9 +151,13 @@ const OrdersScreen = () => {
     );
   };
 
-  const filteredOrders = filterStatus === 'ALL'
-    ? orders
-    : orders.filter(order => order.status === filterStatus);
+  const filteredOrders = useMemo(
+    () =>
+      filterStatus === 'ALL'
+        ? orders
+        : orders.filter(order => order.status === filterStatus),
+    [orders, filterStatus]
+  );
 
   const renderHeader = () => (
     <View style={styles.header}>
@@ -699,6 +703,10 @@ const OrdersScreen = () => {
             renderItem={renderOrderCard}
             keyExtractor={item => item.id}
             contentContainerStyle={styles.ordersList}
+            initialNumToRender={8}
+            maxToRenderPerBatch={8}
+            windowSize={7}
+            removeClippedSubviews
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }

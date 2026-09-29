@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -195,13 +195,11 @@ const SalesScreen = () => {
     setShowTicket(true);
   };
 
-  const calculateMetrics = () => {
+  const metrics = useMemo(() => {
     const total = sales.reduce((sum, sale) => sum + sale.totalAmount, 0);
     const avgTicket = sales.length > 0 ? total / sales.length : 0;
     return { total, avgTicket, count: sales.length };
-  };
-
-  const metrics = calculateMetrics();
+  }, [sales]);
 
   const renderMetrics = () => (
     <View style={styles.metricsGrid}>
@@ -794,6 +792,10 @@ const SalesScreen = () => {
         renderItem={renderSaleCard}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.salesList}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        removeClippedSubviews
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
