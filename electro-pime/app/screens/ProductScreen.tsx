@@ -18,7 +18,13 @@ import { api } from '../services/api';
 import { Product, CreateProductDto } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
 import StatusBadge from '../components/ui/StatusBadge';
+import BottomSheet from '../components/ui/BottomSheet';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { colors, radii, shadow, spacing, typography } from '../theme';
+
+type ProductFormErrors = Partial<
+  Record<'name' | 'category' | 'cost' | 'price' | 'stock', string>
+>;
 
 const ProductsScreen = () => {
   const { user } = useAuth();
@@ -45,6 +51,17 @@ const ProductsScreen = () => {
     isActive: true,
     imageUrl: '',
   });
+  // Texto crudo de los campos numéricos para poder validar vacío / no numérico
+  const [costText, setCostText] = useState('');
+  const [priceText, setPriceText] = useState('');
+  const [stockText, setStockText] = useState('0');
+  const [formErrors, setFormErrors] = useState<ProductFormErrors>({});
+  const [successDialog, setSuccessDialog] = useState<{
+    title: string;
+    message: string;
+    details: { label: string; value: string }[];
+  } | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const fetchProducts = useCallback(async () => {
     if (!user) {
@@ -116,6 +133,10 @@ const ProductsScreen = () => {
       isActive: true,
       imageUrl: '',
     });
+    setCostText('');
+    setPriceText('');
+    setStockText('0');
+    setFormErrors({});
     setShowModal(true);
   };
 
@@ -131,28 +152,101 @@ const ProductsScreen = () => {
       isActive: product.isActive,
       imageUrl: product.imageUrl || '',
     });
+    setCostText(product.cost ? String(product.cost) : '');
+    setPriceText(product.price ? String(product.price) : '');
+    setStockText(String(product.stock ?? 0));
+    setFormErrors({});
     setShowModal(true);
   };
 
+  const closeSheet = () => {
+    if (saving) return;
+    setShowModal(false);
+    setFormErrors({});
+  };
+
+  /** Validación por campo: devuelve los errores y los muestra inline */
+  const validateProductForm = (): ProductFormErrors => {
+    const errors: ProductFormErrors = {};
+    const name = (formData.name || '').trim();
+    const category = (formData.category || '').trim();
+
+    if (!name) {
+      errors.name = 'Ingresa el nombre del producto';
+    } else if (name.length < 3) {
+      errors.name = 'El nombre debe tener al menos 3 caracteres';
+    }
+
+    if (!category) {
+      errors.category = 'Ingresa o elige una categoría';
+    }
+
+    const costValue = parseFloat(costText.replace(',', '.'));
+    if (costText.trim() === '' || Number.isNaN(costValue)) {
+      errors.cost = 'Ingresa el costo';
+    } else if (costValue < 0) {
+      errors.cost = 'El costo no puede ser negativo';
+    }
+
+    const priceValue = parseFloat(priceText.replace(',', '.'));
+    if (priceText.trim() === '' || Number.isNaN(priceValue)) {
+      errors.price = 'Ingresa el precio de venta';
+    } else if (priceValue <= 0) {
+      errors.price = 'El precio debe ser mayor a 0';
+    } else if (!Number.isNaN(costValue) && priceValue < costValue) {
+      errors.price = 'El precio no puede ser menor al costo';
+    }
+
+    const stockValue = parseInt(stockText, 10);
+    if (stockText.trim() === '' || Number.isNaN(stockValue)) {
+      errors.stock = 'Ingresa el stock inicial';
+    } else if (stockValue < 0) {
+      errors.stock = 'El stock no puede ser negativo';
+    }
+
+    return errors;
+  };
+
   const handleSaveProduct = async () => {
-    if (!formData.name || !formData.category) {
-      Alert.alert('Error', 'Por favor complete los campos requeridos');
+    const errors = validateProductForm();
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) {
       return;
     }
+
+    const payload: CreateProductDto = {
+      ...formData,
+      name: (formData.name || '').trim(),
+      category: (formData.category || '').trim(),
+      cost: parseFloat(costText.replace(',', '.')) || 0,
+      price: parseFloat(priceText.replace(',', '.')) || 0,
+      stock: parseInt(stockText, 10) || 0,
+    };
 
     setSaving(true);
     try {
       if (editingProduct) {
-        await api.updateProduct(editingProduct.id, formData);
-        Alert.alert('Éxito', 'Producto actualizado correctamente');
+        await api.updateProduct(editingProduct.id, payload);
       } else {
-        await api.createProduct(formData);
-        Alert.alert('Éxito', 'Producto creado correctamente');
+        await api.createProduct(payload);
       }
       setShowModal(false);
+      setFormErrors({});
+      setSuccessDialog({
+        title: editingProduct ? 'Producto actualizado' : 'Producto registrado',
+        message: editingProduct
+          ? `Se actualizó “${payload.name}”.`
+          : `“${payload.name}” se agregó al catálogo.`,
+        details: [
+          { label: 'Categoría', value: payload.category },
+          { label: 'Costo', value: `S/ ${payload.cost?.toFixed(2)}` },
+          { label: 'Precio', value: `S/ ${payload.price?.toFixed(2)}` },
+          { label: 'Stock', value: `${payload.stock} unidades` },
+        ],
+      });
       fetchProducts();
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'No se pudo guardar el producto');
+      setSaveError(err.message || 'No se pudo guardar el producto');
     } finally {
       setSaving(false);
     }
@@ -375,110 +469,21 @@ const ProductsScreen = () => {
     );
   };
 
+  const renderFieldError = (field: keyof ProductFormErrors) =>
+    formErrors[field] ? <Text style={styles.fieldError}>{formErrors[field]}</Text> : null;
+
   const renderModal = () => (
-    <Modal
+    <BottomSheet
       visible={showModal}
-      animationType="slide"
-      onRequestClose={() => setShowModal(false)}
-    >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>
-            {editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
-          </Text>
-          <TouchableOpacity onPress={() => setShowModal(false)}>
-            <MaterialIcons name="close" size={24} color="#374151" />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={styles.modalContent}>
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Nombre *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Nombre del producto"
-              value={formData.name}
-              onChangeText={(text) => setFormData({ ...formData, name: text })}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Descripción</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Descripción del producto"
-              value={formData.description}
-              onChangeText={(text) => setFormData({ ...formData, description: text })}
-              multiline
-              numberOfLines={3}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Categoría *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ej: Repuestos, Accesorios..."
-              value={formData.category}
-              onChangeText={(text) => setFormData({ ...formData, category: text })}
-            />
-          </View>
-
-          <View style={styles.row}>
-            <View style={[styles.inputContainer, styles.halfWidth]}>
-              <Text style={styles.inputLabel}>Costo *</Text>
-              <View style={styles.currencyInput}>
-                <Text style={styles.currencySymbol}>S/</Text>
-                <TextInput
-                  style={styles.currencyField}
-                  placeholder="0.00"
-                  value={formData.cost?.toString() || ''}
-                  onChangeText={(text) => setFormData({ ...formData, cost: parseFloat(text) || 0 })}
-                  keyboardType="numeric"
-                />
-              </View>
-            </View>
-            <View style={[styles.inputContainer, styles.halfWidth]}>
-              <Text style={styles.inputLabel}>Precio *</Text>
-              <View style={styles.currencyInput}>
-                <Text style={styles.currencySymbol}>S/</Text>
-                <TextInput
-                  style={styles.currencyField}
-                  placeholder="0.00"
-                  value={formData.price?.toString() || ''}
-                  onChangeText={(text) => setFormData({ ...formData, price: parseFloat(text) || 0 })}
-                  keyboardType="numeric"
-                />
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Stock inicial</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="0"
-              value={formData.stock?.toString() || ''}
-              onChangeText={(text) => setFormData({ ...formData, stock: parseInt(text) || 0 })}
-              keyboardType="numeric"
-            />
-          </View>
-
-          <View style={styles.switchContainer}>
-            <Text style={styles.inputLabel}>Producto activo</Text>
-            <Switch
-              value={formData.isActive}
-              onValueChange={(value) => setFormData({ ...formData, isActive: value })}
-              trackColor={{ false: '#D1D5DB', true: '#93C5FD' }}
-              thumbColor={formData.isActive ? '#3B82F6' : '#9CA3AF'}
-            />
-          </View>
-        </ScrollView>
-
-        <View style={styles.modalFooter}>
+      title={editingProduct ? 'Editar producto' : 'Nuevo producto'}
+      subtitle="Los campos con * son obligatorios"
+      onClose={closeSheet}
+      footer={
+        <View style={styles.sheetActions}>
           <TouchableOpacity
             style={[styles.footerButton, styles.cancelButton]}
-            onPress={() => setShowModal(false)}
+            onPress={closeSheet}
+            activeOpacity={0.85}
           >
             <Text style={styles.cancelButtonText}>Cancelar</Text>
           </TouchableOpacity>
@@ -486,18 +491,164 @@ const ProductsScreen = () => {
             style={[styles.footerButton, styles.saveButton, saving && styles.buttonDisabled]}
             onPress={handleSaveProduct}
             disabled={saving}
+            activeOpacity={0.85}
           >
             {saving ? (
               <ActivityIndicator color="white" />
             ) : (
               <Text style={styles.saveButtonText}>
-                {editingProduct ? 'Actualizar' : 'Guardar'}
+                {editingProduct ? 'Actualizar' : 'Guardar producto'}
               </Text>
             )}
           </TouchableOpacity>
         </View>
-      </View>
-    </Modal>
+      }
+    >
+      <ScrollView
+        style={styles.sheetScroll}
+        contentContainerStyle={styles.sheetScrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>Nombre *</Text>
+          <TextInput
+            style={[styles.input, formErrors.name && styles.inputError]}
+            placeholder="Ej: Capacitor 220uF"
+            placeholderTextColor={colors.textMuted}
+            value={formData.name}
+            onChangeText={(text) => {
+              setFormData({ ...formData, name: text });
+              if (formErrors.name) setFormErrors({ ...formErrors, name: undefined });
+            }}
+          />
+          {renderFieldError('name')}
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>Descripción</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="Opcional: detalle del producto"
+            placeholderTextColor={colors.textMuted}
+            value={formData.description}
+            onChangeText={(text) => setFormData({ ...formData, description: text })}
+            multiline
+            numberOfLines={3}
+          />
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>Categoría *</Text>
+          <TextInput
+            style={[styles.input, formErrors.category && styles.inputError]}
+            placeholder="Ej: Repuestos, Accesorios..."
+            placeholderTextColor={colors.textMuted}
+            value={formData.category}
+            onChangeText={(text) => {
+              setFormData({ ...formData, category: text });
+              if (formErrors.category) setFormErrors({ ...formErrors, category: undefined });
+            }}
+          />
+          {renderFieldError('category')}
+          {categories.length > 0 && (
+            <View style={styles.categoryChips}>
+              {categories.slice(0, 5).map((category) => (
+                <TouchableOpacity
+                  key={category}
+                  style={[
+                    styles.categoryChip,
+                    formData.category === category && styles.categoryChipActive,
+                  ]}
+                  onPress={() => {
+                    setFormData({ ...formData, category });
+                    setFormErrors({ ...formErrors, category: undefined });
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <Text
+                    style={[
+                      styles.categoryChipText,
+                      formData.category === category && styles.categoryChipTextActive,
+                    ]}
+                  >
+                    {category}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+
+        <View style={styles.row}>
+          <View style={[styles.inputContainer, styles.halfWidth]}>
+            <Text style={styles.inputLabel}>Costo *</Text>
+            <View style={[styles.currencyInput, formErrors.cost && styles.inputError]}>
+              <Text style={styles.currencySymbol}>S/</Text>
+              <TextInput
+                style={styles.currencyField}
+                placeholder="0.00"
+                placeholderTextColor={colors.textMuted}
+                value={costText}
+                onChangeText={(text) => {
+                  setCostText(text);
+                  setFormData({ ...formData, cost: parseFloat(text.replace(',', '.')) || 0 });
+                  if (formErrors.cost) setFormErrors({ ...formErrors, cost: undefined });
+                }}
+                keyboardType="decimal-pad"
+              />
+            </View>
+            {renderFieldError('cost')}
+          </View>
+          <View style={[styles.inputContainer, styles.halfWidth]}>
+            <Text style={styles.inputLabel}>Precio *</Text>
+            <View style={[styles.currencyInput, formErrors.price && styles.inputError]}>
+              <Text style={styles.currencySymbol}>S/</Text>
+              <TextInput
+                style={styles.currencyField}
+                placeholder="0.00"
+                placeholderTextColor={colors.textMuted}
+                value={priceText}
+                onChangeText={(text) => {
+                  setPriceText(text);
+                  setFormData({ ...formData, price: parseFloat(text.replace(',', '.')) || 0 });
+                  if (formErrors.price) setFormErrors({ ...formErrors, price: undefined });
+                }}
+                keyboardType="decimal-pad"
+              />
+            </View>
+            {renderFieldError('price')}
+          </View>
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>Stock inicial *</Text>
+          <TextInput
+            style={[styles.input, formErrors.stock && styles.inputError]}
+            placeholder="0"
+            placeholderTextColor={colors.textMuted}
+            value={stockText}
+            onChangeText={(text) => {
+              setStockText(text.replace(/[^0-9]/g, ''));
+              setFormData({ ...formData, stock: parseInt(text, 10) || 0 });
+              if (formErrors.stock) setFormErrors({ ...formErrors, stock: undefined });
+            }}
+            keyboardType="number-pad"
+          />
+          {renderFieldError('stock')}
+        </View>
+
+        <View style={styles.switchContainer}>
+          <Text style={styles.inputLabel}>Producto activo</Text>
+          <Switch
+            value={formData.isActive}
+            onValueChange={(value) => setFormData({ ...formData, isActive: value })}
+            trackColor={{ false: '#D1D5DB', true: '#93C5FD' }}
+            thumbColor={formData.isActive ? '#3B82F6' : '#9CA3AF'}
+          />
+        </View>
+      </ScrollView>
+    </BottomSheet>
   );
 
   if (loading) {
@@ -554,6 +705,29 @@ const ProductsScreen = () => {
         }
       />
       {renderModal()}
+
+      {/* Confirmación al registrar / actualizar */}
+      <ConfirmDialog
+        visible={!!successDialog}
+        icon="check-circle-outline"
+        tone="success"
+        title={successDialog?.title || ''}
+        message={successDialog?.message}
+        details={successDialog?.details}
+        confirmLabel="Listo"
+        onConfirm={() => setSuccessDialog(null)}
+      />
+
+      {/* Error al guardar */}
+      <ConfirmDialog
+        visible={!!saveError}
+        icon="alert-circle-outline"
+        tone="danger"
+        title="No se pudo guardar"
+        message={saveError || undefined}
+        confirmLabel="Entendido"
+        onConfirm={() => setSaveError(null)}
+      />
     </View>
   );
 };
@@ -858,54 +1032,52 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '600',
   },
-  // Modal styles
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
+  // Bottom sheet styles
+  sheetScroll: {
+    maxHeight: 420,
   },
-  modalHeader: {
+  sheetScrollContent: {
+    paddingBottom: spacing.sm,
+  },
+  sheetActions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    gap: spacing.md,
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
+  fieldError: {
+    ...typography.caption,
+    color: colors.danger,
+    marginTop: spacing.xs,
   },
-  modalContent: {
-    flex: 1,
-    padding: 16,
+  inputError: {
+    borderColor: colors.danger,
+    backgroundColor: colors.dangerSoft,
   },
   inputContainer: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   inputLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 8,
+    ...typography.body,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
   },
   input: {
-    backgroundColor: 'white',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    padding: 12,
+    borderColor: colors.border,
+    borderRadius: radii.input,
+    padding: spacing.md,
     fontSize: 16,
-    color: '#111827',
+    color: colors.textPrimary,
+    minHeight: 48,
   },
   textArea: {
-    minHeight: 80,
+    minHeight: 84,
     textAlignVertical: 'top',
   },
   row: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
   },
   halfWidth: {
     flex: 1,
@@ -913,58 +1085,63 @@ const styles = StyleSheet.create({
   currencyInput: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
+    borderColor: colors.border,
+    borderRadius: radii.input,
     overflow: 'hidden',
+    minHeight: 48,
   },
   currencySymbol: {
-    padding: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     fontSize: 16,
-    color: '#6B7280',
-    backgroundColor: '#F3F4F6',
+    color: colors.textSecondary,
+    backgroundColor: colors.surfaceMuted,
   },
   currencyField: {
     flex: 1,
-    padding: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     fontSize: 16,
-    color: '#111827',
+    color: colors.textPrimary,
+  },
+  categoryChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
   },
   switchContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalFooter: {
-    flexDirection: 'row',
-    padding: 16,
-    backgroundColor: 'white',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    gap: 12,
+    marginBottom: spacing.sm,
   },
   footerButton: {
     flex: 1,
-    padding: 14,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: radii.button,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 48,
   },
   cancelButton: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   cancelButtonText: {
-    color: '#374151',
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   saveButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
   },
   saveButtonText: {
-    color: 'white',
-    fontWeight: '600',
+    color: colors.white,
+    fontWeight: '700',
+    fontSize: 15,
   },
   buttonDisabled: {
     opacity: 0.7,
