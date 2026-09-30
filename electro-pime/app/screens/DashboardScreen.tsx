@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  DimensionValue,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -181,6 +182,11 @@ const DashboardScreen = () => {
       actions.push({ icon: 'account-group-outline', label: 'Usuarios', route: '/users', fg: colors.danger, bg: colors.dangerSoft });
     }
 
+    // Reparte las acciones en filas parejas: hasta 4 caben en una sola fila;
+    // con más de 4 se divide en dos filas equilibradas (ej. 5 → 3 + 2).
+    const columns = actions.length <= 4 ? actions.length : Math.ceil(actions.length / 2);
+    const pillWidth = `${(100 / columns).toFixed(4)}%` as DimensionValue;
+
     return (
       <View style={styles.section}>
         <SectionHeader title="Acciones Rápidas" />
@@ -188,14 +194,16 @@ const DashboardScreen = () => {
           {actions.map((action) => (
             <TouchableOpacity
               key={action.label}
-              style={styles.actionPill}
+              style={[styles.actionPill, { width: pillWidth }]}
               onPress={() => router.push(action.route as never)}
               activeOpacity={0.85}
             >
               <View style={[styles.actionIcon, { backgroundColor: action.bg }]}>
                 <MaterialCommunityIcons name={action.icon} size={22} color={action.fg} />
               </View>
-              <Text style={styles.actionLabel}>{action.label}</Text>
+              <Text style={styles.actionLabel} numberOfLines={2} ellipsizeMode="tail">
+                {action.label}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -422,16 +430,18 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
 
-  // Acciones rápidas — grilla envolvente de 4 por fila: se muestran todas
+  // Acciones rápidas — grilla equilibrada: el ancho por píldora lo calcula
+  // el número de acciones para que ninguna fila quede huérfana
   actionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
+    marginHorizontal: -spacing.xs,
   },
   actionPill: {
-    width: '25%',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    paddingHorizontal: spacing.xs,
+    marginBottom: spacing.lg,
   },
   actionIcon: {
     width: 48,
@@ -446,6 +456,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: colors.textSecondary,
     textAlign: 'center',
+    minHeight: 32,
   },
 
   // Cards de orden
