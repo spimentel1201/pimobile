@@ -17,6 +17,8 @@ import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { api } from '../services/api';
 import { Product, CreateProductDto } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
+import StatusBadge from '../components/ui/StatusBadge';
+import { colors, radii, shadow, spacing, typography } from '../theme';
 
 const ProductsScreen = () => {
   const { user } = useAuth();
@@ -264,83 +266,110 @@ const ProductsScreen = () => {
   const renderProductCard = ({ item }: { item: Product }) => {
     const profit = item.price - item.cost;
     const profitMargin = item.cost > 0 ? ((profit / item.cost) * 100).toFixed(1) : '0';
+    const stockTone =
+      item.stock === 0
+        ? { color: colors.danger, soft: colors.dangerSoft, label: 'Sin stock' }
+        : item.stock <= 5
+          ? { color: colors.warning, soft: colors.warningSoft, label: 'Stock bajo' }
+          : { color: colors.success, soft: colors.successSoft, label: 'En stock' };
 
     return (
       <View style={[styles.productCard, !item.isActive && styles.productCardInactive]}>
-        <View style={styles.productHeader}>
-          <View style={styles.productInfo}>
-            <Text style={styles.productName}>{item.name}</Text>
-            <Text style={styles.productCategory}>{item.category}</Text>
-          </View>
-          <View style={[styles.statusBadge, { backgroundColor: item.isActive ? '#10B981' : '#9CA3AF' }]}>
-            <Text style={styles.statusBadgeText}>{item.isActive ? 'Activo' : 'Inactivo'}</Text>
-          </View>
-        </View>
+        {/* Barra de acento segun disponibilidad */}
+        <View style={[styles.cardAccent, { backgroundColor: stockTone.color }]} />
 
-        {item.description && (
-          <Text style={styles.productDescription} numberOfLines={2}>{item.description}</Text>
-        )}
+        <View style={styles.productBody}>
+          <View style={styles.productHeader}>
+            <View style={styles.productInfo}>
+              <Text style={styles.productName} numberOfLines={1}>
+                {item.name}
+              </Text>
+              <Text style={styles.productCategory} numberOfLines={1}>
+                {item.category}
+              </Text>
+            </View>
+            <StatusBadge
+              label={item.isActive ? 'Activo' : 'Inactivo'}
+              color={item.isActive ? colors.success : colors.textSecondary}
+              soft={item.isActive ? colors.successSoft : colors.surfaceMuted}
+            />
+          </View>
 
-        <View style={styles.priceRow}>
-          <View style={styles.priceItem}>
-            <Text style={styles.priceLabel}>Costo</Text>
-            <Text style={styles.priceValue}>S/ {item.cost.toFixed(2)}</Text>
-          </View>
-          <View style={styles.priceItem}>
-            <Text style={styles.priceLabel}>Precio</Text>
-            <Text style={[styles.priceValue, styles.priceValueHighlight]}>S/ {item.price.toFixed(2)}</Text>
-          </View>
-          <View style={styles.priceItem}>
-            <Text style={styles.priceLabel}>Margen</Text>
-            <Text style={[styles.priceValue, { color: profit > 0 ? '#10B981' : '#EF4444' }]}>
-              {profitMargin}%
+          {item.description && (
+            <Text style={styles.productDescription} numberOfLines={2}>
+              {item.description}
             </Text>
-          </View>
-        </View>
+          )}
 
-        <View style={styles.stockRow}>
-          <View style={styles.stockInfo}>
-            <MaterialCommunityIcons name="package-variant" size={20} color="#6B7280" />
-            <Text style={[
-              styles.stockText,
-              item.stock <= 5 && styles.stockLow,
-              item.stock === 0 && styles.stockOut
-            ]}>
-              {item.stock} unidades
-            </Text>
+          {/* Precio como dato heroe */}
+          <View style={styles.priceRow}>
+            <View style={styles.priceHero}>
+              <Text style={styles.priceHeroLabel}>Precio de venta</Text>
+              <Text style={styles.priceHeroValue}>S/ {item.price.toFixed(2)}</Text>
+            </View>
+            <View style={styles.priceMetaRow}>
+              <View style={styles.priceMetaItem}>
+                <Text style={styles.priceLabel}>Costo</Text>
+                <Text style={styles.priceValue}>S/ {item.cost.toFixed(2)}</Text>
+              </View>
+              <View style={styles.priceMetaItem}>
+                <Text style={styles.priceLabel}>Margen</Text>
+                <Text style={[styles.priceValue, { color: profit > 0 ? colors.success : colors.danger }]}>
+                  {profitMargin}%
+                </Text>
+              </View>
+              <StatusBadge
+                label={stockTone.label}
+                color={stockTone.color}
+                soft={stockTone.soft}
+              />
+            </View>
           </View>
-          <View style={styles.stockActions}>
+
+          <View style={styles.stockRow}>
+            <View style={styles.stockInfo}>
+              <MaterialCommunityIcons name="package-variant" size={18} color={colors.textSecondary} />
+              <Text style={styles.stockText}>
+                <Text style={styles.stockCount}>{item.stock}</Text> unidades en stock
+              </Text>
+            </View>
+            <View style={styles.stockActions}>
+              <TouchableOpacity
+                style={styles.stockButton}
+                onPress={() => handleUpdateStock(item, 1)}
+                activeOpacity={0.7}
+                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+              >
+                <MaterialIcons name="add" size={20} color="#3B82F6" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.stockButton, item.stock <= 0 && styles.stockButtonDisabled]}
+                onPress={() => handleUpdateStock(item, -1)}
+                disabled={item.stock <= 0}
+                activeOpacity={0.7}
+                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+              >
+                <MaterialIcons name="remove" size={20} color="#EF4444" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.productActions}>
             <TouchableOpacity
-              style={styles.stockButton}
-              onPress={() => handleUpdateStock(item, 1)}
+              style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
+              onPress={() => openEditProductModal(item)}
               activeOpacity={0.7}
             >
-              <MaterialIcons name="add" size={18} color="#3B82F6" />
+              <MaterialIcons name="edit" size={18} color="white" />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.stockButton, item.stock <= 0 && styles.stockButtonDisabled]}
-              onPress={() => handleUpdateStock(item, -1)}
-              disabled={item.stock <= 0}
+              style={[styles.actionButton, { backgroundColor: '#EF4444' }]}
+              onPress={() => handleDeleteProduct(item)}
               activeOpacity={0.7}
             >
-              <MaterialIcons name="remove" size={18} color="#EF4444" />
+              <MaterialIcons name="delete" size={18} color="white" />
             </TouchableOpacity>
           </View>
-        </View>
-
-        <View style={styles.productActions}>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
-            onPress={() => openEditProductModal(item)}
-          >
-            <MaterialIcons name="edit" size={18} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: '#EF4444' }]}
-            onPress={() => handleDeleteProduct(item)}
-          >
-            <MaterialIcons name="delete" size={18} color="white" />
-          </TouchableOpacity>
         </View>
       </View>
     );
@@ -663,92 +692,111 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   productCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: colors.surface,
+    borderRadius: radii.card,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    ...shadow,
   },
   productCardInactive: {
     opacity: 0.6,
+  },
+  cardAccent: {
+    width: 4,
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 1,
+  },
+  productBody: {
+    padding: spacing.lg,
   },
   productHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
   },
   productInfo: {
     flex: 1,
   },
   productName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+    ...typography.bodyStrong,
+    fontSize: 17,
+    color: colors.textPrimary,
   },
   productCategory: {
-    fontSize: 12,
-    color: '#6B7280',
+    ...typography.caption,
     marginTop: 2,
   },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusBadgeText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: '600',
-  },
   productDescription: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 12,
+    ...typography.body,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
   },
   priceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
+    marginBottom: spacing.md,
+    paddingVertical: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: colors.border,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.border,
+  },
+  priceHero: {
+    marginBottom: spacing.sm,
+  },
+  priceHeroLabel: {
+    ...typography.micro,
+    color: colors.textMuted,
+  },
+  priceHeroValue: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: colors.primary,
+    letterSpacing: -0.5,
+  },
+  priceMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  priceMetaItem: {
+    alignItems: 'flex-start',
+  },
+  priceLabel: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  priceValue: {
+    ...typography.bodyStrong,
+    color: colors.textPrimary,
   },
   priceItem: {
     alignItems: 'center',
-  },
-  priceLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  priceValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginTop: 4,
-  },
-  priceValueHighlight: {
-    color: '#3B82F6',
   },
   stockRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    marginBottom: spacing.md,
   },
   stockInfo: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   stockText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: '#4B5563',
+    marginLeft: spacing.sm,
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  stockCount: {
+    ...typography.bodyStrong,
+    color: colors.textPrimary,
   },
   stockLow: {
     color: '#F59E0B',
@@ -758,13 +806,15 @@ const styles = StyleSheet.create({
   },
   stockActions: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
   },
   stockButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F3F4F6',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -774,10 +824,10 @@ const styles = StyleSheet.create({
   productActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 8,
-    paddingTop: 12,
+    gap: spacing.sm,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: colors.border,
   },
   actionButton: {
     width: 36,

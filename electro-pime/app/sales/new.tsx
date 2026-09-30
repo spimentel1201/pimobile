@@ -8,16 +8,14 @@ import {
     TextInput,
     Modal,
     FlatList,
-    Alert,
     ActivityIndicator,
     SafeAreaView,
-    Platform,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { api } from '../services/api';
 import { Product, Customer, PaymentMethod, CreateSaleDto } from '../types/api';
-import SearchableSelector from '../components/SearchableSelector';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { useAuth } from '../contexts/AuthContext';
 
 interface CartItem {
@@ -39,11 +37,17 @@ export default function NewSaleScreen() {
     const router = useRouter();
     const { user } = useAuth();
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+    const [customerQuery, setCustomerQuery] = useState('');
+    const [customerMatches, setCustomerMatches] = useState<Customer[]>([]);
+    const [customerSearching, setCustomerSearching] = useState(false);
+    const [showCustomerMatches, setShowCustomerMatches] = useState(false);
     const [cart, setCart] = useState<CartItem[]>([]);
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
     const [showPaymentPicker, setShowPaymentPicker] = useState(false);
     const [showProductSearch, setShowProductSearch] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [confirmSale, setConfirmSale] = useState<{ total: number; items: number } | null>(null);
+    const [errorDialog, setErrorDialog] = useState<string | null>(null);
 
     // Product search
     const [productSearchQuery, setProductSearchQuery] = useState('');
@@ -51,10 +55,43 @@ export default function NewSaleScreen() {
     const [searching, setSearching] = useState(false);
 
     const searchCustomers = async (query: string): Promise<Customer[]> => {
-        if (query.length < 2) {
+        if (query.trim().length === 0) {
             return api.getCustomers();
         }
-        return api.searchCustomers(query);
+        return api.searchCustomers(query.trim());
+    };
+
+    // Búsqueda en vivo: a medida que se tipea se muestran las coincidencias
+    const runCustomerSearch = useCallback(async (query: string) => {
+        setCustomerSearching(true);
+        try {
+            const results = await searchCustomers(query);
+            setCustomerMatches(results);
+        } catch (error) {
+            console.error('Error searching customers:', error);
+            setCustomerMatches([]);
+        } finally {
+            setCustomerSearching(false);
+        }
+    }, []);
+
+    const handleCustomerQueryChange = useCallback((text: string) => {
+        setCustomerQuery(text);
+        setShowCustomerMatches(true);
+        runCustomerSearch(text);
+    }, [runCustomerSearch]);
+
+    const handleSelectCustomer = (customer: Customer) => {
+        setSelectedCustomer(customer);
+        setCustomerQuery('');
+        setCustomerMatches([]);
+        setShowCustomerMatches(false);
+    };
+
+    const clearCustomer = () => {
+        setSelectedCustomer(null);
+        setCustomerQuery('');
+        setCustomerMatches([]);
     };
 
     const searchProducts = useCallback(async (query: string) => {
@@ -117,7 +154,7 @@ export default function NewSaleScreen() {
 
     const handleCreateSale = async () => {
         if (cart.length === 0) {
-            Alert.alert('Error', 'Agregue al menos un producto');
+            setErrorDialog('Agrega al menos un producto antes de registrar la venta.');
             return;
         }
 
@@ -135,28 +172,17 @@ export default function NewSaleScreen() {
             };
 
             await api.createSale(saleData);
-
-            if (Platform.OS === 'web') {
-                window.alert(`¡Venta Registrada!\nTotal: S/ ${calculateTotal().toFixed(2)}`);
-                router.replace('/sales');
-            } else {
-                Alert.alert(
-                    '¡Venta Registrada!',
-                    `Total: S/ ${calculateTotal().toFixed(2)}`,
-                    [
-                        { text: 'OK', onPress: () => router.replace('/sales') }
-                    ]
-                );
-            }
+            setSaving(false);
+            setConfirmSale({ total: calculateTotal(), items: cart.length });
         } catch (err: any) {
-            Alert.alert('Error', err.message || 'No se pudo registrar la venta');
+            setErrorDialog(err.message || 'No se pudo registrar la venta');
         } finally {
             setSaving(false);
         }
     };
 
     const resetForm = () => {
-        setSelectedCustomer(null);
+        clearCustomer();
         setCart([]);
         setPaymentMethod('CASH');
     };
@@ -260,16 +286,93 @@ export default function NewSaleScreen() {
                 {/* Customer Selection */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Cliente (Opcional)</Text>
-                    <SearchableSelector<Customer>
-                        label=""
-                        placeholder="Buscar cliente..."
-                        value={selectedCustomer}
-                        onSelect={setSelectedCustomer}
-                        searchFn={searchCustomers}
-                        renderItem={(c) => c.name}
-                        renderSubtitle={(c) => `Tel: ${c.phone}`}
-                        keyExtractor={(c) => c.id}
-                    />
+
+                    {selectedCustomer ? (
+                        <View style={styles.customerSelected}>
+                            <View style={styles.customerSelectedIcon}>
+                                <MaterialCommunityIcons name="account" size={20} color="#fff" />
+                            </View>
+                            <View style={styles.customerSelectedInfo}>
+                                <Text style={styles.customerSelectedName} numberOfLines={1}>
+                                    {selectedCustomer.name}
+                                </Text>
+                                {!!selectedCustomer.phone && (
+                                    <Text style={styles.customerSelectedPhone}>
+                                        Tel: {selectedCustomer.phone}
+                                    </Text>
+                                )}
+                            </View>
+                            <TouchableOpacity
+                                style={styles.customerClearButton}
+                                onPress={clearCustomer}
+                                activeOpacity={0.7}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                                <MaterialCommunityIcons name="close" size={20} color="#6B7280" />
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        <>
+                            <View style={styles.customerSearchBar}>
+                                <MaterialCommunityIcons name="magnify" size={20} color="#9CA3AF" />
+                                <TextInput
+                                    style={styles.customerSearchInput}
+                                    placeholder="Buscar por nombre o teléfono..."
+                                    placeholderTextColor="#9CA3AF"
+                                    value={customerQuery}
+                                    onChangeText={handleCustomerQueryChange}
+                                    onFocus={() => {
+                                        setShowCustomerMatches(true);
+                                        if (customerMatches.length === 0) {
+                                            runCustomerSearch('');
+                                        }
+                                    }}
+                                    autoCorrect={false}
+                                />
+                                {customerSearching && (
+                                    <ActivityIndicator size="small" color="#3B82F6" />
+                                )}
+                            </View>
+
+                            {showCustomerMatches && (
+                                <View style={styles.customerMatches}>
+                                    {customerMatches.length === 0 && !customerSearching ? (
+                                        <Text style={styles.customerMatchesEmpty}>
+                                            {customerQuery.trim().length > 0
+                                                ? 'Sin coincidencias'
+                                                : 'No hay clientes registrados'}
+                                        </Text>
+                                    ) : (
+                                        customerMatches.slice(0, 6).map((customer) => (
+                                            <TouchableOpacity
+                                                key={customer.id}
+                                                style={styles.customerMatch}
+                                                onPress={() => handleSelectCustomer(customer)}
+                                                activeOpacity={0.7}
+                                            >
+                                                <View style={styles.customerMatchInfo}>
+                                                    <Text style={styles.customerMatchName} numberOfLines={1}>
+                                                        {customer.name}
+                                                    </Text>
+                                                    <Text style={styles.customerMatchMeta} numberOfLines={1}>
+                                                        {customer.phone}
+                                                        {customer.documentNumber
+                                                            ? ` · ${customer.documentNumber}`
+                                                            : ''}
+                                                    </Text>
+                                                </View>
+                                                <MaterialCommunityIcons
+                                                    name="chevron-right"
+                                                    size={20}
+                                                    color="#D1D5DB"
+                                                />
+                                            </TouchableOpacity>
+                                        ))
+                                    )}
+                                </View>
+                            )}
+                        </>
+                    )}
                 </View>
 
                 {/* Add Products */}
@@ -376,6 +479,54 @@ export default function NewSaleScreen() {
             </View>
 
             {renderProductSearchModal()}
+
+            {/* Confirmación de venta registrada (tipo Android) */}
+            <ConfirmDialog
+                visible={!!confirmSale}
+                icon="check-circle-outline"
+                tone="success"
+                title="Venta registrada"
+                message="La venta se guardó correctamente en el módulo de Ventas."
+                details={
+                    confirmSale
+                        ? [
+                            {
+                                label: 'Cliente',
+                                value: selectedCustomer?.name || 'Cliente General',
+                            },
+                            {
+                                label: 'Método de pago',
+                                value:
+                                    PAYMENT_METHODS.find((m) => m.value === paymentMethod)?.label ||
+                                    'Efectivo',
+                            },
+                            {
+                                label: 'Productos',
+                                value: `${confirmSale.items} ${
+                                    confirmSale.items === 1 ? 'producto' : 'productos'
+                                }`,
+                            },
+                            { label: 'Total', value: `S/ ${confirmSale.total.toFixed(2)}` },
+                        ]
+                        : []
+                }
+                confirmLabel="Ver ventas"
+                onConfirm={() => {
+                    setConfirmSale(null);
+                    router.replace('/sales');
+                }}
+            />
+
+            {/* Error al registrar */}
+            <ConfirmDialog
+                visible={!!errorDialog}
+                icon="alert-circle-outline"
+                tone="danger"
+                title="No se pudo registrar"
+                message={errorDialog || undefined}
+                confirmLabel="Entendido"
+                onConfirm={() => setErrorDialog(null)}
+            />
         </SafeAreaView>
     );
 }
@@ -392,6 +543,93 @@ const styles = StyleSheet.create({
         backgroundColor: 'white',
         padding: 16,
         marginBottom: 8,
+    },
+    customerSearchBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        backgroundColor: '#F3F4F6',
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        borderRadius: 10,
+        paddingHorizontal: 12,
+        minHeight: 48,
+    },
+    customerSearchInput: {
+        flex: 1,
+        fontSize: 16,
+        color: '#111827',
+        paddingVertical: 12,
+    },
+    customerMatches: {
+        marginTop: 8,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        borderRadius: 10,
+        backgroundColor: '#F9FAFB',
+        overflow: 'hidden',
+    },
+    customerMatch: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E7EB',
+    },
+    customerMatchInfo: {
+        flex: 1,
+    },
+    customerMatchName: {
+        fontSize: 15,
+        color: '#111827',
+        fontWeight: '600',
+    },
+    customerMatchMeta: {
+        fontSize: 12,
+        color: '#6B7280',
+        marginTop: 2,
+    },
+    customerMatchesEmpty: {
+        fontSize: 13,
+        color: '#9CA3AF',
+        padding: 14,
+        textAlign: 'center',
+    },
+    customerSelected: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        backgroundColor: '#F9FAFB',
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        borderRadius: 10,
+        padding: 12,
+    },
+    customerSelectedIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#3B82F6',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    customerSelectedInfo: {
+        flex: 1,
+    },
+    customerSelectedName: {
+        fontSize: 16,
+        color: '#111827',
+        fontWeight: '600',
+    },
+    customerSelectedPhone: {
+        fontSize: 13,
+        color: '#6B7280',
+        marginTop: 2,
+    },
+    customerClearButton: {
+        padding: 4,
     },
     sectionHeader: {
         flexDirection: 'row',
