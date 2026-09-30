@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Platform,
+  Linking,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -21,6 +22,8 @@ import { api } from '../services/api';
 import { RepairOrder, RepairOrderStatus } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
 import Toast from '../components/ui/Toast';
+import StatusBadge from '../components/ui/StatusBadge';
+import { colors, typography, radii, shadow, spacing, ORDER_STATUS } from '../theme';
 
 const STATUS_COLORS: Record<RepairOrderStatus, string> = {
   RECEIVED: '#9CA3AF',
@@ -43,6 +46,22 @@ const STATUS_LABELS: Record<RepairOrderStatus, string> = {
 };
 
 type FilterStatus = RepairOrderStatus | 'ALL';
+
+// Fecha relativa: "Hoy 12:40", "Ayer", "3 mar"
+function formatRelativeDate(iso: string): string {
+  const date = new Date(iso);
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfYesterday = new Date(startOfToday.getTime() - 24 * 60 * 60 * 1000);
+
+  const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+
+  if (date >= startOfToday) return `Hoy ${time}`;
+  if (date >= startOfYesterday) return `Ayer ${time}`;
+  const day = date.getDate();
+  const month = date.toLocaleDateString('es-ES', { month: 'short' }).replace('.', '');
+  return `${day} ${month}`;
+}
 
 const OrdersScreen = () => {
   const router = useRouter();
@@ -103,6 +122,23 @@ const OrdersScreen = () => {
     setRefreshing(true);
     fetchOrders();
   }, [fetchOrders]);
+
+  const openPhone = (phone: string) => {
+    Linking.openURL(`tel:${phone}`).catch(() =>
+      showToast('No se pudo abrir el teléfono', 'error')
+    );
+  };
+
+  const openWhatsApp = (phone: string) => {
+    const digits = phone.replace(/\D/g, '');
+    if (!digits) {
+      showToast('El cliente no tiene un teléfono válido', 'error');
+      return;
+    }
+    Linking.openURL(`https://wa.me/${digits}`).catch(() =>
+      showToast('No se pudo abrir WhatsApp', 'error')
+    );
+  };
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -383,88 +419,124 @@ const OrdersScreen = () => {
     }
   };
 
-  const renderOrderCard = ({ item }: { item: RepairOrder }) => (
-    <View style={styles.orderCard}>
-      <TouchableOpacity
-        onPress={() => router.push(`/orders/${item.id}` as never)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.orderHeader}>
-          <View>
-            <Text style={styles.orderId}>#{item.id.slice(0, 8)}</Text>
-            <Text style={styles.orderCustomer}>{item.customer?.name || item.customerName || 'Sin cliente'}</Text>
-          </View>
-          <View style={[styles.statusBadge, { backgroundColor: STATUS_COLORS[item.status] }]}>
-            <Text style={styles.statusText}>{STATUS_LABELS[item.status]}</Text>
-          </View>
-        </View>
+  const renderOrderCard = ({ item }: { item: RepairOrder }) => {
+    const status = ORDER_STATUS[item.status];
+    const firstItem = item.items?.[0];
+    const customerPhone = item.customer?.phone;
 
-        {item.items && item.items.length > 0 && (
-          <View style={styles.deviceInfo}>
-            <MaterialCommunityIcons name="devices" size={20} color="#6c757d" />
-            <Text style={styles.deviceText}>
-              <Text style={styles.deviceTextUpper}>{item.items[0].brand} {item.items[0].model}</Text> - {item.items[0].deviceType}
-            </Text>
-          </View>
-        )}
+    return (
+      <View style={styles.orderCard}>
+        {/* Barra de estado 4px del color del estado */}
+        <View style={[styles.cardAccent, { backgroundColor: status.color }]} />
 
-        <Text style={styles.orderDescription} numberOfLines={2}>
-          {item.description}
-        </Text>
-
-        <View style={styles.orderFooter}>
-          <View style={styles.technicianInfo}>
-            {(item.technician?.firstName || item.technicianName) ? (
-              <>
-                <MaterialCommunityIcons name="account-wrench" size={20} color="#3B82F6" />
-                <Text style={styles.technicianName}>
-                  {item.technician
-                    ? `${item.technician.firstName} ${item.technician.lastName}`
-                    : item.technicianName}
-                </Text>
-              </>
-            ) : (
-              <Text style={styles.noTechnician}>Sin técnico asignado</Text>
-            )}
+        <TouchableOpacity
+          onPress={() => router.push(`/orders/${item.id}` as never)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.orderHeader}>
+            <StatusBadge label={status.label} color={status.color} soft={status.soft} />
+            <Text style={styles.orderId}>#{item.id.slice(0, 8).toUpperCase()}</Text>
           </View>
-          <Text style={styles.orderDate}>
-            {new Date(item.createdAt).toLocaleDateString()}
+
+          <Text style={styles.orderCustomer} numberOfLines={1}>
+            {item.customer?.name || item.customerName || 'Sin cliente'}
           </Text>
-        </View>
-      </TouchableOpacity>
 
-      <View style={styles.orderActions}>
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
-          onPress={() => router.push(`/orders/${item.id}/edit`)}
-          activeOpacity={0.7}
-        >
-          <MaterialCommunityIcons name="pencil" size={18} color="white" />
+          {firstItem && (
+            <View style={styles.deviceInfo}>
+              <MaterialCommunityIcons name="devices" size={16} color={colors.textSecondary} />
+              <Text style={styles.deviceText} numberOfLines={1}>
+                <Text style={styles.deviceTextUpper}>
+                  {firstItem.brand} {firstItem.model}
+                </Text>{' '}
+                · {firstItem.deviceType}
+              </Text>
+            </View>
+          )}
+
+          <Text style={styles.orderDescription} numberOfLines={2}>
+            {item.description}
+          </Text>
+
+          <View style={styles.orderFooter}>
+            <View style={styles.technicianInfo}>
+              {(item.technician?.firstName || item.technicianName) ? (
+                <>
+                  <MaterialCommunityIcons name="account-wrench" size={16} color={colors.primary} />
+                  <Text style={styles.technicianName} numberOfLines={1}>
+                    {item.technician
+                      ? `${item.technician.firstName} ${item.technician.lastName}`
+                      : item.technicianName}
+                  </Text>
+                </>
+              ) : (
+                <Text style={styles.noTechnician}>Sin técnico asignado</Text>
+              )}
+            </View>
+            <Text style={styles.orderDate}>{formatRelativeDate(item.createdAt)}</Text>
+          </View>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: '#10B981' }]}
-          onPress={() => setStatusPickerOrder(item)}
-          activeOpacity={0.7}
-        >
-          <MaterialCommunityIcons name="swap-horizontal" size={18} color="white" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: '#8B5CF6' }]}
-          onPress={() => handlePrintReceipt(item)}
-          activeOpacity={0.7}
-        >
-          <MaterialCommunityIcons name="printer" size={18} color="white" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: '#EF4444' }]}
-          onPress={() => handleDeleteOrder(item.id)}
-          activeOpacity={0.7}
-        >
-          <MaterialCommunityIcons name="delete" size={18} color="white" />
-        </TouchableOpacity>
+
+        <View style={styles.orderActions}>
+          {customerPhone && (
+            <>
+              <TouchableOpacity
+                style={styles.contactButton}
+                onPress={() => openPhone(customerPhone)}
+                activeOpacity={0.7}
+                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+              >
+                <MaterialCommunityIcons name="phone" size={16} color={colors.primary} />
+                <Text style={styles.contactButtonText}>Llamar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.contactButton, styles.contactButtonWhatsapp]}
+                onPress={() => openWhatsApp(customerPhone)}
+                activeOpacity={0.7}
+                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+              >
+                <MaterialCommunityIcons name="whatsapp" size={16} color={colors.success} />
+                <Text style={[styles.contactButtonText, styles.contactButtonTextWhatsapp]}>
+                  WhatsApp
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          <View style={styles.actionSpacer} />
+
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
+            onPress={() => router.push(`/orders/${item.id}/edit`)}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons name="pencil" size={18} color="white" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: '#10B981' }]}
+            onPress={() => setStatusPickerOrder(item)}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons name="swap-horizontal" size={18} color="white" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: '#8B5CF6' }]}
+            onPress={() => handlePrintReceipt(item)}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons name="printer" size={18} color="white" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: '#EF4444' }]}
+            onPress={() => handleDeleteOrder(item.id)}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons name="delete" size={18} color="white" />
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   const renderStatusPicker = () => {
     if (!statusPickerOrder) return null;
@@ -733,97 +805,138 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   orderCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: colors.surface,
+    borderRadius: radii.card,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    ...shadow,
+  },
+  cardAccent: {
+    width: 4,
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 1,
   },
   orderHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+    paddingLeft: spacing.md + 4,
+    paddingRight: spacing.lg,
+    paddingTop: spacing.lg,
   },
   orderId: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#3B82F6',
+    ...typography.caption,
+    color: colors.textMuted,
+    fontVariant: ['tabular-nums'],
   },
   orderCustomer: {
+    ...typography.bodyStrong,
     fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginTop: 2,
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
+    color: colors.textPrimary,
+    paddingLeft: spacing.md + 4,
+    paddingRight: spacing.lg,
   },
   deviceInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginTop: spacing.xs,
+    paddingLeft: spacing.md + 4,
+    paddingRight: spacing.lg,
   },
   deviceText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: '#4B5563',
+    marginLeft: spacing.sm,
+    flex: 1,
+    ...typography.caption,
+    color: colors.textSecondary,
   },
   deviceTextUpper: {
     textTransform: 'uppercase',
   },
   orderDescription: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 12,
+    ...typography.body,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+    paddingLeft: spacing.md + 4,
+    paddingRight: spacing.lg,
   },
   orderFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 12,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: colors.border,
+    marginLeft: spacing.md + 4,
+    marginRight: spacing.lg,
   },
   technicianInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    marginRight: spacing.sm,
   },
   technicianName: {
     marginLeft: 6,
-    fontSize: 14,
-    color: '#3B82F6',
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: '600',
+    flexShrink: 1,
   },
   noTechnician: {
-    fontSize: 14,
-    color: '#9CA3AF',
+    ...typography.caption,
+    color: colors.textMuted,
     fontStyle: 'italic',
   },
   orderDate: {
-    fontSize: 12,
-    color: '#9CA3AF',
+    ...typography.caption,
+    color: colors.textMuted,
   },
   orderActions: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 12,
-    gap: 8,
+    alignItems: 'center',
+    marginTop: spacing.md,
+    paddingLeft: spacing.md + 4,
+    paddingRight: spacing.lg,
+    paddingBottom: spacing.lg,
+    gap: spacing.sm,
+  },
+  contactButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.primarySoft,
+    backgroundColor: colors.primarySoft,
+  },
+  contactButtonWhatsapp: {
+    backgroundColor: colors.successSoft,
+    borderColor: colors.successSoft,
+  },
+  contactButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  contactButtonTextWhatsapp: {
+    color: colors.success,
+  },
+  actionSpacer: {
+    flex: 1,
   },
   actionButton: {
     width: 36,
     height: 36,
-    borderRadius: 8,
+    borderRadius: radii.button,
     justifyContent: 'center',
     alignItems: 'center',
   },
