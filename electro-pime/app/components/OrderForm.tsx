@@ -294,11 +294,11 @@ export default function OrderForm({
         <View style={[styles.inputContainer, styles.halfWidth]}>
           <Text style={styles.label}>Marca <Text style={styles.required}>*</Text></Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, styles.inputUppercase]}
             placeholder="Ej: Samsung, LG..."
             placeholderTextColor="#9CA3AF"
             value={item.brand}
-            onChangeText={(text) => updateItem(index, 'brand', text)}
+            onChangeText={(text) => updateItem(index, 'brand', text.toUpperCase())}
           />
           {errors[`item_${index}_brand`] && (
             <Text style={styles.errorText}>{errors[`item_${index}_brand`]}</Text>
@@ -307,11 +307,11 @@ export default function OrderForm({
         <View style={[styles.inputContainer, styles.halfWidth]}>
           <Text style={styles.label}>Modelo <Text style={styles.required}>*</Text></Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, styles.inputUppercase]}
             placeholder="Ej: Galaxy S21..."
             placeholderTextColor="#9CA3AF"
             value={item.model}
-            onChangeText={(text) => updateItem(index, 'model', text)}
+            onChangeText={(text) => updateItem(index, 'model', text.toUpperCase())}
           />
           {errors[`item_${index}_model`] && (
             <Text style={styles.errorText}>{errors[`item_${index}_model`]}</Text>
@@ -323,11 +323,11 @@ export default function OrderForm({
       <View style={styles.inputContainer}>
         <Text style={styles.label}>Número de Serie (opcional)</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, styles.inputUppercase]}
           placeholder="Ingrese el número de serie"
           placeholderTextColor="#9CA3AF"
           value={item.serialNumber}
-          onChangeText={(text) => updateItem(index, 'serialNumber', text)}
+          onChangeText={(text) => updateItem(index, 'serialNumber', text.toUpperCase())}
         />
       </View>
 
@@ -643,6 +643,9 @@ const styles = StyleSheet.create({
   textArea: {
     minHeight: 80,
     textAlignVertical: 'top',
+  },
+  inputUppercase: {
+    textTransform: 'uppercase',
   },
   select: {
     flexDirection: 'row',

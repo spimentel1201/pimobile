@@ -412,7 +412,7 @@ const OrdersScreen = () => {
           <View style={styles.deviceInfo}>
             <MaterialCommunityIcons name="devices" size={20} color="#6c757d" />
             <Text style={styles.deviceText}>
-              {item.items[0].brand} {item.items[0].model} - {item.items[0].deviceType}
+              <Text style={styles.deviceTextUpper}>{item.items[0].brand} {item.items[0].model}</Text> - {item.items[0].deviceType}
             </Text>
           </View>
         )}
@@ -575,7 +575,9 @@ const OrdersScreen = () => {
                 <View key={index} style={styles.itemCard}>
                   <View style={styles.detailRow}>
                     <MaterialCommunityIcons name="devices" size={20} color="#6B7280" />
-                    <Text style={styles.detailText}>{item.brand} {item.model}</Text>
+                    <Text style={styles.detailText}>
+                      <Text style={styles.deviceTextUpper}>{item.brand} {item.model}</Text>
+                    </Text>
                   </View>
                   <View style={styles.detailRow}>
                     <MaterialCommunityIcons name="tag" size={20} color="#6B7280" />
@@ -584,7 +586,9 @@ const OrdersScreen = () => {
                   {item.serialNumber && (
                     <View style={styles.detailRow}>
                       <MaterialCommunityIcons name="barcode" size={20} color="#6B7280" />
-                      <Text style={styles.detailText}>{item.serialNumber}</Text>
+                      <Text style={styles.detailText}>
+                        <Text style={styles.deviceTextUpper}>{item.serialNumber}</Text>
+                      </Text>
                     </View>
                   )}
                   <View style={styles.detailRow}>
@@ -932,6 +936,9 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 14,
     color: '#4B5563',
+  },
+  deviceTextUpper: {
+    textTransform: 'uppercase',
   },
   orderDescription: {
     fontSize: 14,

@@ -174,10 +174,13 @@ export default function OrderDetailScreen() {
           <View key={item.id || index} style={[styles.section, index < (order.items?.length || 0) - 1 && styles.sectionBorder]}>
             <Text style={styles.sectionTitle}>Equipo {index + 1}</Text>
             <Text style={styles.deviceName}>
-              {item.deviceType} {item.brand} {item.model}
+              {item.deviceType}{' '}
+              <Text style={styles.deviceNameUpper}>{item.brand} {item.model}</Text>
             </Text>
             {item.serialNumber ? (
-              <Text style={styles.deviceDetails}>N° de serie: {item.serialNumber}</Text>
+              <Text style={styles.deviceDetails}>
+                N° de serie: <Text style={styles.deviceNameUpper}>{item.serialNumber}</Text>
+              </Text>
             ) : null}
             {item.accessories && item.accessories.length > 0 ? (
               <Text style={styles.deviceDetails}>Accesorios: {item.accessories.join(', ')}</Text>
@@ -299,6 +302,9 @@ const styles = StyleSheet.create({
   deviceDetails: {
     color: '#6B7280',
     marginBottom: 2,
+  },
+  deviceNameUpper: {
+    textTransform: 'uppercase',
   },
   card: {
     backgroundColor: '#FFFFFF',
