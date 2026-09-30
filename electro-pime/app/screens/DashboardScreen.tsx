@@ -225,6 +225,7 @@ const DashboardScreen = () => {
         recentOrders.map((order) => {
           const status = ORDER_STATUS[order.status];
           const device = order.items?.[0];
+          const reviewAmount = order.initialReviewCost ?? order.totalCost;
 
           return (
             <Card
@@ -235,16 +236,39 @@ const DashboardScreen = () => {
             >
               <View style={styles.orderTopRow}>
                 <StatusBadge label={status.label} color={status.color} soft={status.soft} />
-                {order.totalCost != null && (
-                  <Text style={styles.orderAmount}>S/ {order.totalCost.toFixed(2)}</Text>
+                {reviewAmount != null && (
+                  <View style={styles.orderAmountBlock}>
+                    <Text style={styles.orderAmountLabel}>Revisión</Text>
+                    <Text style={styles.orderAmount} numberOfLines={1}>
+                      S/ {reviewAmount.toFixed(2)}
+                    </Text>
+                  </View>
                 )}
               </View>
+
               <Text style={styles.orderCustomer} numberOfLines={1}>
-                {order.customerName || 'Cliente'}
+                {order.customer?.name || order.customerName || 'Cliente'}
               </Text>
+
+              {device && (
+                <View style={styles.orderDeviceRow}>
+                  <MaterialCommunityIcons
+                    name="devices"
+                    size={16}
+                    color={colors.textSecondary}
+                  />
+                  <Text style={styles.orderDevice} numberOfLines={1}>
+                    <Text style={styles.orderDeviceUpper}>
+                      {device.brand} {device.model}
+                    </Text>{' '}
+                    · {device.deviceType}
+                  </Text>
+                </View>
+              )}
+
               <View style={styles.orderBottomRow}>
-                <Text style={styles.orderDevice} numberOfLines={1}>
-                  {device ? `${device.brand || ''} ${device.model || ''}`.trim() || device.deviceType : order.description}
+                <Text style={styles.orderDescription} numberOfLines={1}>
+                  {order.description || 'Sin descripción'}
                 </Text>
                 <Text style={styles.orderDate}>{formatRelativeDate(order.createdAt)}</Text>
               </View>
@@ -435,24 +459,52 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginBottom: spacing.sm,
   },
+  orderAmountBlock: {
+    alignItems: 'flex-end',
+    flexShrink: 0,
+  },
+  orderAmountLabel: {
+    ...typography.micro,
+    color: colors.textMuted,
+  },
   orderAmount: {
     ...typography.display,
-    fontSize: 18,
-    flexShrink: 0,
-    textAlign: 'right',
+    fontSize: 22,
+    color: colors.primary,
+    letterSpacing: -0.5,
   },
   orderCustomer: {
     ...typography.bodyStrong,
+    fontSize: 17,
+    color: colors.textPrimary,
     marginBottom: spacing.xs,
+  },
+  orderDeviceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  orderDevice: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    flex: 1,
+  },
+  orderDeviceUpper: {
+    textTransform: 'uppercase',
   },
   orderBottomRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
   },
-  orderDevice: {
+  orderDescription: {
     ...typography.caption,
+    color: colors.textMuted,
     flex: 1,
   },
   orderDate: {
