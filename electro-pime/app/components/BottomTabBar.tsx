@@ -2,9 +2,9 @@ import React from 'react';
 import { View, TouchableOpacity, StyleSheet, Text } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useSegments } from 'expo-router';
-import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ComponentProps } from 'react';
-import { colors, radii, shadow, spacing } from '../theme';
+import { colors, radii, spacing } from '../theme';
 
 type TabItem = {
   name: string;
@@ -22,6 +22,7 @@ const tabs: TabItem[] = [
 export default function BottomTabBar() {
   const router = useRouter();
   const segments = useSegments();
+  const insets = useSafeAreaInsets();
 
   const isActive = (route: string) => {
     const currentPath = `/${segments.join('/')}`;
@@ -48,57 +49,56 @@ export default function BottomTabBar() {
   };
 
   return (
-    <View style={styles.container}>
-      <BlurView intensity={90} tint="light" style={styles.pill}>
-        <View style={styles.tabContainer}>
-          {tabs.map((tab) => {
-            const active = isActive(tab.route);
-            return (
-              <TouchableOpacity
-                key={tab.name}
-                style={[styles.tab, active && styles.tabActive]}
-                onPress={() => handleNavigation(tab.route)}
-                activeOpacity={0.7}
-              >
-                <MaterialCommunityIcons
-                  name={tab.icon as ComponentProps<typeof MaterialCommunityIcons>['name']}
-                  size={22}
-                  color={active ? colors.primary : colors.textSecondary}
-                />
-                <Text style={[styles.tabText, active && styles.tabTextActive]}>
-                  {tab.name}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </BlurView>
+    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
+      <View style={styles.tabContainer}>
+        {tabs.map((tab) => {
+          const active = isActive(tab.route);
+          return (
+            <TouchableOpacity
+              key={tab.name}
+              style={[styles.tab, active && styles.tabActive]}
+              onPress={() => handleNavigation(tab.route)}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons
+                name={tab.icon as ComponentProps<typeof MaterialCommunityIcons>['name']}
+                size={22}
+                color={active ? colors.primary : colors.textSecondary}
+              />
+              <Text style={[styles.tabText, active && styles.tabTextActive]}>
+                {tab.name}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // Pill flotante despegada del borde: margin 12 + radio completo
+  // Barra estática: pegada al borde inferior, ancho completo (estilo app nativa)
   container: {
     position: 'absolute',
-    bottom: spacing.md,
-    left: spacing.md,
-    right: spacing.md,
+    bottom: 0,
+    left: 0,
+    right: 0,
     zIndex: 100,
-    ...shadow,
-  },
-  pill: {
-    borderRadius: radii.pill,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
+    shadowColor: colors.textPrimary,
+    shadowOffset: { width: 0, height: -1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 8,
   },
   tabContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 6,
+    paddingHorizontal: spacing.sm,
     gap: 4,
   },
   tab: {
