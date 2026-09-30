@@ -53,8 +53,6 @@ const OrdersScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('ALL');
-  const [selectedOrder, setSelectedOrder] = useState<RepairOrder | null>(null);
-  const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [statusPickerOrder, setStatusPickerOrder] = useState<RepairOrder | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -94,16 +92,12 @@ const OrdersScreen = () => {
     }, [user, fetchOrders])
   );
 
-  // Handle deep linking / query param to open modal
+  // Handle deep linking / query param: navegar a la pantalla de detalle
   useEffect(() => {
-    if (orders.length > 0 && openOrderId) {
-      const orderToOpen = orders.find(o => o.id === openOrderId);
-      if (orderToOpen) {
-        setSelectedOrder(orderToOpen);
-        setShowOrderDetails(true);
-      }
+    if (openOrderId) {
+      router.push(`/orders/${openOrderId}` as never);
     }
-  }, [orders, openOrderId]);
+  }, [openOrderId, router]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -392,10 +386,7 @@ const OrdersScreen = () => {
   const renderOrderCard = ({ item }: { item: RepairOrder }) => (
     <View style={styles.orderCard}>
       <TouchableOpacity
-        onPress={() => {
-          setSelectedOrder(item);
-          setShowOrderDetails(true);
-        }}
+        onPress={() => router.push(`/orders/${item.id}` as never)}
         activeOpacity={0.7}
       >
         <View style={styles.orderHeader}>
@@ -527,153 +518,6 @@ const OrdersScreen = () => {
     );
   };
 
-  const renderOrderDetails = () => {
-    if (!selectedOrder) return null;
-
-    return (
-      <Modal
-        visible={showOrderDetails}
-        animationType="slide"
-        onRequestClose={() => setShowOrderDetails(false)}
-      >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Orden #{selectedOrder.id.slice(0, 8)}</Text>
-            <TouchableOpacity onPress={() => setShowOrderDetails(false)}>
-              <MaterialCommunityIcons name="close" size={24} color="#374151" />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.modalContent}>
-            {/* Status */}
-            <View style={styles.detailSection}>
-              <Text style={styles.detailSectionTitle}>Estado</Text>
-              <View style={[styles.statusBadge, { backgroundColor: STATUS_COLORS[selectedOrder.status], alignSelf: 'flex-start' }]}>
-                <Text style={styles.statusText}>{STATUS_LABELS[selectedOrder.status]}</Text>
-              </View>
-            </View>
-
-            {/* Customer */}
-            <View style={styles.detailSection}>
-              <Text style={styles.detailSectionTitle}>Cliente</Text>
-              <View style={styles.detailRow}>
-                <MaterialCommunityIcons name="account" size={20} color="#6B7280" />
-                <Text style={styles.detailText}>{selectedOrder.customer?.name || selectedOrder.customerName || 'N/A'}</Text>
-              </View>
-              {selectedOrder.customer?.phone && (
-                <View style={styles.detailRow}>
-                  <MaterialCommunityIcons name="phone" size={20} color="#6B7280" />
-                  <Text style={styles.detailText}>{selectedOrder.customer.phone}</Text>
-                </View>
-              )}
-            </View>
-
-            {/* Device(s) */}
-            <View style={styles.detailSection}>
-              <Text style={styles.detailSectionTitle}>Dispositivo(s)</Text>
-              {selectedOrder.items?.map((item, index) => (
-                <View key={index} style={styles.itemCard}>
-                  <View style={styles.detailRow}>
-                    <MaterialCommunityIcons name="devices" size={20} color="#6B7280" />
-                    <Text style={styles.detailText}>
-                      <Text style={styles.deviceTextUpper}>{item.brand} {item.model}</Text>
-                    </Text>
-                  </View>
-                  <View style={styles.detailRow}>
-                    <MaterialCommunityIcons name="tag" size={20} color="#6B7280" />
-                    <Text style={styles.detailText}>{item.deviceType}</Text>
-                  </View>
-                  {item.serialNumber && (
-                    <View style={styles.detailRow}>
-                      <MaterialCommunityIcons name="barcode" size={20} color="#6B7280" />
-                      <Text style={styles.detailText}>
-                        <Text style={styles.deviceTextUpper}>{item.serialNumber}</Text>
-                      </Text>
-                    </View>
-                  )}
-                  <View style={styles.detailRow}>
-                    <MaterialCommunityIcons name="alert-circle" size={20} color="#6B7280" />
-                    <Text style={styles.detailText}>{item.problemDescription}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-
-            {/* Technician */}
-            <View style={styles.detailSection}>
-              <Text style={styles.detailSectionTitle}>Técnico Asignado</Text>
-              {(selectedOrder.technician?.firstName || selectedOrder.technicianName) ? (
-                <View style={styles.detailRow}>
-                  <MaterialCommunityIcons name="account-wrench" size={20} color="#6B7280" />
-                  <Text style={styles.detailText}>
-                    {selectedOrder.technician
-                      ? `${selectedOrder.technician.firstName} ${selectedOrder.technician.lastName}`
-                      : selectedOrder.technicianName}
-                  </Text>
-                </View>
-              ) : (
-                <Text style={styles.noTechnician}>Sin técnico asignado</Text>
-              )}
-            </View>
-
-            {/* Description */}
-            <View style={styles.detailSection}>
-              <Text style={styles.detailSectionTitle}>Descripción</Text>
-              <Text style={styles.detailText}>{selectedOrder.description}</Text>
-            </View>
-
-            {/* Notes */}
-            {selectedOrder.notes && (
-              <View style={styles.detailSection}>
-                <Text style={styles.detailSectionTitle}>Notas</Text>
-                <Text style={styles.detailText}>{selectedOrder.notes}</Text>
-              </View>
-            )}
-
-            {/* Costs */}
-            <View style={styles.detailSection}>
-              <Text style={styles.detailSectionTitle}>Costos</Text>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Revisión inicial:</Text>
-                <Text style={styles.detailText}>S/ {selectedOrder.initialReviewCost?.toFixed(2) || '0.00'}</Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Total:</Text>
-                <Text style={[styles.detailText, styles.totalCost]}>S/ {selectedOrder.totalCost?.toFixed(2) || '0.00'}</Text>
-              </View>
-            </View>
-
-            {/* Dates */}
-            <View style={styles.detailSection}>
-              <Text style={styles.detailSectionTitle}>Fechas</Text>
-              <View style={styles.detailRow}>
-                <MaterialCommunityIcons name="calendar" size={20} color="#6B7280" />
-                <Text style={styles.detailText}>Creada: {new Date(selectedOrder.createdAt).toLocaleDateString()}</Text>
-              </View>
-              <View style={styles.detailRow}>
-                <MaterialCommunityIcons name="update" size={20} color="#6B7280" />
-                <Text style={styles.detailText}>Actualizada: {new Date(selectedOrder.updatedAt).toLocaleDateString()}</Text>
-              </View>
-            </View>
-          </ScrollView>
-
-          <View style={styles.modalFooter}>
-            <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: '#3B82F6' }]}
-              onPress={() => {
-                setShowOrderDetails(false);
-                router.push(`/orders/${selectedOrder.id}/edit`);
-              }}
-            >
-              <MaterialCommunityIcons name="pencil" size={20} color="white" />
-              <Text style={styles.modalButtonText}>Editar</Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      </Modal>
-    );
-  };
-
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -730,7 +574,6 @@ const OrdersScreen = () => {
         </View>
       </SafeAreaView>
       {renderStatusPicker()}
-      {renderOrderDetails()}
     </View>
   );
 };
@@ -1005,90 +848,6 @@ const styles = StyleSheet.create({
   emptyButtonText: {
     color: 'white',
     fontWeight: '600',
-  },
-  // Modal styles
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  modalContent: {
-    flex: 1,
-    padding: 16,
-  },
-  modalFooter: {
-    flexDirection: 'row',
-    padding: 16,
-    backgroundColor: 'white',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    gap: 12,
-  },
-  modalButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 14,
-    borderRadius: 8,
-    gap: 8,
-  },
-  modalButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  detailSection: {
-    backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  detailSectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 12,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  detailText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: '#4B5563',
-    flex: 1,
-  },
-  detailLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-    width: 120,
-  },
-  totalCost: {
-    fontWeight: '600',
-    color: '#059669',
-    fontSize: 16,
-  },
-  itemCard: {
-    backgroundColor: '#F9FAFB',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
   },
 });
 
