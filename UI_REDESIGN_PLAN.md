@@ -157,7 +157,7 @@ Cargan en paralelo con `Promise.all`; si fallan muestran `—` sin bloquear la p
 
 ## 6. Cohesión global
 
-- **BottomTabBar**: pill flotante despegada del borde (margin 12, radio completo), tab activo con fondo `primarySoft` radio 999 en ícono+label `primary`; conserva `BlurView`.
+- **BottomTabBar**: barra estática fija al borde inferior, ancho completo, fondo `surface` + borde superior `border` y safe-area inferior; tab activo con fondo `primarySoft` radio 999 en ícono+label `primary`.
 - **Migración de color**: `#3B82F6`/`#2563eb` → `primary` en las pantallas del plan (login mantiene su tema oscuro propio).
 - **Fuera de alcance**: Clientes, Productos, Reportes y Perfil quedan para después; consumirán estos mismos tokens.
 
