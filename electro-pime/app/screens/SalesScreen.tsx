@@ -239,7 +239,10 @@ const SalesScreen = () => {
   const renderSaleCard = ({ item }: { item: Sale }) => {
     const method = PAYMENT_METHOD[item.paymentMethod as PaymentMethod];
     const customer = item.customerFullName || item.customerName || 'Cliente General';
-    const itemCount = item.items?.length || 0;
+    const items = item.items || [];
+    const itemCount = items.length;
+    const firstProduct = items[0]?.productName;
+    const extraCount = itemCount > 1 ? itemCount - 1 : 0;
 
     return (
       <Card
@@ -250,7 +253,7 @@ const SalesScreen = () => {
           setShowDetails(true);
         }}
       >
-        {/* Fila 1: método de pago + monto héroe */}
+        {/* Fila 1: método de pago + monto héroe grande */}
         <View style={styles.saleTopRow}>
           {method ? (
             <StatusBadge label={method.label} color={method.color} soft={method.soft} />
@@ -261,53 +264,71 @@ const SalesScreen = () => {
               soft={colors.surfaceMuted}
             />
           )}
-          <Text style={styles.saleAmount}>S/ {item.totalAmount.toFixed(2)}</Text>
+          <Text style={styles.saleAmount} numberOfLines={1} adjustsFontSizeToFit>
+            S/ {item.totalAmount.toFixed(2)}
+          </Text>
         </View>
 
         {/* Fila 2: cliente como protagonista secundario */}
-        <Text style={styles.saleCustomer} numberOfLines={1}>
-          {customer}
-        </Text>
+        <View style={styles.saleCustomerRow}>
+          <MaterialCommunityIcons name="account-outline" size={18} color={colors.textSecondary} />
+          <Text style={styles.saleCustomer} numberOfLines={1}>
+            {customer}
+          </Text>
+        </View>
 
-        {/* Fila 3: ID + productos en caption */}
-        <Text style={styles.saleMetaRow} numberOfLines={1}>
-          #{item.id.slice(0, 8).toUpperCase()}
-          {' · '}
-          {itemCount} {itemCount === 1 ? 'producto' : 'productos'}
-        </Text>
+        {/* Fila 3: resumen de productos, legible de un vistazo */}
+        <View style={styles.saleProductsRow}>
+          <MaterialCommunityIcons name="package-variant-closed" size={16} color={colors.textSecondary} />
+          <Text style={styles.saleProductsText} numberOfLines={1}>
+            {itemCount === 0
+              ? 'Sin productos'
+              : firstProduct
+                ? `${itemCount} ${itemCount === 1 ? 'producto' : 'productos'} · ${firstProduct}${extraCount > 0 ? ` +${extraCount} más` : ''}`
+                : `${itemCount} ${itemCount === 1 ? 'producto' : 'productos'}`}
+          </Text>
+        </View>
 
-        {/* Fila 4: fecha relativa + acciones de contorno etiquetadas */}
-        <View style={styles.saleBottomRow}>
+        {/* Fila 4: vendedor + fecha relativa, texto claro */}
+        <View style={styles.saleMetaRow}>
+          <View style={styles.saleSellerRow}>
+            <MaterialCommunityIcons name="account-wrench-outline" size={14} color={colors.textMuted} />
+            <Text style={styles.saleSellerText} numberOfLines={1}>
+              {item.userName ? `Atendido por ${item.userName}` : 'Sin vendedor'}
+            </Text>
+          </View>
           <View style={styles.saleDate}>
             <MaterialCommunityIcons name="clock-outline" size={14} color={colors.textMuted} />
             <Text style={styles.saleDateText} numberOfLines={1}>
               {formatRelativeDate(item.createdAt)}
             </Text>
           </View>
-          <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => handleViewInvoice(item)}
-              hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
-              activeOpacity={0.85}
-            >
-              <MaterialCommunityIcons
-                name="file-document-outline"
-                size={16}
-                color={colors.textSecondary}
-              />
-              <Text style={styles.actionButtonText}>Detalle</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => handlePrintTicket(item)}
-              hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
-              activeOpacity={0.85}
-            >
-              <MaterialCommunityIcons name="printer" size={16} color={colors.textSecondary} />
-              <Text style={styles.actionButtonText}>Ticket</Text>
-            </TouchableOpacity>
-          </View>
+        </View>
+
+        {/* Fila 5: acciones de contorno etiquetadas */}
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => handleViewInvoice(item)}
+            hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
+            activeOpacity={0.85}
+          >
+            <MaterialCommunityIcons
+              name="file-document-outline"
+              size={18}
+              color={colors.textSecondary}
+            />
+            <Text style={styles.actionButtonText}>Detalle</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => handlePrintTicket(item)}
+            hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
+            activeOpacity={0.85}
+          >
+            <MaterialCommunityIcons name="printer" size={18} color={colors.textSecondary} />
+            <Text style={styles.actionButtonText}>Ticket</Text>
+          </TouchableOpacity>
         </View>
       </Card>
     );
@@ -919,51 +940,82 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: spacing.sm,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
   saleAmount: {
     ...typography.display,
-    fontSize: 24,
+    fontSize: 30,
     color: colors.success,
     letterSpacing: -0.5,
+    flexShrink: 1,
+    textAlign: 'right',
+  },
+  saleCustomerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
   },
   saleCustomer: {
     ...typography.bodyStrong,
-    marginBottom: spacing.xs,
+    fontSize: 18,
+    color: colors.textPrimary,
+    flexShrink: 1,
+  },
+  saleProductsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  saleProductsText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    flexShrink: 1,
   },
   saleMetaRow: {
-    ...typography.caption,
-    marginBottom: spacing.md,
-  },
-  saleBottomRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  saleSellerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    flexShrink: 1,
+  },
+  saleSellerText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    flexShrink: 1,
   },
   saleDate: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    flexShrink: 1,
+    flexShrink: 0,
   },
   saleDateText: {
     ...typography.caption,
+    color: colors.textMuted,
     flexShrink: 1,
   },
   actionButtons: {
     flexDirection: 'row',
-    gap: spacing.xs,
+    gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md,
   },
   actionButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
-    height: 36,
+    gap: 6,
+    height: 44,
     paddingHorizontal: spacing.sm + 2,
     borderRadius: radii.button,
     borderWidth: 1,
@@ -971,7 +1023,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   actionButtonText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
     color: colors.textSecondary,
   },
