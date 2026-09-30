@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type AppHeaderProps = {
   title: string;
@@ -11,6 +12,7 @@ type AppHeaderProps = {
 
 export default function AppHeader({ title, showBackButton = false, headerRight }: AppHeaderProps) {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -19,7 +21,7 @@ export default function AppHeader({ title, showBackButton = false, headerRight }
   };
 
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
       <View style={styles.headerContent}>
         {showBackButton && (
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
@@ -40,7 +42,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
-    paddingTop: 50,
     paddingBottom: 16,
     paddingHorizontal: 16,
   },
