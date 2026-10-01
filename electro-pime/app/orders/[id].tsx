@@ -20,6 +20,7 @@ import { colors, radii, shadow, spacing, typography, ORDER_STATUS } from '../the
 import StatusBadge from '../components/ui/StatusBadge';
 import Toast from '../components/ui/Toast';
 import { printOrderReceipt } from '../utils/orderReceipt';
+import { NO_PHONE_MESSAGE, buildTelUrl, buildWhatsAppUrl } from '../utils/phone';
 
 const statusIcons: Record<RepairOrderStatus, keyof typeof MaterialCommunityIcons.glyphMap> = {
   RECEIVED: 'clock-outline',
@@ -284,14 +285,24 @@ export default function OrderDetailScreen() {
     : order.technicianName;
   const customerCode = `CL-${(order.customer?.id || order.customerId || '------').slice(0, 4).toUpperCase()}`;
 
+  /** Abre el marcador con prefijo internacional: tel:+51<numero> */
   const openPhone = (phone: string) => {
-    Linking.openURL(`tel:${phone}`).catch(() => showToast('No se pudo abrir el teléfono', 'error'));
+    const url = buildTelUrl(phone);
+    if (!url) {
+      showToast(NO_PHONE_MESSAGE, 'error');
+      return;
+    }
+    Linking.openURL(url).catch(() => showToast('No se pudo abrir el teléfono', 'error'));
   };
+
+  /** Abre WhatsApp en wa.me/51<numero> */
   const openWhatsApp = (phone: string) => {
-    const digits = phone.replace(/\D/g, '');
-    Linking.openURL(`https://wa.me/${digits}`).catch(() =>
-      showToast('No se pudo abrir WhatsApp', 'error')
-    );
+    const url = buildWhatsAppUrl(phone);
+    if (!url) {
+      showToast(NO_PHONE_MESSAGE, 'error');
+      return;
+    }
+    Linking.openURL(url).catch(() => showToast('No se pudo abrir WhatsApp', 'error'));
   };
 
   return (

@@ -23,6 +23,7 @@ import { RepairOrder, RepairOrderStatus } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
 import Toast from '../components/ui/Toast';
 import StatusBadge from '../components/ui/StatusBadge';
+import { NO_PHONE_MESSAGE, buildTelUrl, buildWhatsAppUrl } from '../utils/phone';
 import { colors, typography, radii, shadow, spacing, ORDER_STATUS } from '../theme';
 
 const STATUS_COLORS: Record<RepairOrderStatus, string> = {
@@ -123,21 +124,24 @@ const OrdersScreen = () => {
     fetchOrders();
   }, [fetchOrders]);
 
+  /** Abre el marcador con prefijo internacional: tel:+51<numero> */
   const openPhone = (phone: string) => {
-    Linking.openURL(`tel:${phone}`).catch(() =>
-      showToast('No se pudo abrir el teléfono', 'error')
-    );
-  };
-
-  const openWhatsApp = (phone: string) => {
-    const digits = phone.replace(/\D/g, '');
-    if (!digits) {
-      showToast('El cliente no tiene un teléfono válido', 'error');
+    const url = buildTelUrl(phone);
+    if (!url) {
+      showToast(NO_PHONE_MESSAGE, 'error');
       return;
     }
-    Linking.openURL(`https://wa.me/${digits}`).catch(() =>
-      showToast('No se pudo abrir WhatsApp', 'error')
-    );
+    Linking.openURL(url).catch(() => showToast('No se pudo abrir el teléfono', 'error'));
+  };
+
+  /** Abre WhatsApp en wa.me/51<numero> */
+  const openWhatsApp = (phone: string) => {
+    const url = buildWhatsAppUrl(phone);
+    if (!url) {
+      showToast(NO_PHONE_MESSAGE, 'error');
+      return;
+    }
+    Linking.openURL(url).catch(() => showToast('No se pudo abrir WhatsApp', 'error'));
   };
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
