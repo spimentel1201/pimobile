@@ -36,7 +36,13 @@ export const generateOrderReceiptHTML = (order: RepairOrder) => {
 
   const money = (value: number) => `S/ ${value.toFixed(2)}`;
 
-  const generatedAt = format(new Date(), "d 'de' MMMM, yyyy 'a las' HH:mm", { locale: es });
+  // La fecha que importa es la de REGISTRO de la orden, no la de impresión.
+  const registeredAt = (() => {
+    const parsed = new Date(order.createdAt);
+    return Number.isNaN(parsed.getTime())
+      ? 'Fecha no disponible'
+      : format(parsed, "d 'de' MMMM 'de' yyyy", { locale: es });
+  })();
 
   const customerName = order.customer?.name || order.customerName || 'Cliente General';
   const technicianName = order.technician
@@ -123,9 +129,12 @@ export const generateOrderReceiptHTML = (order: RepairOrder) => {
             .acc-row { margin-top: 2px; }
             .badge-acc { font-size: 8px; background: #F3F4F6; padding: 1px 5px; border-radius: 3px; border: 1px solid #E5E7EB; display: inline-block; margin-right: 3px; color: #4B5563; }
 
-            .signature-section { display: flex; justify-content: flex-end; }
-            .signature-line { border-top: 1px solid #9CA3AF; width: 170px; text-align: center; padding-top: 4px; }
+            /* Espacio real para rubrar: aire por encima de la linea. */
+            .signature-section { display: flex; justify-content: space-between; align-items: flex-end; padding-top: 34px; }
+            .signature-block { width: 46%; }
+            .signature-line { border-top: 1px solid #6B7280; text-align: center; padding-top: 4px; }
             .signature-text { font-size: 8px; font-weight: 700; color: #6B7280; text-transform: uppercase; }
+            .signature-space { width: 46%; }
           </style>
         </head>
         <body>
@@ -140,7 +149,7 @@ export const generateOrderReceiptHTML = (order: RepairOrder) => {
           <div class="doc-head">
             <div class="doc-head-text">
               <h1 class="doc-title">Orden #${escapeHtml(order.id.slice(0, 8).toUpperCase())}</h1>
-              <div class="doc-subtitle">Generado el ${escapeHtml(generatedAt)}</div>
+              <div class="doc-subtitle">Registrado el ${escapeHtml(registeredAt)}</div>
             </div>
             <span class="header-badge">Orden en Reparación</span>
           </div>
@@ -194,7 +203,7 @@ export const generateOrderReceiptHTML = (order: RepairOrder) => {
                 <span>Revisión inicial${totalUnits > 1 ? ` (${totalUnits} equipos)` : ''}</span>
                 <span>${money(reviewCost)}</span>
               </div>
-              ${hasItemPrices ? `<div class="summary-row"><span>Equipos y repuestos</span><span>${money(itemsTotal)}</span></div>` : ''}
+              ${hasItemPrices ? `<div class="summary-row"><span>Equipos (precio estimado)</span><span>${money(itemsTotal)}</span></div>` : ''}
               <div class="total-row">
                 <span>Total General</span>
                 <span>${money(totalCost)}</span>
@@ -203,8 +212,11 @@ export const generateOrderReceiptHTML = (order: RepairOrder) => {
           </div>
 
           <div class="signature-section">
-            <div class="signature-line">
-              <div class="signature-text">Firma del Cliente</div>
+            <div class="signature-space"></div>
+            <div class="signature-block">
+              <div class="signature-line">
+                <div class="signature-text">Firma del Cliente</div>
+              </div>
             </div>
           </div>
         </body>
