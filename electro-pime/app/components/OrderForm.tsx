@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import SearchableSelector from './SearchableSelector';
+import ScanLabelButton from './ScanLabelButton';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -250,6 +251,15 @@ export default function OrderForm({
           </TouchableOpacity>
         )}
       </View>
+
+      <ScanLabelButton
+        onScanned={(fields) => {
+          if (fields.deviceType) updateItem(index, 'deviceType', fields.deviceType);
+          if (fields.brand) updateItem(index, 'brand', fields.brand);
+          if (fields.model) updateItem(index, 'model', fields.model);
+          if (fields.serialNumber) updateItem(index, 'serialNumber', fields.serialNumber);
+        }}
+      />
 
       {/* Device Type */}
       <View style={styles.inputContainer}>

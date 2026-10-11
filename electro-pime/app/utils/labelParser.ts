@@ -1,0 +1,115 @@
+export interface ParsedLabel {
+  deviceType: string;
+  brand: string;
+  model: string;
+  serialNumber: string;
+  confidence: 'high' | 'medium' | 'low';
+  rawText: string;
+}
+
+const DEVICE_TYPES = [
+  'Laptop', 'TV LED', 'TV LCD', 'Control Remoto', 'Equipo de sonido',
+  'Equipo Portátil', 'DVD', 'Licuadora', 'Olla arrocera', 'Horno Microondas',
+  'Radio', 'Consola', 'Ventilador', 'PC de Escritorio', 'Celular', 'Tablet',
+  'Monitor', 'Impresora', 'Otro',
+];
+
+// Keywords found on labels mapped to DEVICE_TYPES entries.
+const DEVICE_KEYWORDS: Array<{ keywords: string[]; type: string }> = [
+  { keywords: ['TV LED', 'LED TV', 'SMART TV LED'], type: 'TV LED' },
+  { keywords: ['TV LCD', 'LCD TV'], type: 'TV LCD' },
+  { keywords: ['TELEVISOR', 'TELEVISION', 'TV'], type: 'TV LED' },
+  { keywords: ['LAPTOP', 'NOTEBOOK', 'PORTATIL'], type: 'Laptop' },
+  { keywords: ['CELULAR', 'SMARTPHONE', 'MOBILE PHONE', 'TELEFONO'], type: 'Celular' },
+  { keywords: ['TABLET'], type: 'Tablet' },
+  { keywords: ['MONITOR'], type: 'Monitor' },
+  { keywords: ['IMPRESORA', 'PRINTER'], type: 'Impresora' },
+  { keywords: ['LICUADORA', 'BLENDER'], type: 'Licuadora' },
+  { keywords: ['MICROONDAS', 'MICROWAVE'], type: 'Horno Microondas' },
+  { keywords: ['OLLA ARROCERA', 'RICE COOKER'], type: 'Olla arrocera' },
+  { keywords: ['VENTILADOR', 'FAN'], type: 'Ventilador' },
+  { keywords: ['CONSOLA', 'CONSOLE', 'PLAYSTATION', 'XBOX', 'NINTENDO'], type: 'Consola' },
+  { keywords: ['RADIO'], type: 'Radio' },
+  { keywords: ['DVD', 'BLU-RAY', 'BLURAY'], type: 'DVD' },
+  { keywords: ['EQUIPO DE SONIDO', 'SOUND SYSTEM', 'PARLANTE', 'SPEAKER', 'AUDIO'], type: 'Equipo de sonido' },
+  { keywords: ['CONTROL REMOTO', 'REMOTE CONTROL', 'REMOTE'], type: 'Control Remoto' },
+  { keywords: ['PC', 'DESKTOP', 'COMPUTADORA'], type: 'PC de Escritorio' },
+];
+
+const KNOWN_BRANDS = [
+  'SAMSUNG', 'LG', 'SONY', 'PANASONIC', 'PHILIPS', 'TCL', 'HISENSE',
+  'APPLE', 'HUAWEI', 'XIAOMI', 'MOTOROLA', 'LENOVO', 'HP', 'DELL',
+  'ASUS', 'ACER', 'TOSHIBA', 'SHARP', 'DAEWOO', 'MABE', 'OSTER',
+  'ELECTROLUX', 'BOSCH', 'INDURAMA', 'RECORD', 'IMACO',
+];
+
+const MODEL_PATTERNS = [
+  /(?:MODEL(?:O)?|MOD\.?|MODELO\s*N?[O°]?|TIPO|TYPE|REF)(?:\s*N?[O°.]?|\s*:)?\s*([A-Z0-9][A-Z0-9\-\/\. ]{1,30})/i,
+];
+
+const SERIAL_PATTERNS = [
+  /(?:S\/?N\.?|SER\.?\s*N?[O°.]?|SERIAL(?:\s*N?[O°.]?)?|N[UÚ]MERO\s+DE\s+SERIE|NS)\s*[:#\-]?\s*([A-Z0-9][A-Z0-9\-\/]{3,30})/i,
+];
+
+function cleanToken(value: string): string {
+  return value.replace(/[^A-Z0-9\-\/\. ]/gi, ' ').replace(/\s+/g, ' ').trim().toUpperCase().slice(0, 40);
+}
+
+function detectDeviceType(text: string): string {
+  const upper = text.toUpperCase();
+  for (const entry of DEVICE_KEYWORDS) {
+    if (entry.keywords.some((k) => upper.includes(k))) {
+      if (DEVICE_TYPES.includes(entry.type)) return entry.type;
+    }
+  }
+  return '';
+}
+
+function detectBrand(lines: string[]): string {
+  for (const line of lines) {
+    const upper = line.toUpperCase();
+    for (const brand of KNOWN_BRANDS) {
+      if (upper === brand || upper.startsWith(brand + ' ') || upper.endsWith(' ' + brand) || upper.includes(' ' + brand + ' ')) {
+        return brand;
+      }
+    }
+  }
+  for (const line of lines) {
+    const upper = line.toUpperCase();
+    for (const brand of KNOWN_BRANDS) {
+      if (upper.includes(brand)) return brand;
+    }
+  }
+  return '';
+}
+
+function matchFirst(patterns: RegExp[], lines: string[], exclude?: string): string {
+  for (const line of lines) {
+    for (const pattern of patterns) {
+      const match = line.match(pattern);
+      if (match?.[1]) {
+        const cleaned = cleanToken(match[1]);
+        if (cleaned && cleaned !== exclude && cleaned.length >= 2) return cleaned;
+      }
+    }
+  }
+  return '';
+}
+
+export function parseLabelText(rawText: string): ParsedLabel {
+  const lines = rawText
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  const deviceType = detectDeviceType(rawText);
+  const brand = detectBrand(lines);
+  const model = matchFirst(MODEL_PATTERNS, lines, brand);
+  const serialNumber = matchFirst(SERIAL_PATTERNS, lines);
+
+  const hits = [deviceType, brand, model, serialNumber].filter((v) => v).length;
+  const confidence: ParsedLabel['confidence'] =
+    hits >= 3 ? 'high' : hits === 2 ? 'medium' : 'low';
+
+  return { deviceType, brand, model, serialNumber, confidence, rawText };
+}
