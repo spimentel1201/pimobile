@@ -338,20 +338,18 @@ const OrdersScreen = () => {
                 onPress={() => openPhone(customerPhone)}
                 activeOpacity={0.7}
                 hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                accessibilityLabel="Llamar"
               >
-                <MaterialCommunityIcons name="phone" size={16} color={colors.primary} />
-                <Text style={styles.contactButtonText}>Llamar</Text>
+                <MaterialCommunityIcons name="phone" size={18} color={colors.primary} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.contactButton, styles.contactButtonWhatsapp]}
                 onPress={() => openWhatsApp(customerPhone)}
                 activeOpacity={0.7}
                 hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                accessibilityLabel="WhatsApp"
               >
-                <MaterialCommunityIcons name="whatsapp" size={16} color={colors.success} />
-                <Text style={[styles.contactButtonText, styles.contactButtonTextWhatsapp]}>
-                  WhatsApp
-                </Text>
+                <MaterialCommunityIcons name="whatsapp" size={18} color={colors.success} />
               </TouchableOpacity>
             </>
           )}
@@ -761,11 +759,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   contactButton: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: 6,
+    justifyContent: 'center',
+    width: 40,
+    height: 40,
     borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: colors.primarySoft,
@@ -774,14 +771,6 @@ const styles = StyleSheet.create({
   contactButtonWhatsapp: {
     backgroundColor: colors.successSoft,
     borderColor: colors.successSoft,
-  },
-  contactButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  contactButtonTextWhatsapp: {
-    color: colors.success,
   },
   actionSpacer: {
     flex: 1,
