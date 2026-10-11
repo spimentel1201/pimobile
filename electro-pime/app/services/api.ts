@@ -22,7 +22,7 @@ import {
   Device,
 } from '../types/api';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+const API_BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? '').replace(/\/+$/, '');
 
 if (!API_BASE_URL) {
   console.error('Missing EXPO_PUBLIC_API_URL environment variable');
