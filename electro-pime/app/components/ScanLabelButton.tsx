@@ -80,9 +80,44 @@ export default function ScanLabelButton({ onScanned }: ScanLabelButtonProps) {
     Alert.alert('Etiqueta escaneada', message, buttons);
   };
 
+  const recognizeOnWeb = async (uri: string): Promise<string> => {
+    // require instead of dynamic import (tsconfig target). Only runs on web.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { createWorker } = require('tesseract.js');
+    const worker = await createWorker('eng');
+    try {
+      const { data } = await worker.recognize(uri);
+      return data?.text ?? '';
+    } finally {
+      await worker.terminate();
+    }
+  };
+
+  const handleScanWeb = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1,
+      allowsEditing: false,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+
+    const uri = result.assets[0].uri;
+    setLoading(true);
+    try {
+      const text = await recognizeOnWeb(uri);
+      const parsed = parseLabelText(text);
+      applyFields(parsed);
+      showResult(parsed, uri);
+    } catch {
+      Alert.alert('Error', 'No se pudo leer la imagen. Reintenta con una foto más nítida.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleScan = async () => {
     if (Platform.OS === 'web') {
-      Alert.alert('No disponible', 'El escaneo funciona solo en Android/iOS.');
+      await handleScanWeb();
       return;
     }
 
