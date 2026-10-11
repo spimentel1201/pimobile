@@ -31,7 +31,7 @@ import SectionHeader from '../components/ui/SectionHeader';
 import EmptyState from '../components/ui/EmptyState';
 import SegmentedControl from '../components/ui/SegmentedControl';
 
-type StatusFilter = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
+type StatusFilter = 'PENDING' | 'APPROVED' | 'REJECTED' | 'INVOICED' | 'ALL';
 
 interface QuoteItem {
   description: string;
@@ -263,6 +263,39 @@ const BudgetsScreen = () => {
       setShowQuoteDetails(false);
     } catch (err: any) {
       Alert.alert('Error', err.message || 'No se pudo rechazar el presupuesto');
+    }
+  };
+
+  const handleBillQuote = (quote: Quote) => {
+    const methods = [
+      { value: 'YAPE', label: 'Yape' },
+      { value: 'PLIN', label: 'Plin' },
+      { value: 'CASH', label: 'Efectivo' },
+      { value: 'TRANSFER', label: 'Transferencia' },
+      { value: 'CREDIT_CARD', label: 'Tarjeta crédito' },
+      { value: 'DEBIT_CARD', label: 'Tarjeta débito' },
+    ];
+    Alert.alert(
+      'Facturar presupuesto',
+      `Total S/ ${quote.totalAmount?.toFixed(2) || '0.00'}. Elige el método de pago:`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        ...methods.map((m) => ({
+          text: m.label,
+          onPress: () => confirmBillQuote(quote, m.value),
+        })),
+      ]
+    );
+  };
+
+  const confirmBillQuote = async (quote: Quote, paymentMethod: string) => {
+    try {
+      await api.convertQuoteToSale(quote.id, paymentMethod);
+      Alert.alert('Venta registrada', 'El presupuesto se facturó correctamente.');
+      fetchQuotes();
+      setShowQuoteDetails(false);
+    } catch (err: any) {
+      Alert.alert('No se pudo facturar', err.message || 'Intenta de nuevo');
     }
   };
 
@@ -618,7 +651,7 @@ const BudgetsScreen = () => {
             )}
           </ScrollView>
 
-          {/* Footer fijo: Aprobar / Rechazar */}
+          {/* Footer fijo: acciones según estado */}
           <View style={styles.detailFooter}>
             {selectedQuote.status === 'PENDING' && (
               <>
@@ -640,14 +673,26 @@ const BudgetsScreen = () => {
                 </TouchableOpacity>
               </>
             )}
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => handleDeleteQuote(selectedQuote)}
-              activeOpacity={0.85}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <MaterialCommunityIcons name="trash-can-outline" size={22} color={colors.danger} />
-            </TouchableOpacity>
+            {selectedQuote.status === 'APPROVED' && (
+              <TouchableOpacity
+                style={styles.approveButton}
+                onPress={() => handleBillQuote(selectedQuote)}
+                activeOpacity={0.85}
+              >
+                <MaterialCommunityIcons name="cash-register" size={20} color={colors.white} />
+                <Text style={styles.approveButtonText}>Facturar</Text>
+              </TouchableOpacity>
+            )}
+            {selectedQuote.status !== 'INVOICED' && (
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() => handleDeleteQuote(selectedQuote)}
+                activeOpacity={0.85}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <MaterialCommunityIcons name="trash-can-outline" size={22} color={colors.danger} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </Modal>
@@ -682,6 +727,8 @@ const BudgetsScreen = () => {
       ? 'aprobados'
       : statusFilter === 'REJECTED'
       ? 'rechazados'
+      : statusFilter === 'INVOICED'
+      ? 'facturados'
       : '';
 
   return (
@@ -703,6 +750,7 @@ const BudgetsScreen = () => {
           options={[
             { value: 'PENDING', label: 'Pendientes' },
             { value: 'APPROVED', label: 'Aprobados' },
+            { value: 'INVOICED', label: 'Facturados' },
             { value: 'REJECTED', label: 'Rechazados' },
             { value: 'ALL', label: 'Todos' },
           ]}

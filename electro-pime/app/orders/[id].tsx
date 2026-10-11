@@ -502,6 +502,27 @@ export default function OrderDetailScreen() {
             {order.totalCost != null ? `S/ ${order.totalCost.toFixed(2)}` : '—'}
           </Text>
         </View>
+        {order.billing && (
+          <>
+            <View style={styles.costDivider} />
+            <View style={styles.costRow}>
+              <Text style={styles.costLabel}>Cobrado</Text>
+              <Text style={styles.costValue}>S/ {order.billing.billedTotal.toFixed(2)}</Text>
+            </View>
+            <View style={styles.costRow}>
+              <Text style={styles.costLabel}>Ventas vinculadas</Text>
+              <Text style={styles.costValue}>{order.billing.salesCount}</Text>
+            </View>
+            <View style={styles.costRow}>
+              <Text style={styles.costLabel}>Presupuestos vigentes</Text>
+              <Text style={styles.costValue}>{order.billing.billableQuotes}</Text>
+            </View>
+            <View style={styles.costRow}>
+              <Text style={styles.costLabel}>Presupuestos pendientes</Text>
+              <Text style={styles.costValue}>{order.billing.pendingQuotes}</Text>
+            </View>
+          </>
+        )}
       </SectionCard>
 
       {/* Fechas */}

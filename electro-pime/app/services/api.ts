@@ -322,13 +322,26 @@ class ApiService {
     });
   }
 
+  async convertQuoteToSale(id: string, paymentMethod: string): Promise<Sale> {
+    return this.request<Sale>(`/quotes/${id}/convert-to-sale`, {
+      method: 'POST',
+      body: JSON.stringify({ paymentMethod }),
+    });
+  }
+
+  async getSalesByRepairOrder(repairOrderId: string): Promise<Sale[]> {
+    return this.request<Sale[]>(`/sales?repairOrderId=${repairOrderId}`);
+  }
+
   // ==================== Sales ====================
 
-  async getSales(params?: { startDate?: string; endDate?: string; customerId?: string }): Promise<Sale[]> {
+  async getSales(params?: { startDate?: string; endDate?: string; customerId?: string; quoteId?: string; repairOrderId?: string }): Promise<Sale[]> {
     const query = new URLSearchParams();
     if (params?.startDate) query.append('startDate', params.startDate);
     if (params?.endDate) query.append('endDate', params.endDate);
     if (params?.customerId) query.append('customerId', params.customerId);
+    if (params?.quoteId) query.append('quoteId', params.quoteId);
+    if (params?.repairOrderId) query.append('repairOrderId', params.repairOrderId);
     const queryString = query.toString();
     return this.request<Sale[]>(`/sales${queryString ? `?${queryString}` : ''}`);
   }

@@ -134,13 +134,14 @@ export const ORDER_STATUS: Record<RepairOrderStatus, StatusStyle> = {
 // Estados de presupuestos (quotes)
 // ============================================================
 
-export type QuoteStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED';
+export type QuoteStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED' | 'INVOICED';
 
 export const QUOTE_STATUS: Record<QuoteStatus, StatusStyle> = {
   PENDING: { label: 'Pendiente', color: colors.warning, soft: colors.warningSoft },
   APPROVED: { label: 'Aprobado', color: colors.success, soft: colors.successSoft },
   REJECTED: { label: 'Rechazado', color: colors.danger, soft: colors.dangerSoft },
   EXPIRED: { label: 'Expirado', color: colors.textMuted, soft: colors.surfaceMuted },
+  INVOICED: { label: 'Facturado', color: colors.textSecondary, soft: colors.surfaceMuted },
 };
 
 // ============================================================

@@ -241,7 +241,7 @@ const SalesScreen = () => {
     const customer = item.customerFullName || item.customerName || 'Cliente General';
     const items = item.items || [];
     const itemCount = items.length;
-    const firstProduct = items[0]?.productName;
+    const firstProduct = items[0]?.productName || items[0]?.description;
     const extraCount = itemCount > 1 ? itemCount - 1 : 0;
 
     return (
@@ -386,7 +386,7 @@ const SalesScreen = () => {
               {selectedSale.items?.map((item, index) => (
                 <View key={index} style={styles.productItem}>
                   <View style={styles.productInfo}>
-                    <Text style={styles.productName}>{item.productName || 'Producto'}</Text>
+                    <Text style={styles.productName}>{item.productName || item.description || 'Producto'}</Text>
                     <Text style={styles.productQty}>
                       {item.quantity} x S/ {item.price.toFixed(2)}
                     </Text>
@@ -499,7 +499,7 @@ const SalesScreen = () => {
                 </View>
                 {selectedSale.items?.map((item, index) => (
                   <View key={index} style={styles.ticketItemRow}>
-                    <Text style={[styles.ticketItemName, { fontSize: fs(12) }]}>{item.productName || 'Producto'}</Text>
+                    <Text style={[styles.ticketItemName, { fontSize: fs(12) }]}>{item.productName || item.description || 'Producto'}</Text>
                     <Text style={[styles.ticketItemQty, { fontSize: fs(12) }]}>{item.quantity}</Text>
                     <Text style={[styles.ticketItemPrice, { fontSize: fs(12) }]}>{item.price.toFixed(2)}</Text>
                     <Text style={[styles.ticketItemSubtotal, { fontSize: fs(12) }]}>{(item.quantity * item.price).toFixed(2)}</Text>
@@ -641,7 +641,7 @@ const SalesScreen = () => {
                   <span class="sku">SKU-${item.productId?.slice(0, 4).toUpperCase() || 'GEN'}</span>
                   <span class="badge">REPUESTO</span>
                 </div>
-                <div class="product-name">${item.productName || 'Producto'}</div>
+                <div class="product-name">${item.productName || item.description || 'Producto'}</div>
                 <div class="price-row">
                   <span>${item.quantity} x S/ ${item.price.toFixed(2)}</span>
                   <span class="price-total">S/ ${(item.quantity * item.price).toFixed(2)}</span>

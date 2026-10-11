@@ -135,6 +135,14 @@ export interface RepairOrder {
   updatedAt: string;
   endDate?: string;
   items: RepairOrderItem[];
+  billing?: RepairOrderBilling;
+}
+
+export interface RepairOrderBilling {
+  billedTotal: number;
+  salesCount: number;
+  billableQuotes: number;
+  pendingQuotes: number;
 }
 
 export interface CreateRepairOrderDto {
@@ -151,7 +159,7 @@ export interface UpdateRepairOrderDto extends Partial<CreateRepairOrderDto> { }
 
 // ==================== Quote ====================
 
-export type QuoteStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED';
+export type QuoteStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED' | 'INVOICED';
 
 export interface QuoteItem {
   id?: string;
@@ -200,9 +208,10 @@ export type PaymentMethod = 'CASH' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'TRANSFER' |
 export interface SaleItem {
   id?: string;
   saleId?: string;
-  productId: string;
+  productId?: string;
   productName?: string;
   productDescription?: string;
+  description?: string;
   quantity: number;
   price: number;
 }
@@ -216,9 +225,17 @@ export interface Sale {
   userName: string;
   totalAmount: number;
   paymentMethod: PaymentMethod;
+  quoteId?: string | null;
+  repairOrderId?: string | null;
   createdAt: string;
   updatedAt: string;
   items: SaleItem[];
+}
+
+export interface ConvertQuoteToSaleResult {
+  quoteId: string;
+  repairOrderId?: string | null;
+  saleId: string;
 }
 
 export interface CreateSaleDto {
