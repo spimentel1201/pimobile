@@ -44,11 +44,11 @@ const KNOWN_BRANDS = [
 ];
 
 const MODEL_PATTERNS = [
-  /(?:MODEL(?:O)?|MOD\.?|MODELO\s*N?[O°]?|TIPO|TYPE|REF)(?:\s*N?[O°.]?|\s*:)?\s*([A-Z0-9][A-Z0-9\-\/\. ]{1,30})/i,
+  /(?:MODEL(?:O)?(?:\s*\([^)]{0,20}\))?|MOD\.?|TIPO|TYPE|REF)(?:\s*N[O°.]?)?\s*[:.\-]?\s*([A-Z0-9][A-Z0-9\-\/\. ]{1,30})/i,
 ];
 
 const SERIAL_PATTERNS = [
-  /(?:S\/?N\.?|SER\.?\s*N?[O°.]?|SERIAL(?:\s*N?[O°.]?)?|N[UÚ]MERO\s+DE\s+SERIE|NS)\s*[:#\-]?\s*([A-Z0-9][A-Z0-9\-\/]{3,30})/i,
+  /(?:S\/?N\.?|N[OUÚ]?[\.°]?\s*S[EÉ]RIE|SERIAL(?:\.?\s*N[O°.]?)?|SER\.?\s*N[O°.]?|N[UÚ]MERO\s+DE\s+SERIE|S[EÉ]RIE|NS)\s*(?:N[°ºO]?\.?\s*)?[:#.\-]?\s*([A-Z0-9][A-Z0-9\-\/\. ]{3,30})/i,
 ];
 
 function cleanToken(value: string): string {
@@ -88,7 +88,8 @@ function matchFirst(patterns: RegExp[], lines: string[], exclude?: string): stri
     for (const pattern of patterns) {
       const match = line.match(pattern);
       if (match?.[1]) {
-        const cleaned = cleanToken(match[1]);
+        // Trailing " - XX" variants (ej. "55LA8600 - SA") se cortan.
+        const cleaned = cleanToken(match[1]).split(' - ')[0].trim();
         if (cleaned && cleaned !== exclude && cleaned.length >= 2) return cleaned;
       }
     }
