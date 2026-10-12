@@ -43,13 +43,35 @@ const KNOWN_BRANDS = [
   'ELECTROLUX', 'BOSCH', 'INDURAMA', 'RECORD', 'IMACO',
 ];
 
-const MODEL_PATTERNS = [
-  /(?:MODEL(?:O)?(?:\s*\([^)]{0,20}\))?|MOD\.?|TIPO|TYPE|REF)(?:\s*N[O°.]?)?\s*[:.\-]?\s*([A-Z0-9][A-Z0-9\-\/\. ]{1,30})/i,
+// `[:.\-]*` (no `?`): etiquetas Samsung usan "No.:" — un solo `?` consume "." y el ":" posterior rompe el capture.
+// Dos pasadas: MODEL/MOD tienen prioridad; TIPO/TYPE/REF solo se usan si no hay línea MODEL
+// (evita que "TIPO: REFRIGERADOR" contamine el modelo cuando existe "MODELO: XXX").
+const MODEL_PRIMARY = [
+  /\b(?:MODEL(?:O)?|MOD)\b(?:\s*\([^)]{0,20}\))?(?:\s*N[O°.]?)?\s*[:.\-]*\s*([A-Z0-9][A-Z0-9\-\/\. ]{1,30})/i,
+];
+
+const MODEL_FALLBACK = [
+  /\b(?:TIPO|TYPE|REF)\b(?:\s*\([^)]{0,20}\))?(?:\s*N[O°.]?)?\s*[:.\-]*\s*([A-Z0-9][A-Z0-9\-\/\. ]{1,30})/i,
 ];
 
 const SERIAL_PATTERNS = [
-  /(?:S\/?N\.?|N[OUÚ]?[\.°]?\s*S[EÉ]RIE|SERIAL(?:\.?\s*N[O°.]?)?|SER\.?\s*N[O°.]?|N[UÚ]MERO\s+DE\s+SERIE|S[EÉ]RIE|NS)\s*(?:N[°ºO]?\.?\s*)?[:#.\-]?\s*([A-Z0-9][A-Z0-9\-\/\. ]{3,30})/i,
+  // `\bNS\b`: "Contains" contiene "ns" — sin boundaries daba falso positivo tipo "TX FCC ID".
+  /(?:S\/?N\.?|N[OUÚ]?[\.°]?\s*S[EÉ]RIE|SERIAL(?:\.?\s*N[O°.]?)?|SER\.?\s*N[O°.]?|N[UÚ]MERO\s+DE\s+SERIE|S[EÉ]RIE|\bNS\b)\s*(?:N[°ºO]?\.?\s*)?[:#.\-]*\s*([A-Z0-9][A-Z0-9\-\/\. ]{3,30})/i,
 ];
+
+// Palabras que no deben devolverse como modelo/serie aunque el regex enganche
+// (ej. "Model Code:" → "CODE", "Model / MODELE NO:" → "MODELE NO").
+const FIELD_JUNK = new Set([
+  'CODE', 'CODIGO', 'NO', 'N', 'NUMBER', 'NUM', 'NUMERO', 'VERSION', 'VER',
+  'TYPE', 'TYPES', 'MODEL', 'MODELS', 'MODELO', 'MODELOS', 'TIPO', 'REF',
+  'SERIE', 'SERIAL', 'S/N', 'SN', 'POWER', 'ENERGIA', 'ENERGY',
+  // Nombres de dispositivo que no deben devolverse como modelo (ej. "TIPO: REFRIGERADOR" sin línea MODELO).
+  'REFRIGERADOR', 'REFRIGERADORES', 'NEVERA', 'CONGELADOR', 'LAVADORA', 'SECADORA',
+  'MICROONDAS', 'HORNO', 'LICUADORA', 'VENTILADOR', 'RADIO', 'MONITOR', 'IMPRESORA',
+  'CELULAR', 'TABLET', 'LAPTOP', 'NOTEBOOK', 'CONSOLA', 'DVD', 'BLURAY', 'BLU-RAY',
+  'SOUND', 'SONIDO', 'AUDIO', 'PARLANTE', 'SPEAKER', 'CONTROL', 'REMOTO', 'TELEVISOR',
+  'TELEVISION', 'SMARTPHONE', 'COMPUTADORA', 'DESKTOP', 'PC', 'TV', 'LED', 'LCD',
+]);
 
 function cleanToken(value: string): string {
   return value.replace(/[^A-Z0-9\-\/\. ]/gi, ' ').replace(/\s+/g, ' ').trim().toUpperCase().slice(0, 40);
@@ -90,7 +112,7 @@ function matchFirst(patterns: RegExp[], lines: string[], exclude?: string): stri
       if (match?.[1]) {
         // Trailing " - XX" variants (ej. "55LA8600 - SA") se cortan.
         const cleaned = cleanToken(match[1]).split(' - ')[0].trim();
-        if (cleaned && cleaned !== exclude && cleaned.length >= 2) return cleaned;
+        if (cleaned && !FIELD_JUNK.has(cleaned) && cleaned !== exclude && cleaned.length >= 2) return cleaned;
       }
     }
   }
@@ -105,7 +127,8 @@ export function parseLabelText(rawText: string): ParsedLabel {
 
   const deviceType = detectDeviceType(rawText);
   const brand = detectBrand(lines);
-  const model = matchFirst(MODEL_PATTERNS, lines, brand);
+  const model =
+    matchFirst(MODEL_PRIMARY, lines, brand) || matchFirst(MODEL_FALLBACK, lines, brand);
   const serialNumber = matchFirst(SERIAL_PATTERNS, lines);
 
   const hits = [deviceType, brand, model, serialNumber].filter((v) => v).length;
