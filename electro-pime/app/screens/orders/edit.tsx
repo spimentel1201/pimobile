@@ -4,12 +4,13 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../../services/api';
 import OrderForm from '../../components/OrderForm';
 import Toast from '../../components/ui/Toast';
-import { RepairOrder, CreateRepairOrderDto, UpdateRepairOrderDto } from '../../types/api';
+import { RepairOrder, CreateRepairOrderDto, UpdateRepairOrderDto, Quote } from '../../types/api';
 
 export default function EditOrderScreen() {
     const router = useRouter();
     const { id } = useLocalSearchParams<{ id: string }>();
     const [order, setOrder] = useState<RepairOrder | null>(null);
+    const [paidQuote, setPaidQuote] = useState<Quote | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -31,6 +32,15 @@ export default function EditOrderScreen() {
             setError(err.message || 'Error al cargar la orden');
         } finally {
             setLoading(false);
+        }
+
+        // Presupuesto pagado de la orden: bloquea ítems y costo de revisión (409)
+        try {
+            const quotes = await api.getQuotesByRepairOrder(id!);
+            setPaidQuote(quotes.find((q) => q.status === 'PAID') ?? null);
+        } catch (err) {
+            console.error('Error fetching quotes for order:', err);
+            setPaidQuote(null);
         }
     };
 
@@ -85,6 +95,8 @@ export default function EditOrderScreen() {
                 initialData={order}
                 onSubmit={handleSubmit}
                 loading={saving}
+                moneyLocked={!!paidQuote}
+                paidTotal={paidQuote?.totalAmount}
             />
         </View>
     );

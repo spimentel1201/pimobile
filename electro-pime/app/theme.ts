@@ -1,4 +1,5 @@
 import { TextStyle, ViewStyle, StyleSheet } from 'react-native';
+import type { QuoteStatus } from './types/api';
 
 // ============================================================
 // Design Tokens — "Taller Eléctrico Premium"
@@ -134,15 +135,29 @@ export const ORDER_STATUS: Record<RepairOrderStatus, StatusStyle> = {
 // Estados de presupuestos (quotes)
 // ============================================================
 
-export type QuoteStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED' | 'INVOICED';
+export type { QuoteStatus };
 
 export const QUOTE_STATUS: Record<QuoteStatus, StatusStyle> = {
   PENDING: { label: 'Pendiente', color: colors.warning, soft: colors.warningSoft },
-  APPROVED: { label: 'Aprobado', color: colors.success, soft: colors.successSoft },
+  // Aprobado usa primario (no success) para distinguirlo de "Pagado"
+  APPROVED: { label: 'Aprobado', color: colors.primary, soft: colors.primarySoft },
+  PAID: { label: 'Pagado', color: colors.success, soft: colors.successSoft },
   REJECTED: { label: 'Rechazado', color: colors.danger, soft: colors.dangerSoft },
   EXPIRED: { label: 'Expirado', color: colors.textMuted, soft: colors.surfaceMuted },
-  INVOICED: { label: 'Facturado', color: colors.textSecondary, soft: colors.surfaceMuted },
+  INVOICED: { label: 'Facturado', color: colors.violet, soft: colors.violetSoft },
 };
+
+/**
+ * Guard: devuelve el estilo del estado o uno neutro con el código crudo.
+ * Evita `QUOTE_STATUS[x].label === undefined` cuando el backend agrega un
+ * estado que este cliente aún no conoce.
+ */
+export const quoteStatusStyle = (status: string): StatusStyle =>
+  (QUOTE_STATUS as Record<string, StatusStyle | undefined>)[status] ?? {
+    label: status || 'Desconocido',
+    color: colors.textMuted,
+    soft: colors.surfaceMuted,
+  };
 
 // ============================================================
 // Métodos de pago — dot de color por método (Ventas)

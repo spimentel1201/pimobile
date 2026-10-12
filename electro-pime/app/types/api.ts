@@ -159,7 +159,19 @@ export interface UpdateRepairOrderDto extends Partial<CreateRepairOrderDto> { }
 
 // ==================== Quote ====================
 
-export type QuoteStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED' | 'INVOICED';
+/**
+ * Máquina de estados del presupuesto (ciclo quote-to-cash del backend):
+ * PENDING → APPROVED → (PAID) → INVOICED.
+ * REJECTED/EXPIRED reabren a PENDING. PAID/INVOICED son estados de cobro
+ * (documento congelado). Fuente única: `prisma/schema.prisma`.
+ */
+export type QuoteStatus =
+  | 'PENDING'
+  | 'APPROVED'
+  | 'PAID'
+  | 'REJECTED'
+  | 'EXPIRED'
+  | 'INVOICED';
 
 export interface QuoteItem {
   id?: string;

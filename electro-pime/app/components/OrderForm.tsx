@@ -26,6 +26,14 @@ interface OrderFormProps {
   initialData?: RepairOrder;
   onSubmit: (data: CreateRepairOrderDto) => Promise<void>;
   loading: boolean;
+  /**
+   * true cuando la orden tiene un presupuesto PAID: el backend responde 409
+   * si llegan `items` o `initialReviewCost`, así que quedan congelados en UI
+   * y se omiten del payload. Notas, descripción y estado siguen editables.
+   */
+  moneyLocked?: boolean;
+  /** Total del presupuesto pagado, para el aviso de bloqueo. */
+  paidTotal?: number;
 }
 
 const STATUS_OPTIONS: { value: RepairOrderStatus; label: string }[] = [
@@ -84,6 +92,8 @@ export default function OrderForm({
   initialData,
   onSubmit,
   loading,
+  moneyLocked = false,
+  paidTotal,
 }: OrderFormProps) {
   const { user } = useAuth();
 
@@ -160,10 +170,12 @@ export default function OrderForm({
   };
 
   const addItem = () => {
+    if (moneyLocked) return;
     setItems(prev => [...prev, createEmptyItem()]);
   };
 
   const removeItem = (index: number) => {
+    if (moneyLocked) return;
     if (items.length === 1) {
       Alert.alert('Error', 'Debe haber al menos un equipo');
       return;
@@ -183,21 +195,24 @@ export default function OrderForm({
       newErrors.description = 'Ingrese una descripción general';
     }
 
-    // Validate each item
-    items.forEach((item, index) => {
-      if (!item.deviceType) {
-        newErrors[`item_${index}_deviceType`] = 'Seleccione el tipo de dispositivo';
-      }
-      if (!item.brand.trim()) {
-        newErrors[`item_${index}_brand`] = 'Ingrese la marca';
-      }
-      if (!item.model.trim()) {
-        newErrors[`item_${index}_model`] = 'Ingrese el modelo';
-      }
-      if (!item.problemDescription.trim()) {
-        newErrors[`item_${index}_problemDescription`] = 'Describa el problema';
-      }
-    });
+    // Validate each item (con presupuesto pagado los ítems están congelados:
+    // se validan como vienen, no se pueden corregir desde este formulario)
+    if (!moneyLocked) {
+      items.forEach((item, index) => {
+        if (!item.deviceType) {
+          newErrors[`item_${index}_deviceType`] = 'Seleccione el tipo de dispositivo';
+        }
+        if (!item.brand.trim()) {
+          newErrors[`item_${index}_brand`] = 'Ingrese la marca';
+        }
+        if (!item.model.trim()) {
+          newErrors[`item_${index}_model`] = 'Ingrese el modelo';
+        }
+        if (!item.problemDescription.trim()) {
+          newErrors[`item_${index}_problemDescription`] = 'Describa el problema';
+        }
+      });
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -228,6 +243,14 @@ export default function OrderForm({
         price: item.price ? parseFloat(item.price) : undefined,
       })),
     };
+
+    // Presupuesto pagado: el backend responde 409 si el PATCH trae `items`
+    // o `initialReviewCost`, por eso se omiten del payload (no se modificaron).
+    if (moneyLocked) {
+      const patchable = orderData as Partial<CreateRepairOrderDto>;
+      delete patchable.items;
+      delete patchable.initialReviewCost;
+    }
 
     try {
       await onSubmit(orderData);
@@ -445,13 +468,26 @@ export default function OrderForm({
       </View>
 
       {/* Items Section */}
-      <View style={styles.section}>
+      {moneyLocked && (
+        <View style={styles.lockBanner}>
+          <MaterialCommunityIcons name="lock-outline" size={18} color="#B45309" />
+          <Text style={styles.lockBannerText}>
+            Bloqueado: la orden tiene un presupuesto pagado
+            {paidTotal != null ? ` (total fijado S/ ${paidTotal.toFixed(2)})` : ''}. Los equipos y
+            el costo de revisión no se pueden modificar.
+          </Text>
+        </View>
+      )}
+
+      <View style={[styles.section, moneyLocked && styles.sectionLocked]} pointerEvents={moneyLocked ? 'none' : 'auto'}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Equipos a Reparar</Text>
-          <TouchableOpacity style={styles.addButton} onPress={addItem}>
-            <MaterialCommunityIcons name="plus" size={20} color="#fff" />
-            <Text style={styles.addButtonText}>Agregar</Text>
-          </TouchableOpacity>
+          {!moneyLocked && (
+            <TouchableOpacity style={styles.addButton} onPress={addItem}>
+              <MaterialCommunityIcons name="plus" size={20} color="#fff" />
+              <Text style={styles.addButtonText}>Agregar</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {items.map((item, index) => renderItemForm(item, index))}
@@ -491,7 +527,7 @@ export default function OrderForm({
         </View>
 
         {/* Initial Review Cost */}
-        <View style={styles.inputContainer}>
+        <View style={[styles.inputContainer, moneyLocked && styles.sectionLocked]}>
           <Text style={styles.label}>Costo de revisión inicial</Text>
           <TextInput
             style={styles.input}
@@ -500,6 +536,7 @@ export default function OrderForm({
             value={initialReviewCost}
             onChangeText={setInitialReviewCost}
             keyboardType="decimal-pad"
+            editable={!moneyLocked}
           />
         </View>
 
@@ -622,6 +659,27 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  sectionLocked: {
+    opacity: 0.6,
+  },
+  lockBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#FFFAEB',
+    borderWidth: 1,
+    borderColor: '#FEC84B',
+    borderRadius: 12,
+    padding: 12,
+    marginHorizontal: 16,
+    marginTop: 16,
+  },
+  lockBannerText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#B54708',
   },
   sectionTitle: {
     fontSize: 18,

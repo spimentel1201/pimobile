@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../services/api';
-import { RepairOrder, RepairOrderStatus } from '../types/api';
+import { RepairOrder, RepairOrderStatus, Quote } from '../types/api';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -135,6 +135,7 @@ export default function OrderDetailScreen() {
   const [updating, setUpdating] = useState(false);
   const [showStatusActions, setShowStatusActions] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [orderQuotes, setOrderQuotes] = useState<Quote[]>([]);
   const [lastPaymentAt, setLastPaymentAt] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -167,6 +168,15 @@ export default function OrderDetailScreen() {
         }
       } else {
         setLastPaymentAt(null);
+      }
+
+      // Presupuestos de la orden (badge de bloqueo por presupuesto pagado)
+      try {
+        const quotes = await api.getQuotesByRepairOrder(id);
+        setOrderQuotes(quotes);
+      } catch (quoteErr) {
+        console.error('Error loading order quotes:', quoteErr);
+        setOrderQuotes([]);
       }
     } catch (err) {
       console.error('Error loading order:', err);
@@ -292,6 +302,8 @@ export default function OrderDetailScreen() {
   }
 
   const status = ORDER_STATUS[order.status];
+  const paidQuote = orderQuotes.find((q) => q.status === 'PAID');
+  const invoicedQuote = orderQuotes.find((q) => q.status === 'INVOICED');
   const items = order.items || [];
   const totalUnits = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
   const firstItem = items[0];
@@ -341,6 +353,18 @@ export default function OrderDetailScreen() {
         </View>
         <StatusBadge label={status.label} color={status.color} soft={status.soft} />
       </View>
+
+      {/* Reflejo del ciclo quote-to-cash sobre la orden */}
+      {paidQuote && (
+        <Callout tone="success" icon="cash-multiple" title="Presupuesto pagado">
+          {`Total fijado en S/ ${paidQuote.totalAmount.toFixed(2)}. Los equipos y el costo de revisión quedan bloqueados.`}
+        </Callout>
+      )}
+      {!paidQuote && invoicedQuote && (
+        <Callout tone="success" icon="receipt" title="Presupuesto facturado">
+          {`Venta ya generada por S/ ${invoicedQuote.totalAmount.toFixed(2)}.`}
+        </Callout>
+      )}
 
       {/* Dispositivo en servicio */}
       <SectionCard

@@ -13,6 +13,7 @@ import {
   UpdateRepairOrderDto,
   RepairOrderStatus,
   Quote,
+  QuoteStatus,
   CreateQuoteDto,
   Sale,
   CreateSaleDto,
@@ -48,6 +49,25 @@ if (!API_BASE_URL) {
 }
 
 
+/**
+ * Error de API que conserva el código HTTP.
+ *
+ * El backend responde con `message` legible en español; el `status` permite
+ * distinguir reglas de negocio (409 → re-sincronizar, la API es la fuente de
+ * verdad) de permisos (403 → el endpoint es solo ADMIN) o errores de datos (400).
+ */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly statusText: string;
+
+  constructor(status: number, statusText: string, message: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.statusText = statusText;
+  }
+}
+
 class ApiService {
   private token: string | null = null;
 
@@ -77,7 +97,11 @@ class ApiService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Error ${response.status}: ${response.statusText}`);
+        throw new ApiError(
+          response.status,
+          response.statusText,
+          errorData.message || `Error ${response.status}: ${response.statusText}`,
+        );
       }
 
       // For DELETE requests that might not return content
@@ -322,7 +346,7 @@ class ApiService {
     });
   }
 
-  async updateQuoteStatus(id: string, status: string): Promise<Quote> {
+  async updateQuoteStatus(id: string, status: QuoteStatus): Promise<Quote> {
     return this.request<Quote>(`/quotes/${id}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
@@ -341,6 +365,11 @@ class ApiService {
     });
   }
 
+  /**
+   * Factura un presupuesto (quote-to-cash): crea la venta, pasa el quote a
+   * INVOICED y cierra la orden. Acepta estado APPROVED o PAID.
+   * Endpoint real del backend (`POST /quotes/:id/convert-to-sale`, solo ADMIN).
+   */
   async convertQuoteToSale(id: string, paymentMethod: string): Promise<Sale> {
     return this.request<Sale>(`/quotes/${id}/convert-to-sale`, {
       method: 'POST',

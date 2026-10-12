@@ -9,6 +9,7 @@ import {
   radii,
   ORDER_STATUS,
   QUOTE_STATUS,
+  quoteStatusStyle,
   PAYMENT_METHOD,
   RepairOrderStatus,
   QuoteStatus,
@@ -79,9 +80,12 @@ export default function ShowcaseScreen() {
         <SectionHeader title="StatusBadge · Presupuestos y Pagos" />
         <Card style={styles.block}>
           <View style={styles.wrapRow}>
-            {quoteStatuses.map((s) => (
-              <StatusBadge key={s} label={QUOTE_STATUS[s].label} color={QUOTE_STATUS[s].color} soft={QUOTE_STATUS[s].soft} />
-            ))}
+            {quoteStatuses.map((s) => {
+              const style = quoteStatusStyle(s);
+              return (
+                <StatusBadge key={s} label={style.label} color={style.color} soft={style.soft} />
+              );
+            })}
             {paymentMethods.map((m) => (
               <StatusBadge key={m} label={PAYMENT_METHOD[m].label} color={PAYMENT_METHOD[m].color} soft={PAYMENT_METHOD[m].soft} />
             ))}

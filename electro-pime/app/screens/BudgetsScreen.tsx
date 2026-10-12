@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,14 @@ import {
   FlatList,
   Modal,
   ScrollView,
-  Alert,
   ActivityIndicator,
   RefreshControl,
   TextInput,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { api } from '../services/api';
-import { Quote, CreateQuoteDto, Customer, RepairOrder } from '../types/api';
+import type { ComponentProps } from 'react';
+import { api, ApiError } from '../services/api';
+import { Quote, QuoteStatus, CreateQuoteDto, Customer, RepairOrder } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
 import SearchableSelector from '../components/SearchableSelector';
 import {
@@ -23,7 +23,7 @@ import {
   spacing,
   radii,
   shadow,
-  QUOTE_STATUS,
+  quoteStatusStyle,
   PAYMENT_METHOD,
   type PaymentMethod,
 } from '../theme';
@@ -32,8 +32,37 @@ import StatusBadge from '../components/ui/StatusBadge';
 import SectionHeader from '../components/ui/SectionHeader';
 import EmptyState from '../components/ui/EmptyState';
 import SegmentedControl from '../components/ui/SegmentedControl';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Toast from '../components/ui/Toast';
 
-type StatusFilter = 'PENDING' | 'APPROVED' | 'REJECTED' | 'INVOICED' | 'ALL';
+type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
+
+type StatusFilter = QuoteStatus | 'ALL';
+
+/** Estados que el backend congela (PATCH/DELETE responden 409). */
+const LOCKED_STATUSES: QuoteStatus[] = ['PAID', 'INVOICED'];
+
+/** Confirmación pendiente (una sola a la vez) para acciones destructivas. */
+interface ConfirmRequest {
+  title: string;
+  message?: string;
+  details?: { label: string; value: string }[];
+  icon?: IconName;
+  tone?: 'success' | 'danger' | 'primary';
+  confirmLabel?: string;
+  onConfirm: () => Promise<void>;
+}
+
+/**
+ * Traduce un error de la API a un mensaje para el usuario:
+ * 403 = endpoint solo-ADMIN, 409 = regla de negocio (mensaje del backend).
+ */
+const toUserMessage = (err: unknown, fallback: string): string => {
+  if (err instanceof ApiError && err.status === 403) {
+    return 'No tienes permisos: esta acción es solo para administradores.';
+  }
+  return (err as Error)?.message || fallback;
+};
 
 interface QuoteItem {
   description: string;
@@ -86,6 +115,21 @@ const BudgetsScreen = () => {
   const [billMethod, setBillMethod] = useState<PaymentMethod>('YAPE');
   const [billing, setBilling] = useState(false);
 
+  // Confirmación genérica (pago / eliminar / revertir) y feedback rápido
+  const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // El backend expone las mutaciones de quotes solo a ADMIN (@Roles)
+  const isAdmin = user?.role === 'ADMIN';
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ message, type });
+    toastTimer.current = setTimeout(() => setToast(null), 3000);
+  };
+
   // Form state for new quote
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedRepairOrder, setSelectedRepairOrder] = useState<RepairOrder | null>(null);
@@ -103,10 +147,11 @@ const BudgetsScreen = () => {
   const [newItemPrice, setNewItemPrice] = useState('');
   const [itemError, setItemError] = useState<string | null>(null);
 
-  const fetchQuotes = useCallback(async () => {
+  /** Carga la lista y la devuelve, para que los handlers puedan re-sincronizar. */
+  const fetchQuotes = useCallback(async (): Promise<Quote[]> => {
     if (!user) {
       setLoading(false);
-      return;
+      return [];
     }
 
     try {
@@ -116,14 +161,20 @@ const BudgetsScreen = () => {
         .slice()
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setQuotes(sorted);
+      return sorted;
     } catch (err: any) {
       console.error('Error fetching quotes:', err);
       setError(err.message || 'Error al cargar los presupuestos');
+      return [];
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, [user]);
+
+  useEffect(() => () => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -221,7 +272,7 @@ const BudgetsScreen = () => {
     if (Object.keys(errors).length > 0) return;
 
     if (!user?.id) {
-      Alert.alert('Error', 'No se pudo identificar al técnico');
+      showToast('No se pudo identificar al técnico', 'error');
       return;
     }
 
@@ -246,31 +297,111 @@ const BudgetsScreen = () => {
       setShowNewQuoteModal(false);
       resetForm();
       fetchQuotes();
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'No se pudo crear el presupuesto');
+    } catch (err: unknown) {
+      showToast(toUserMessage(err, 'No se pudo crear el presupuesto'), 'error');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleApproveQuote = async (quote: Quote) => {
+  /** Tras un error, re-sincroniza y mantiene el modal apuntando al quote vivo. */
+  const syncSelected = (fresh: Quote[], id: string) => {
+    const updated = fresh.find((q) => q.id === id);
+    if (updated) setSelectedQuote(updated);
+    else setShowQuoteDetails(false);
+  };
+
+  /**
+   * Transición de estado vía PATCH /quotes/:id/status (endpoint dedicado).
+   * Ante cualquier error re-sincroniza la lista: el backend es la fuente de
+   * verdad de la máquina de estados (409 = transición no permitida).
+   */
+  const applyTransition = async (
+    quote: Quote,
+    next: QuoteStatus,
+    successMessage: string,
+    errorMessage: string,
+  ) => {
     try {
-      await api.updateQuote(quote.id, { status: 'APPROVED' });
-      fetchQuotes();
+      await api.updateQuoteStatus(quote.id, next);
       setShowQuoteDetails(false);
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'No se pudo aprobar el presupuesto');
+      await fetchQuotes();
+      showToast(successMessage);
+    } catch (err) {
+      syncSelected(await fetchQuotes(), quote.id);
+      showToast(toUserMessage(err, errorMessage), 'error');
     }
   };
 
-  const handleRejectQuote = async (quote: Quote) => {
-    try {
-      await api.updateQuote(quote.id, { status: 'REJECTED' });
-      fetchQuotes();
-      setShowQuoteDetails(false);
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'No se pudo rechazar el presupuesto');
-    }
+  const handleApproveQuote = (quote: Quote) =>
+    applyTransition(quote, 'APPROVED', 'Presupuesto aprobado', 'No se pudo aprobar el presupuesto');
+
+  const handleRejectQuote = (quote: Quote) =>
+    applyTransition(quote, 'REJECTED', 'Presupuesto rechazado', 'No se pudo rechazar el presupuesto');
+
+  const handleExpireQuote = (quote: Quote) =>
+    applyTransition(quote, 'EXPIRED', 'Presupuesto expirado', 'No se pudo expirar el presupuesto');
+
+  const handleReopenQuote = (quote: Quote) =>
+    applyTransition(
+      quote,
+      'PENDING',
+      'Presupuesto reabierto — vuelve a pendiente',
+      'No se pudo reabrir el presupuesto',
+    );
+
+  /** Reversión ADMIN: deshacer una aprobación (APPROVED → PENDING). */
+  const handleRevertApproval = (quote: Quote) =>
+    applyTransition(
+      quote,
+      'PENDING',
+      'Aprobación revertida — presupuesto pendiente',
+      'No se pudo revertir la aprobación',
+    );
+
+  /** Reversión ADMIN: deshacer un pago (PAID → APPROVED). */
+  const handleRevertPayment = (quote: Quote) =>
+    applyTransition(
+      quote,
+      'APPROVED',
+      'Pago revertido — presupuesto aprobado',
+      'No se pudo revertir el pago',
+    );
+
+  /**
+   * APPROVED → PAID: además de cambiar el estado, el backend cierra la
+   * orden (COMPLETED + endDate) y fija totalCost al total del presupuesto.
+   * Se confirma antes porque es irreversible sin rol ADMIN.
+   */
+  const askMarkPaid = (quote: Quote) => {
+    const total = `S/ ${quote.totalAmount?.toFixed(2) || '0.00'}`;
+    const orderRef = quote.repairOrderId
+      ? `#${quote.repairOrderId.slice(0, 8).toUpperCase()}`
+      : '';
+    setConfirm({
+      title: 'Marcar como pagado',
+      message:
+        `Al marcar como pagado la orden quedará COMPLETADA y su total se fijará en ${total}. ` +
+        '¿Continuar?',
+      details: [
+        { label: 'Total', value: total },
+        ...(orderRef ? [{ label: 'Orden', value: orderRef }] : []),
+      ],
+      icon: 'cash-register',
+      tone: 'success',
+      confirmLabel: 'Marcar pagado',
+      onConfirm: async () => {
+        try {
+          await api.updateQuoteStatus(quote.id, 'PAID');
+          setShowQuoteDetails(false);
+          await fetchQuotes();
+          showToast(`Presupuesto pagado — la orden ${orderRef} quedó Completada`);
+        } catch (err) {
+          syncSelected(await fetchQuotes(), quote.id);
+          showToast(toUserMessage(err, 'No se pudo marcar como pagado'), 'error');
+        }
+      },
+    });
   };
 
   const handleBillQuote = (quote: Quote) => {
@@ -279,6 +410,7 @@ const BudgetsScreen = () => {
     setShowBillModal(true);
   };
 
+  /** APPROVED|PAID → INVOICED: crea la venta y cierra la orden. */
   const confirmBillQuote = async () => {
     if (!billQuote || billing) return;
     setBilling(true);
@@ -286,36 +418,53 @@ const BudgetsScreen = () => {
       await api.convertQuoteToSale(billQuote.id, billMethod);
       setShowBillModal(false);
       setShowQuoteDetails(false);
-      Alert.alert('Venta registrada', 'El presupuesto se facturó correctamente.');
-      fetchQuotes();
-    } catch (err: any) {
-      Alert.alert('No se pudo facturar', err.message || 'Intenta de nuevo');
+      await fetchQuotes();
+      showToast('Facturación registrada — presupuesto facturado');
+    } catch (err) {
+      setShowBillModal(false);
+      syncSelected(await fetchQuotes(), billQuote.id);
+      showToast(toUserMessage(err, 'No se pudo facturar'), 'error');
     } finally {
       setBilling(false);
     }
   };
 
-  const handleDeleteQuote = (quote: Quote) => {
-    Alert.alert(
-      'Eliminar Presupuesto',
-      '¿Está seguro que desea eliminar este presupuesto?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.deleteQuote(quote.id);
-              fetchQuotes();
-              setShowQuoteDetails(false);
-            } catch (err: any) {
-              Alert.alert('Error', err.message || 'No se pudo eliminar');
-            }
-          },
-        },
-      ]
-    );
+  /** Solo para estados no cobrados: PAID/INVOICED responden 409 (congelados). */
+  const askDeleteQuote = (quote: Quote) => {
+    if (LOCKED_STATUSES.includes(quote.status)) {
+      showToast('Este presupuesto está cobrado: no se puede eliminar', 'error');
+      return;
+    }
+    setConfirm({
+      title: 'Eliminar presupuesto',
+      message: '¿Está seguro que desea eliminar este presupuesto?',
+      icon: 'trash-can-outline',
+      tone: 'danger',
+      confirmLabel: 'Eliminar',
+      onConfirm: async () => {
+        try {
+          await api.deleteQuote(quote.id);
+          setShowQuoteDetails(false);
+          await fetchQuotes();
+          showToast('Presupuesto eliminado');
+        } catch (err) {
+          syncSelected(await fetchQuotes(), quote.id);
+          showToast(toUserMessage(err, 'No se pudo eliminar'), 'error');
+        }
+      },
+    });
+  };
+
+  /** Ejecuta la confirmación pendiente y cierra el diálogo. */
+  const runConfirm = async () => {
+    if (!confirm || confirmBusy) return;
+    setConfirmBusy(true);
+    try {
+      await confirm.onConfirm();
+    } finally {
+      setConfirmBusy(false);
+      setConfirm(null);
+    }
   };
 
   const openQuoteDetails = async (quote: Quote) => {
@@ -331,7 +480,7 @@ const BudgetsScreen = () => {
   };
 
   const renderQuoteCard = (item: Quote) => {
-    const status = QUOTE_STATUS[item.status as keyof typeof QUOTE_STATUS] || QUOTE_STATUS.PENDING;
+    const status = quoteStatusStyle(item.status);
     const urgency = getUrgency(item);
     const itemCount = item.items?.length || 0;
     const orderRef = item.repairOrderId ? ` · Orden #${item.repairOrderId.slice(0, 8).toUpperCase()}` : '';
@@ -610,9 +759,44 @@ const BudgetsScreen = () => {
     </View>
   );
 
+  /** Botón de acción del footer, reutilizado por todos los estados. */
+  const footerAction = (
+    label: string,
+    icon: IconName,
+    variant: 'primary' | 'success' | 'danger' | 'ghost',
+    onPress: () => void,
+  ) => (
+    <TouchableOpacity
+      key={label}
+      style={[
+        styles.footerAction,
+        variant === 'primary' && styles.footerActionPrimary,
+        variant === 'success' && styles.footerActionSuccess,
+        variant === 'danger' && styles.footerActionDanger,
+        variant === 'ghost' && styles.footerActionGhost,
+      ]}
+      onPress={onPress}
+      activeOpacity={0.85}
+    >
+      <MaterialCommunityIcons
+        name={icon}
+        size={18}
+        color={variant === 'ghost' ? colors.textSecondary : colors.white}
+      />
+      <Text
+        style={[
+          styles.footerActionText,
+          variant === 'ghost' && styles.footerActionGhostText,
+        ]}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+
   const renderQuoteDetails = () => {
     if (!selectedQuote) return null;
-    const status = QUOTE_STATUS[selectedQuote.status as keyof typeof QUOTE_STATUS] || QUOTE_STATUS.PENDING;
+    const status = quoteStatusStyle(selectedQuote.status);
     const customerName = selectedQuote.customer?.name || selectedQuote.customerName || 'Cliente';
 
     return (
@@ -722,51 +906,93 @@ const BudgetsScreen = () => {
             )}
           </ScrollView>
 
-          {/* Footer fijo: acciones según estado */}
+          {/* Footer fijo: máquina de transiciones. Las mutaciones de quotes
+              son solo-ADMIN en el backend (@Roles), se ocultan al resto. */}
           <View style={styles.detailFooter}>
-            {selectedQuote.status === 'PENDING' && (
+            {!isAdmin && (
+              <Text style={styles.footerHint}>
+                Solo un administrador puede modificar presupuestos.
+              </Text>
+            )}
+
+            {isAdmin && selectedQuote.status === 'INVOICED' && (
+              <Text style={styles.footerHint}>
+                Documento facturado: solo lectura (la venta ya fue generada).
+              </Text>
+            )}
+
+            {isAdmin && selectedQuote.status === 'PAID' && (
+              <Text style={styles.footerHint}>
+                Documento pagado: no se puede editar ni eliminar; primero revierte el pago.
+              </Text>
+            )}
+
+            {isAdmin && selectedQuote.status === 'PENDING' && (
               <>
-                <TouchableOpacity
-                  style={styles.rejectButton}
-                  onPress={() => handleRejectQuote(selectedQuote)}
-                  activeOpacity={0.85}
-                >
-                  <MaterialCommunityIcons name="close-circle-outline" size={20} color={colors.danger} />
-                  <Text style={styles.rejectButtonText}>Rechazar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.approveButton}
-                  onPress={() => handleApproveQuote(selectedQuote)}
-                  activeOpacity={0.85}
-                >
-                  <MaterialCommunityIcons name="check-circle-outline" size={20} color={colors.white} />
-                  <Text style={styles.approveButtonText}>Aprobar</Text>
-                </TouchableOpacity>
+                {footerAction('Aprobar', 'check-circle-outline', 'success', () =>
+                  handleApproveQuote(selectedQuote),
+                )}
+                {footerAction('Rechazar', 'close-circle-outline', 'danger', () =>
+                  handleRejectQuote(selectedQuote),
+                )}
+                {footerAction('Expirar', 'timer-sand', 'ghost', () =>
+                  handleExpireQuote(selectedQuote),
+                )}
+                {footerAction('Eliminar', 'trash-can-outline', 'ghost', () =>
+                  askDeleteQuote(selectedQuote),
+                )}
               </>
             )}
-            {selectedQuote.status === 'APPROVED' && (
-              <TouchableOpacity
-                style={styles.approveButton}
-                onPress={() => handleBillQuote(selectedQuote)}
-                activeOpacity={0.85}
-              >
-                <MaterialCommunityIcons name="cash-register" size={20} color={colors.white} />
-                <Text style={styles.approveButtonText}>Facturar</Text>
-              </TouchableOpacity>
+
+            {(selectedQuote.status === 'REJECTED' || selectedQuote.status === 'EXPIRED') &&
+              isAdmin && (
+                <>
+                  {footerAction('Reabrir', 'refresh', 'primary', () =>
+                    handleReopenQuote(selectedQuote),
+                  )}
+                  {footerAction('Eliminar', 'trash-can-outline', 'ghost', () =>
+                    askDeleteQuote(selectedQuote),
+                  )}
+                </>
+              )}
+
+            {isAdmin && selectedQuote.status === 'APPROVED' && (
+              <>
+                {footerAction('Marcar como Pagado', 'cash-register', 'primary', () =>
+                  askMarkPaid(selectedQuote),
+                )}
+                {footerAction('Facturar', 'receipt', 'success', () =>
+                  handleBillQuote(selectedQuote),
+                )}
+                {footerAction('Rechazar', 'close-circle-outline', 'danger', () =>
+                  handleRejectQuote(selectedQuote),
+                )}
+                {footerAction('Expirar', 'timer-sand', 'ghost', () =>
+                  handleExpireQuote(selectedQuote),
+                )}
+                {footerAction('Revertir a Pendiente', 'undo-variant', 'ghost', () =>
+                  handleRevertApproval(selectedQuote),
+                )}
+                {footerAction('Eliminar', 'trash-can-outline', 'ghost', () =>
+                  askDeleteQuote(selectedQuote),
+                )}
+              </>
             )}
-            {selectedQuote.status !== 'INVOICED' && (
-              <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={() => handleDeleteQuote(selectedQuote)}
-                activeOpacity={0.85}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <MaterialCommunityIcons name="trash-can-outline" size={22} color={colors.danger} />
-              </TouchableOpacity>
+
+            {isAdmin && selectedQuote.status === 'PAID' && (
+              <>
+                {footerAction('Facturar', 'receipt', 'success', () =>
+                  handleBillQuote(selectedQuote),
+                )}
+                {footerAction('Revertir a Aprobado', 'undo-variant', 'ghost', () =>
+                  handleRevertPayment(selectedQuote),
+                )}
+              </>
             )}
           </View>
 
           {showBillModal && renderBillContent()}
+          {toast && <Toast message={toast.message} type={toast.type} />}
         </View>
       </Modal>
     );
@@ -794,28 +1020,22 @@ const BudgetsScreen = () => {
   }
 
   const filterLabel =
-    statusFilter === 'PENDING'
-      ? 'pendientes'
-      : statusFilter === 'APPROVED'
-      ? 'aprobados'
-      : statusFilter === 'REJECTED'
-      ? 'rechazados'
-      : statusFilter === 'INVOICED'
-      ? 'facturados'
-      : '';
+    statusFilter === 'ALL' ? '' : `${quoteStatusStyle(statusFilter).label.toLowerCase()}s`;
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Presupuestos</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => setShowNewQuoteModal(true)}
-          activeOpacity={0.85}
-        >
-          <MaterialCommunityIcons name="plus" size={20} color={colors.white} />
-          <Text style={styles.addButtonText}>Nuevo</Text>
-        </TouchableOpacity>
+        {isAdmin && (
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => setShowNewQuoteModal(true)}
+            activeOpacity={0.85}
+          >
+            <MaterialCommunityIcons name="plus" size={20} color={colors.white} />
+            <Text style={styles.addButtonText}>Nuevo</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.filterContainer}>
@@ -823,8 +1043,10 @@ const BudgetsScreen = () => {
           options={[
             { value: 'PENDING', label: 'Pendientes' },
             { value: 'APPROVED', label: 'Aprobados' },
-            { value: 'INVOICED', label: 'Facturados' },
+            { value: 'PAID', label: 'Pagados' },
             { value: 'REJECTED', label: 'Rechazados' },
+            { value: 'EXPIRED', label: 'Expirados' },
+            { value: 'INVOICED', label: 'Facturados' },
             { value: 'ALL', label: 'Todos' },
           ]}
           value={statusFilter}
@@ -847,8 +1069,8 @@ const BudgetsScreen = () => {
                 icon="file-document-outline"
                 title="No hay presupuestos"
                 description="Los presupuestos que crees para tus clientes aparecerán aquí."
-                ctaLabel="Crear primer presupuesto"
-                onCta={() => setShowNewQuoteModal(true)}
+                ctaLabel={isAdmin ? 'Crear primer presupuesto' : undefined}
+                onCta={isAdmin ? () => setShowNewQuoteModal(true) : undefined}
               />
             ) : (
               <EmptyState
@@ -865,6 +1087,24 @@ const BudgetsScreen = () => {
 
       {renderNewQuoteModal()}
       {renderQuoteDetails()}
+
+      {toast && <Toast message={toast.message} type={toast.type} />}
+
+      {confirm && (
+        <ConfirmDialog
+          visible
+          title={confirm.title}
+          message={confirm.message}
+          details={confirm.details}
+          icon={confirm.icon}
+          tone={confirm.tone}
+          confirmLabel={confirm.confirmLabel}
+          cancelLabel="Cancelar"
+          busy={confirmBusy}
+          onConfirm={runConfirm}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
     </View>
   );
 };
@@ -1294,55 +1534,58 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
 
-  // Footer fijo detalle
+  // Footer fijo detalle (envuelve a varias acciones por estado)
   detailFooter: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
     padding: spacing.lg,
     backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    gap: spacing.md,
+    gap: spacing.sm,
     ...shadow,
   },
-  rejectButton: {
-    flex: 1,
+  footerHint: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    width: '100%',
+    paddingVertical: spacing.sm,
+  },
+  footerAction: {
+    flexGrow: 1,
+    flexBasis: '47%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: radii.button,
-    borderWidth: 1,
-    borderColor: colors.danger,
-    backgroundColor: colors.surface,
     gap: spacing.xs,
-  },
-  rejectButtonText: {
-    color: colors.danger,
-    fontWeight: '600',
-    fontSize: 15,
-  },
-  approveButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
+    paddingVertical: 13,
     borderRadius: radii.button,
+    minHeight: 46,
+  },
+  footerActionPrimary: {
+    backgroundColor: colors.primary,
+  },
+  footerActionSuccess: {
     backgroundColor: colors.success,
-    gap: spacing.xs,
   },
-  approveButtonText: {
+  footerActionDanger: {
+    backgroundColor: colors.danger,
+  },
+  footerActionGhost: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  footerActionText: {
     color: colors.white,
     fontWeight: '600',
-    fontSize: 15,
+    fontSize: 14,
+    flexShrink: 1,
   },
-  deleteButton: {
-    width: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: radii.button,
-    backgroundColor: colors.dangerSoft,
+  footerActionGhostText: {
+    color: colors.textSecondary,
   },
 
   // Modal facturar
