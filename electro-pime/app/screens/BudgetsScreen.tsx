@@ -24,6 +24,8 @@ import {
   radii,
   shadow,
   QUOTE_STATUS,
+  PAYMENT_METHOD,
+  type PaymentMethod,
 } from '../theme';
 import Card from '../components/ui/Card';
 import StatusBadge from '../components/ui/StatusBadge';
@@ -78,6 +80,10 @@ const BudgetsScreen = () => {
   const [showQuoteDetails, setShowQuoteDetails] = useState(false);
   const [showNewQuoteModal, setShowNewQuoteModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showBillModal, setShowBillModal] = useState(false);
+  const [billQuote, setBillQuote] = useState<Quote | null>(null);
+  const [billMethod, setBillMethod] = useState<PaymentMethod>('YAPE');
+  const [billing, setBilling] = useState(false);
 
   // Form state for new quote
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -267,35 +273,24 @@ const BudgetsScreen = () => {
   };
 
   const handleBillQuote = (quote: Quote) => {
-    const methods = [
-      { value: 'YAPE', label: 'Yape' },
-      { value: 'PLIN', label: 'Plin' },
-      { value: 'CASH', label: 'Efectivo' },
-      { value: 'TRANSFER', label: 'Transferencia' },
-      { value: 'CREDIT_CARD', label: 'Tarjeta crédito' },
-      { value: 'DEBIT_CARD', label: 'Tarjeta débito' },
-    ];
-    Alert.alert(
-      'Facturar presupuesto',
-      `Total S/ ${quote.totalAmount?.toFixed(2) || '0.00'}. Elige el método de pago:`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        ...methods.map((m) => ({
-          text: m.label,
-          onPress: () => confirmBillQuote(quote, m.value),
-        })),
-      ]
-    );
+    setBillQuote(quote);
+    setBillMethod('YAPE');
+    setShowBillModal(true);
   };
 
-  const confirmBillQuote = async (quote: Quote, paymentMethod: string) => {
+  const confirmBillQuote = async () => {
+    if (!billQuote || billing) return;
+    setBilling(true);
     try {
-      await api.convertQuoteToSale(quote.id, paymentMethod);
+      await api.convertQuoteToSale(billQuote.id, billMethod);
+      setShowBillModal(false);
+      setShowQuoteDetails(false);
       Alert.alert('Venta registrada', 'El presupuesto se facturó correctamente.');
       fetchQuotes();
-      setShowQuoteDetails(false);
     } catch (err: any) {
       Alert.alert('No se pudo facturar', err.message || 'Intenta de nuevo');
+    } finally {
+      setBilling(false);
     }
   };
 
@@ -549,6 +544,67 @@ const BudgetsScreen = () => {
     </Modal>
   );
 
+  const renderBillModal = () => (
+    <Modal
+      visible={showBillModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowBillModal(false)}
+    >
+      <View style={styles.billOverlay}>
+        <View style={styles.billContent}>
+          <Text style={styles.billTitle}>Facturar presupuesto</Text>
+          {billQuote && (
+            <Text style={styles.billTotal}>
+              Total S/ {billQuote.totalAmount?.toFixed(2) || '0.00'}
+            </Text>
+          )}
+          <Text style={styles.billLabel}>Método de pago</Text>
+          {(Object.keys(PAYMENT_METHOD) as PaymentMethod[]).map((m) => {
+            const selected = billMethod === m;
+            return (
+              <TouchableOpacity
+                key={m}
+                style={[styles.billOption, selected && styles.billOptionSelected]}
+                onPress={() => setBillMethod(m)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.billRadio, selected && styles.billRadioSelected]}>
+                  {selected && <View style={styles.billRadioDot} />}
+                </View>
+                <Text style={[styles.billOptionText, selected && styles.billOptionTextSelected]}>
+                  {PAYMENT_METHOD[m].label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+          <View style={styles.billActions}>
+            <TouchableOpacity
+              style={styles.billCancel}
+              onPress={() => setShowBillModal(false)}
+              disabled={billing}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.billCancelText}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.billConfirm, billing && styles.billConfirmDisabled]}
+              onPress={confirmBillQuote}
+              disabled={billing}
+              activeOpacity={0.85}
+            >
+              {billing ? (
+                <ActivityIndicator color={colors.white} />
+              ) : (
+                <Text style={styles.billConfirmText}>Facturar</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
   const renderQuoteDetails = () => {
     if (!selectedQuote) return null;
     const status = QUOTE_STATUS[selectedQuote.status as keyof typeof QUOTE_STATUS] || QUOTE_STATUS.PENDING;
@@ -792,6 +848,7 @@ const BudgetsScreen = () => {
 
       {renderNewQuoteModal()}
       {renderQuoteDetails()}
+      {renderBillModal()}
     </View>
   );
 };
@@ -1265,6 +1322,106 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: radii.button,
     backgroundColor: colors.dangerSoft,
+  },
+
+  // Modal facturar
+  billOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  billContent: {
+    width: '100%',
+    backgroundColor: colors.surface,
+    borderRadius: radii.card,
+    padding: spacing.lg,
+  },
+  billTitle: {
+    ...typography.title,
+    marginBottom: spacing.xs,
+  },
+  billTotal: {
+    ...typography.bodyStrong,
+    color: colors.primary,
+    marginBottom: spacing.md,
+  },
+  billLabel: {
+    ...typography.caption,
+    marginBottom: spacing.sm,
+  },
+  billOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.button,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.sm,
+  },
+  billOptionSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
+  },
+  billRadio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: colors.textMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  billRadioSelected: {
+    borderColor: colors.primary,
+  },
+  billRadioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.primary,
+  },
+  billOptionText: {
+    ...typography.body,
+  },
+  billOptionTextSelected: {
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  billActions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.md,
+  },
+  billCancel: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderRadius: radii.button,
+    backgroundColor: colors.surfaceMuted,
+  },
+  billCancelText: {
+    color: colors.textSecondary,
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  billConfirm: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderRadius: radii.button,
+    backgroundColor: colors.success,
+  },
+  billConfirmDisabled: {
+    opacity: 0.6,
+  },
+  billConfirmText: {
+    color: colors.white,
+    fontWeight: '600',
+    fontSize: 15,
   },
 });
 
