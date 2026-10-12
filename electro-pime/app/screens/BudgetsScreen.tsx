@@ -78,6 +78,7 @@ const BudgetsScreen = () => {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('PENDING');
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const [showQuoteDetails, setShowQuoteDetails] = useState(false);
+  const [invoicedAt, setInvoicedAt] = useState<string | null>(null);
   const [showNewQuoteModal, setShowNewQuoteModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showBillModal, setShowBillModal] = useState(false);
@@ -317,6 +318,18 @@ const BudgetsScreen = () => {
     );
   };
 
+  const openQuoteDetails = async (quote: Quote) => {
+    setSelectedQuote(quote);
+    setInvoicedAt(null);
+    setShowQuoteDetails(true);
+    if (quote.status === 'INVOICED') {
+      try {
+        const sales = await api.getSales({ quoteId: quote.id });
+        if (sales.length > 0) setInvoicedAt(sales[0].createdAt);
+      } catch {}
+    }
+  };
+
   const renderQuoteCard = (item: Quote) => {
     const status = QUOTE_STATUS[item.status as keyof typeof QUOTE_STATUS] || QUOTE_STATUS.PENDING;
     const urgency = getUrgency(item);
@@ -329,8 +342,7 @@ const BudgetsScreen = () => {
         accentColor={status.color}
         style={styles.quoteCard}
         onPress={() => {
-          setSelectedQuote(item);
-          setShowQuoteDetails(true);
+          openQuoteDetails(item);
         }}
       >
         <View style={styles.cardTopRow}>
@@ -645,6 +657,16 @@ const BudgetsScreen = () => {
               <Text style={styles.docAmount}>
                 S/ {selectedQuote.totalAmount?.toFixed(2) || '0.00'}
               </Text>
+              {selectedQuote.status === 'INVOICED' && invoicedAt && (
+                <Text style={styles.docInvoiced}>
+                  Facturado:{' '}
+                  {new Date(invoicedAt).toLocaleDateString('es-ES', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  })}
+                </Text>
+              )}
             </Card>
 
             {/* Tabla de items */}
@@ -1210,6 +1232,11 @@ const styles = StyleSheet.create({
     ...typography.display,
     fontSize: 32,
     color: colors.success,
+  },
+  docInvoiced: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
   },
   docSection: {
     padding: spacing.lg,

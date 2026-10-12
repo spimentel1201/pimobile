@@ -135,6 +135,7 @@ export default function OrderDetailScreen() {
   const [updating, setUpdating] = useState(false);
   const [showStatusActions, setShowStatusActions] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [lastPaymentAt, setLastPaymentAt] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -150,6 +151,23 @@ export default function OrderDetailScreen() {
     try {
       const orderData = await api.getRepairOrderById(id);
       setOrder(orderData);
+      if (orderData.billing && orderData.billing.salesCount > 0) {
+        try {
+          const sales = await api.getSalesByRepairOrder(id);
+          if (sales.length > 0) {
+            const latest = sales.reduce((a, b) =>
+              new Date(a.createdAt) > new Date(b.createdAt) ? a : b
+            );
+            setLastPaymentAt(latest.createdAt);
+          } else {
+            setLastPaymentAt(null);
+          }
+        } catch {
+          setLastPaymentAt(null);
+        }
+      } else {
+        setLastPaymentAt(null);
+      }
     } catch (err) {
       console.error('Error loading order:', err);
       setLoadError(err instanceof Error ? err.message : 'No se pudo cargar la orden');
@@ -513,6 +531,12 @@ export default function OrderDetailScreen() {
               <Text style={styles.costLabel}>Ventas vinculadas</Text>
               <Text style={styles.costValue}>{order.billing.salesCount}</Text>
             </View>
+            {lastPaymentAt && (
+              <View style={styles.costRow}>
+                <Text style={styles.costLabel}>Último cobro</Text>
+                <Text style={styles.costValue}>{format(new Date(lastPaymentAt), 'd/M/yyyy')}</Text>
+              </View>
+            )}
             <View style={styles.costRow}>
               <Text style={styles.costLabel}>Presupuestos vigentes</Text>
               <Text style={styles.costValue}>{order.billing.billableQuotes}</Text>
