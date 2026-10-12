@@ -22,7 +22,26 @@ import {
   Device,
 } from '../types/api';
 
-const API_BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? '').replace(/\/+$/, '');
+/**
+ * Normaliza la base URL de la API.
+ *
+ * Sin esquema (`https://`), `fetch("host/path")` se resuelve como URL *relativa*
+ * al origin de la app y la petición termina en el frontend:
+ *   "repair-service-api.vercel.app/auth/login"
+ *    -> https://pimobile.vercel.app/repair-service-api.vercel.app/auth/login
+ * Por eso garantizamos siempre un esquema http(s).
+ */
+function normalizeBaseUrl(raw: string): string {
+  if (!raw) return '';
+  const clean = raw.replace(/\/+$/, '');
+  if (/^(https?:)?\/\//i.test(clean)) return clean;
+  console.warn(
+    `[api] EXPO_PUBLIC_API_URL no incluye esquema ("${clean}"), se asume https://`,
+  );
+  return `https://${clean}`;
+}
+
+const API_BASE_URL = normalizeBaseUrl((process.env.EXPO_PUBLIC_API_URL ?? '').trim());
 
 if (!API_BASE_URL) {
   console.error('Missing EXPO_PUBLIC_API_URL environment variable');
