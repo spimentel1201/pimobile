@@ -544,65 +544,58 @@ const BudgetsScreen = () => {
     </Modal>
   );
 
-  const renderBillModal = () => (
-    <Modal
-      visible={showBillModal}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setShowBillModal(false)}
-    >
-      <View style={styles.billOverlay}>
-        <View style={styles.billContent}>
-          <Text style={styles.billTitle}>Facturar presupuesto</Text>
-          {billQuote && (
-            <Text style={styles.billTotal}>
-              Total S/ {billQuote.totalAmount?.toFixed(2) || '0.00'}
-            </Text>
-          )}
-          <Text style={styles.billLabel}>Método de pago</Text>
-          {(Object.keys(PAYMENT_METHOD) as PaymentMethod[]).map((m) => {
-            const selected = billMethod === m;
-            return (
-              <TouchableOpacity
-                key={m}
-                style={[styles.billOption, selected && styles.billOptionSelected]}
-                onPress={() => setBillMethod(m)}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.billRadio, selected && styles.billRadioSelected]}>
-                  {selected && <View style={styles.billRadioDot} />}
-                </View>
-                <Text style={[styles.billOptionText, selected && styles.billOptionTextSelected]}>
-                  {PAYMENT_METHOD[m].label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-          <View style={styles.billActions}>
+  const renderBillContent = () => (
+    <View style={styles.billOverlay}>
+      <View style={styles.billContent}>
+        <Text style={styles.billTitle}>Facturar presupuesto</Text>
+        {billQuote && (
+          <Text style={styles.billTotal}>
+            Total S/ {billQuote.totalAmount?.toFixed(2) || '0.00'}
+          </Text>
+        )}
+        <Text style={styles.billLabel}>Método de pago</Text>
+        {(Object.keys(PAYMENT_METHOD) as PaymentMethod[]).map((m) => {
+          const selected = billMethod === m;
+          return (
             <TouchableOpacity
-              style={styles.billCancel}
-              onPress={() => setShowBillModal(false)}
-              disabled={billing}
+              key={m}
+              style={[styles.billOption, selected && styles.billOptionSelected]}
+              onPress={() => setBillMethod(m)}
               activeOpacity={0.7}
             >
-              <Text style={styles.billCancelText}>Cancelar</Text>
+              <View style={[styles.billRadio, selected && styles.billRadioSelected]}>
+                {selected && <View style={styles.billRadioDot} />}
+              </View>
+              <Text style={[styles.billOptionText, selected && styles.billOptionTextSelected]}>
+                {PAYMENT_METHOD[m].label}
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.billConfirm, billing && styles.billConfirmDisabled]}
-              onPress={confirmBillQuote}
-              disabled={billing}
-              activeOpacity={0.85}
-            >
-              {billing ? (
-                <ActivityIndicator color={colors.white} />
-              ) : (
-                <Text style={styles.billConfirmText}>Facturar</Text>
-              )}
-            </TouchableOpacity>
-          </View>
+          );
+        })}
+        <View style={styles.billActions}>
+          <TouchableOpacity
+            style={styles.billCancel}
+            onPress={() => setShowBillModal(false)}
+            disabled={billing}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.billCancelText}>Cancelar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.billConfirm, billing && styles.billConfirmDisabled]}
+            onPress={confirmBillQuote}
+            disabled={billing}
+            activeOpacity={0.85}
+          >
+            {billing ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <Text style={styles.billConfirmText}>Facturar</Text>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
-    </Modal>
+    </View>
   );
 
   const renderQuoteDetails = () => {
@@ -750,6 +743,8 @@ const BudgetsScreen = () => {
               </TouchableOpacity>
             )}
           </View>
+
+          {showBillModal && renderBillContent()}
         </View>
       </Modal>
     );
@@ -848,7 +843,6 @@ const BudgetsScreen = () => {
 
       {renderNewQuoteModal()}
       {renderQuoteDetails()}
-      {renderBillModal()}
     </View>
   );
 };
@@ -1326,7 +1320,12 @@ const styles = StyleSheet.create({
 
   // Modal facturar
   billOverlay: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 20,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
