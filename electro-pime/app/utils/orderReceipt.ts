@@ -357,10 +357,17 @@ const printInWebFrame = (html: string): Promise<void> =>
 
 export const printOrderReceipt = async (order: RepairOrder) => {
   try {
-    // Los presupuestos ligados enriquecen el recibo (estado y cobros).
-    // Si la carga falla, el recibo se imprime igual, sin esa sección.
-    const quotes = await api.getQuotesByRepairOrder(order.id).catch(() => [] as Quote[]);
-    const html = generateOrderReceiptHTML(order, quotes);
+    // El listado de órdenes no trae `billing` (el backend solo lo calcula en
+    // GET /repair-orders/:id), así que se re-carga la orden por ID: si no, al
+    // imprimir desde el listado no saldría la fila "Cobrado". Si la carga
+    // falla se usa la orden recibida y el recibo sale igual, sin ese dato.
+    const [freshOrder, quotes] = await Promise.all([
+      api.getRepairOrderById(order.id).catch(() => null),
+      // Los presupuestos ligados enriquecen el recibo (estado y cobros).
+      api.getQuotesByRepairOrder(order.id).catch(() => [] as Quote[]),
+    ]);
+    const receiptOrder = freshOrder ?? order;
+    const html = generateOrderReceiptHTML(receiptOrder, quotes);
 
     if (Platform.OS === 'web') {
       await printInWebFrame(html);
