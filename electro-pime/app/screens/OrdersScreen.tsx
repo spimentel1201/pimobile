@@ -11,20 +11,17 @@ import {
   SafeAreaView,
   ActivityIndicator,
   RefreshControl,
-  Platform,
   Linking,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
 import { api } from '../services/api';
 import { RepairOrder, RepairOrderStatus } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
 import Toast from '../components/ui/Toast';
 import StatusBadge from '../components/ui/StatusBadge';
 import { NO_PHONE_MESSAGE, buildTelUrl, buildWhatsAppUrl } from '../utils/phone';
-import { generateOrderReceiptHTML } from '../utils/orderReceipt';
+import { printOrderReceipt } from '../utils/orderReceipt';
 import { colors, typography, radii, shadow, spacing, ORDER_STATUS } from '../theme';
 
 const STATUS_COLORS: Record<RepairOrderStatus, string> = {
@@ -236,36 +233,10 @@ const OrdersScreen = () => {
     </View>
   );
 
-  /* Receipt Printing Logic */
+  /* Receipt Printing Logic — todo el detalle vive en utils/orderReceipt */
   const handlePrintReceipt = async (order: RepairOrder) => {
     try {
-      const html = generateOrderReceiptHTML(order);
-
-      if (Platform.OS === 'web') {
-        // En web, abrimos una nueva ventana para imprimir solo el recibo
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          printWindow.document.write(html);
-          printWindow.document.close();
-
-          // Esperar a que cargue y luego imprimir
-          printWindow.onload = () => {
-            printWindow.focus();
-            printWindow.print();
-          };
-
-          // Fallback por si onload no dispara
-          setTimeout(() => {
-            if (printWindow) {
-              printWindow.print();
-            }
-          }, 500);
-
-          return;
-        }
-      }
-
-      await Print.printAsync({ html });
+      await printOrderReceipt(order);
     } catch (error) {
       console.error('Error printing receipt:', error);
       Alert.alert('Error', 'No se pudo generar el recibo');
