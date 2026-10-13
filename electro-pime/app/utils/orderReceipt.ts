@@ -31,19 +31,35 @@ const formatShortDate = (iso?: string): string => {
   return Number.isNaN(parsed.getTime()) ? '—' : format(parsed, 'd MMM yyyy', { locale: es });
 };
 
-/** Qué cobro tiene cada presupuesto, según su estado en la máquina quote-to-cash. */
-const quoteChargeLabel = (status: Quote['status']): string => {
+/** Cobro explícito de cada presupuesto (columna "Pagado" del recibo). */
+const quotePaidState = (
+  status: Quote['status'],
+): { label: string; tone: 'yes' | 'no' | 'na'; detail: string } => {
   switch (status) {
     case 'PAID':
-      return 'Pagado (sin documento)';
+      return { label: 'Sí', tone: 'yes', detail: 'cobrado sin documento' };
     case 'INVOICED':
-      return 'Facturado — venta generada';
+      return { label: 'Sí', tone: 'yes', detail: 'facturado — venta generada' };
     case 'APPROVED':
-      return 'Pendiente de pago';
+      return { label: 'No', tone: 'no', detail: 'pendiente de pago' };
+    case 'PENDING':
+      return { label: 'No', tone: 'no', detail: 'en revisión' };
     default:
-      return '—';
+      // REJECTED / EXPIRED: el presupuesto murió, no hay cobro que reportar.
+      return { label: '—', tone: 'na', detail: 'sin cobro' };
   }
 };
+
+/** Concepto legible del presupuesto: primer ítem + conteo. */
+const quoteConcept = (quote: Quote): string => {
+  const items = quote.items || [];
+  if (!items.length) return 'Sin detalle';
+  const first = items[0].description || items[0].productName || 'Ítem';
+  return items.length > 1 ? `${first} (+${items.length - 1})` : first;
+};
+
+/** Estados que ya dejaron plata: suman al "Cobrado" del pie. */
+const QUOTE_COLLECTED: Quote['status'][] = ['PAID', 'INVOICED'];
 
 export const generateOrderReceiptHTML = (order: RepairOrder, quotes: Quote[] = []) => {
   const items = order.items || [];
@@ -104,19 +120,38 @@ export const generateOrderReceiptHTML = (order: RepairOrder, quotes: Quote[] = [
     })
     .join('');
 
-  // Presupuestos ligados a la orden: fecha, estado, vencimiento, monto y cobro.
+  // Presupuestos ligados a la orden: código, concepto, fecha, estado,
+  // cobro explícito (Sí/No) y monto, más totales al pie.
   const quoteRows = quotes
     .map((quote) => {
       const st = quoteStatusStyle(quote.status);
+      const paid = quotePaidState(quote.status);
+      const itemCount = quote.items?.length ?? 0;
       return `
                   <tr>
+                    <td class="q-code">#${escapeHtml(quote.id.slice(0, 8).toUpperCase())}</td>
+                    <td>
+                      <div class="cell-title">${escapeHtml(quoteConcept(quote))}</div>
+                      <div class="cell-sub">${itemCount} ${itemCount === 1 ? 'ítem' : 'ítems'}</div>
+                    </td>
                     <td>${formatShortDate(quote.createdAt)}</td>
                     <td><span class="q-badge" style="background:${st.soft};color:${st.color}">${escapeHtml(st.label)}</span></td>
-                    <td class="price-col">${money(Number(quote.totalAmount))}</td>
-                    <td class="cell-sub">${quoteChargeLabel(quote.status)}</td>
+                    <td>
+                      <span class="paid-pill paid-${paid.tone}">${paid.label}</span>
+                      <div class="paid-sub">${escapeHtml(paid.detail)}</div>
+                    </td>
+                    <td class="price-col">${money(Number(quote.totalAmount) || 0)}</td>
                   </tr>`;
     })
     .join('');
+
+  const quotesQuoted = quotes.reduce((sum, q) => sum + (Number(q.totalAmount) || 0), 0);
+  const quotesCollected = quotes
+    .filter((q) => QUOTE_COLLECTED.includes(q.status))
+    .reduce((sum, q) => sum + (Number(q.totalAmount) || 0), 0);
+  const quotesPending = quotes
+    .filter((q) => q.status === 'APPROVED')
+    .reduce((sum, q) => sum + (Number(q.totalAmount) || 0), 0);
 
   const quotesSection = quotes.length
     ? `
@@ -125,13 +160,29 @@ export const generateOrderReceiptHTML = (order: RepairOrder, quotes: Quote[] = [
             <table>
               <thead>
                 <tr>
-                  <th style="width: 18%">Fecha</th>
-                  <th style="width: 20%">Estado</th>
-                  <th style="width: 18%; text-align: right">Monto</th>
-                  <th style="width: 44%">Cobro</th>
+                  <th style="width: 11%">Código</th>
+                  <th>Concepto</th>
+                  <th style="width: 12%">Fecha</th>
+                  <th style="width: 16%">Estado</th>
+                  <th style="width: 17%">Pagado</th>
+                  <th style="width: 13%; text-align: right">Monto</th>
                 </tr>
               </thead>
               <tbody>${quoteRows}</tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="5"><span class="q-foot-label">Total cotizado</span></td>
+                  <td class="price-col">${money(quotesQuoted)}</td>
+                </tr>
+                <tr>
+                  <td colspan="5"><span class="q-foot-label">Cobrado (pagado + facturado)</span></td>
+                  <td class="price-col">${money(quotesCollected)}</td>
+                </tr>
+                <tr>
+                  <td colspan="5"><span class="q-foot-label">Por cobrar (aprobado)</span></td>
+                  <td class="price-col">${money(quotesPending)}</td>
+                </tr>
+              </tfoot>
             </table>
           </div>`
     : '';
@@ -205,6 +256,14 @@ export const generateOrderReceiptHTML = (order: RepairOrder, quotes: Quote[] = [
             .acc-row { margin-top: 2px; }
             .badge-acc { font-size: 8px; background: #F3F4F6; padding: 1px 5px; border-radius: 3px; border: 1px solid #E5E7EB; display: inline-block; margin-right: 3px; color: #4B5563; }
             .q-badge { padding: 2px 8px; border-radius: 999px; display: inline-block; font-size: 8px; font-weight: 600; text-transform: uppercase; background: #F3F4F6; color: #475467; }
+            .q-code { font-family: monospace; color: #4B5563; font-size: 8px; white-space: nowrap; }
+            .paid-pill { padding: 1px 7px; border-radius: 999px; display: inline-block; font-size: 8px; font-weight: 700; text-transform: uppercase; }
+            .paid-yes { background: #ECFDF3; color: #067647; }
+            .paid-no { background: #FFFAEB; color: #B54708; }
+            .paid-na { background: #F3F4F6; color: #6B7280; }
+            .paid-sub { color: #6B7280; font-size: 8px; margin-top: 1px; }
+            tfoot td { background: #F9FAFB; border-top: 1px solid #E5E7EB; font-size: 9.5px; }
+            .q-foot-label { color: #6B7280; font-weight: 700; text-transform: uppercase; font-size: 8px; letter-spacing: 0.4px; }
 
             /* Espacio real para rubrar: aire por encima de la linea. */
             .signature-section { display: flex; justify-content: space-between; align-items: flex-end; padding-top: 34px; }
@@ -355,26 +414,50 @@ const printInWebFrame = (html: string): Promise<void> =>
     }
   });
 
+export interface ReceiptData {
+  /** Orden usada para el recibo (la recién cargada si tuvo éxito). */
+  order: RepairOrder;
+  /** Presupuestos ligados a la orden (vacío si la carga falló). */
+  quotes: Quote[];
+}
+
+/**
+ * Trae los datos frescos del recibo: la orden por ID + sus presupuestos.
+ *
+ * El listado de órdenes no trae `billing` (el backend solo lo calcula en
+ * GET /repair-orders/:id), así que se re-carga por ID: si no, al imprimir
+ * desde el listado no saldría la fila "Cobrado". Si la carga falla se usa la
+ * orden recibida y el recibo sale igual, sin ese dato.
+ */
+export const fetchOrderReceiptData = async (order: RepairOrder): Promise<ReceiptData> => {
+  const [freshOrder, quotes] = await Promise.all([
+    api.getRepairOrderById(order.id).catch(() => null),
+    // Los presupuestos ligados enriquecen el recibo (estado y cobros).
+    api.getQuotesByRepairOrder(order.id).catch(() => [] as Quote[]),
+  ]);
+  return { order: freshOrder ?? order, quotes };
+};
+
+/**
+ * Abre el diálogo de impresión del SO / navegador con un HTML ya formateado.
+ *
+ * En web se usa un iframe oculto con `srcdoc` (react-native-web no implementa
+ * `Print.printAsync`); en nativo va directo a expo-print.
+ */
+export const printReceiptHTML = async (html: string): Promise<void> => {
+  if (Platform.OS === 'web') {
+    await printInWebFrame(html);
+    return;
+  }
+
+  await Print.printAsync({ html });
+};
+
+/** Carga los datos, genera el HTML y abre la impresión. Flujo de un solo paso. */
 export const printOrderReceipt = async (order: RepairOrder) => {
   try {
-    // El listado de órdenes no trae `billing` (el backend solo lo calcula en
-    // GET /repair-orders/:id), así que se re-carga la orden por ID: si no, al
-    // imprimir desde el listado no saldría la fila "Cobrado". Si la carga
-    // falla se usa la orden recibida y el recibo sale igual, sin ese dato.
-    const [freshOrder, quotes] = await Promise.all([
-      api.getRepairOrderById(order.id).catch(() => null),
-      // Los presupuestos ligados enriquecen el recibo (estado y cobros).
-      api.getQuotesByRepairOrder(order.id).catch(() => [] as Quote[]),
-    ]);
-    const receiptOrder = freshOrder ?? order;
-    const html = generateOrderReceiptHTML(receiptOrder, quotes);
-
-    if (Platform.OS === 'web') {
-      await printInWebFrame(html);
-      return;
-    }
-
-    await Print.printAsync({ html });
+    const { order: receiptOrder, quotes } = await fetchOrderReceiptData(order);
+    await printReceiptHTML(generateOrderReceiptHTML(receiptOrder, quotes));
   } catch (error) {
     console.error('Error printing receipt:', error);
     throw error;

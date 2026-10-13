@@ -180,6 +180,8 @@ const DashboardScreen = () => {
     if (!quoteRows) return null;
 
     const visible = quoteRows.filter((row) => row.count > 0);
+    const totalCount = visible.reduce((sum, row) => sum + row.count, 0);
+    const totalAmount = visible.reduce((sum, row) => sum + row.amount, 0);
 
     return (
       <View style={styles.section}>
@@ -196,22 +198,40 @@ const DashboardScreen = () => {
               description="Los presupuestos que emitas a tus clientes aparecerán aquí."
             />
           ) : (
-            visible.map((row, index) => (
-              <View
-                key={row.status}
-                style={[styles.quoteRow, index > 0 && styles.quoteRowDivider]}
-              >
-                <StatusBadge
-                  label={row.style.label}
-                  color={row.style.color}
-                  soft={row.style.soft}
-                />
-                <Text style={styles.quoteCount}>
-                  {row.count} {row.count === 1 ? 'presupuesto' : 'presupuestos'}
-                </Text>
-                <Text style={styles.quoteAmount}>S/ {row.amount.toFixed(2)}</Text>
-              </View>
-            ))
+            <>
+              {visible.map((row, index) => (
+                <TouchableOpacity
+                  key={row.status}
+                  style={[styles.quoteRow, index > 0 && styles.quoteRowDivider]}
+                  onPress={() => router.push('/budgets')}
+                  activeOpacity={0.6}
+                  accessibilityLabel={`Filtrar presupuestos en estado ${row.style.label}`}
+                >
+                  {/* Barra de acento del color del estado, igual que en las órdenes */}
+                  <View style={[styles.quoteAccent, { backgroundColor: row.style.color }]} />
+                  <StatusBadge
+                    label={row.style.label}
+                    color={row.style.color}
+                    soft={row.style.soft}
+                  />
+                  <View style={styles.quoteCountPill}>
+                    <Text style={styles.quoteCountText}>
+                      {row.count} {row.count === 1 ? 'ppto' : 'pptos'}
+                    </Text>
+                  </View>
+                  <Text style={styles.quoteAmount}>S/ {row.amount.toFixed(2)}</Text>
+                </TouchableOpacity>
+              ))}
+
+              {visible.length > 1 && (
+                <View style={styles.quoteTotal}>
+                  <Text style={styles.quoteTotalLabel}>
+                    Total · {totalCount} {totalCount === 1 ? 'presupuesto' : 'presupuestos'}
+                  </Text>
+                  <Text style={styles.quoteTotalAmount}>S/ {totalAmount.toFixed(2)}</Text>
+                </View>
+              )}
+            </>
           )}
         </Card>
       </View>
@@ -520,23 +540,53 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.sm + 2,
   },
   quoteRowDivider: {
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  quoteCount: {
+  quoteAccent: {
+    width: 4,
+    height: 22,
+    borderRadius: 2,
+  },
+  quoteCountPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceMuted,
+  },
+  quoteCountText: {
     ...typography.caption,
+    fontSize: 12,
     color: colors.textSecondary,
-    flex: 1,
-    textAlign: 'right',
+    fontVariant: ['tabular-nums'],
   },
   quoteAmount: {
     ...typography.bodyStrong,
     color: colors.textPrimary,
-    minWidth: 96,
-    textAlign: 'right',
+    marginLeft: 'auto',
+    fontVariant: ['tabular-nums'],
+  },
+  quoteTotal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderStrong,
+  },
+  quoteTotalLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  quoteTotalAmount: {
+    ...typography.bodyStrong,
+    fontSize: 16,
+    color: colors.textPrimary,
+    fontVariant: ['tabular-nums'],
   },
 
   // Cards de orden

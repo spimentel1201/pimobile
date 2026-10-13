@@ -19,7 +19,7 @@ import { es } from 'date-fns/locale';
 import { colors, radii, shadow, spacing, typography, ORDER_STATUS, quoteStatusStyle } from '../theme';
 import StatusBadge from '../components/ui/StatusBadge';
 import Toast from '../components/ui/Toast';
-import { printOrderReceipt } from '../utils/orderReceipt';
+import ReceiptPreview from '../components/ReceiptPreview';
 import { NO_PHONE_MESSAGE, buildTelUrl, buildWhatsAppUrl } from '../utils/phone';
 
 /** Estados que suman al total de la orden (Σ APPROVED + PAID + INVOICED). */
@@ -138,6 +138,7 @@ export default function OrderDetailScreen() {
   const [updating, setUpdating] = useState(false);
   const [showStatusActions, setShowStatusActions] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [receiptOrder, setReceiptOrder] = useState<RepairOrder | null>(null);
   const [orderQuotes, setOrderQuotes] = useState<Quote[]>([]);
   const [lastPaymentAt, setLastPaymentAt] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -216,14 +217,10 @@ export default function OrderDetailScreen() {
     }
   };
 
-  const handlePrint = async () => {
+  /** Abre la vista previa del ticket (mismo HTML que se imprime). */
+  const handlePrint = () => {
     if (!order) return;
-    try {
-      await printOrderReceipt(order);
-    } catch (err) {
-      console.error('Error printing receipt:', err);
-      showToast('No se pudo generar el ticket', 'error');
-    }
+    setReceiptOrder(order);
   };
 
   const handleShare = async () => {
@@ -696,6 +693,11 @@ export default function OrderDetailScreen() {
 
       </ScrollView>
       {toast && <Toast message={toast.message} type={toast.type} />}
+      <ReceiptPreview
+        visible={receiptOrder !== null}
+        order={receiptOrder}
+        onClose={() => setReceiptOrder(null)}
+      />
     </View>
   );
 }

@@ -21,7 +21,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Toast from '../components/ui/Toast';
 import StatusBadge from '../components/ui/StatusBadge';
 import { NO_PHONE_MESSAGE, buildTelUrl, buildWhatsAppUrl } from '../utils/phone';
-import { printOrderReceipt } from '../utils/orderReceipt';
+import ReceiptPreview from '../components/ReceiptPreview';
 import { colors, typography, radii, shadow, spacing, ORDER_STATUS } from '../theme';
 
 const STATUS_COLORS: Record<RepairOrderStatus, string> = {
@@ -72,6 +72,7 @@ const OrdersScreen = () => {
   const [error, setError] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('ALL');
   const [statusPickerOrder, setStatusPickerOrder] = useState<RepairOrder | null>(null);
+  const [receiptOrder, setReceiptOrder] = useState<RepairOrder | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -233,15 +234,11 @@ const OrdersScreen = () => {
     </View>
   );
 
-  /* Receipt Printing Logic — todo el detalle vive en utils/orderReceipt */
-  const handlePrintReceipt = async (order: RepairOrder) => {
-    try {
-      await printOrderReceipt(order);
-    } catch (error) {
-      console.error('Error printing receipt:', error);
-      Alert.alert('Error', 'No se pudo generar el recibo');
-    }
-  };
+  /**
+   * Botón morado: abre la vista previa con el HTML formateado (misma
+   * generación que la impresión). Desde ahí se confirma "Imprimir".
+   */
+  const openReceiptPreview = (order: RepairOrder) => setReceiptOrder(order);
 
   const renderOrderCard = ({ item }: { item: RepairOrder }) => {
     const status = ORDER_STATUS[item.status];
@@ -343,8 +340,9 @@ const OrdersScreen = () => {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: '#8B5CF6' }]}
-            onPress={() => handlePrintReceipt(item)}
+            onPress={() => openReceiptPreview(item)}
             activeOpacity={0.7}
+            accessibilityLabel="Ver recibo e imprimir"
           >
             <MaterialCommunityIcons name="printer" size={18} color="white" />
           </TouchableOpacity>
@@ -468,6 +466,11 @@ const OrdersScreen = () => {
         </View>
       </SafeAreaView>
       {renderStatusPicker()}
+      <ReceiptPreview
+        visible={receiptOrder !== null}
+        order={receiptOrder}
+        onClose={() => setReceiptOrder(null)}
+      />
     </View>
   );
 };
