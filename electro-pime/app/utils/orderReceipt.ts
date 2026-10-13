@@ -112,7 +112,6 @@ export const generateOrderReceiptHTML = (order: RepairOrder, quotes: Quote[] = [
                   <tr>
                     <td>${formatShortDate(quote.createdAt)}</td>
                     <td><span class="q-badge" style="background:${st.soft};color:${st.color}">${escapeHtml(st.label)}</span></td>
-                    <td>${formatShortDate(quote.expiresAt)}</td>
                     <td class="price-col">${money(Number(quote.totalAmount))}</td>
                     <td class="cell-sub">${quoteChargeLabel(quote.status)}</td>
                   </tr>`;
@@ -126,11 +125,10 @@ export const generateOrderReceiptHTML = (order: RepairOrder, quotes: Quote[] = [
             <table>
               <thead>
                 <tr>
-                  <th style="width: 16%">Fecha</th>
-                  <th style="width: 18%">Estado</th>
-                  <th style="width: 16%">Vence</th>
-                  <th style="width: 16%; text-align: right">Monto</th>
-                  <th style="width: 34%">Cobro</th>
+                  <th style="width: 18%">Fecha</th>
+                  <th style="width: 20%">Estado</th>
+                  <th style="width: 18%; text-align: right">Monto</th>
+                  <th style="width: 44%">Cobro</th>
                 </tr>
               </thead>
               <tbody>${quoteRows}</tbody>

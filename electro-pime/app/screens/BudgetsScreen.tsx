@@ -77,27 +77,6 @@ function formatShortDate(iso: string): string {
   return `${date.getDate()} ${month}`;
 }
 
-// Urgencia calculada desde expiresAt (o validDays como fallback)
-function getUrgency(quote: Quote): { text: string; color: string } | null {
-  let expires: Date | null = null;
-  if (quote.expiresAt) {
-    expires = new Date(quote.expiresAt);
-  } else if (quote.validDays != null) {
-    expires = new Date(new Date(quote.createdAt).getTime() + quote.validDays * 24 * 60 * 60 * 1000);
-  }
-  if (!expires || isNaN(expires.getTime())) return null;
-
-  const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const startOfExpiry = new Date(expires.getFullYear(), expires.getMonth(), expires.getDate());
-  const days = Math.round((startOfExpiry.getTime() - startOfToday.getTime()) / (24 * 60 * 60 * 1000));
-
-  if (days < 0) return { text: 'Vencido', color: colors.danger };
-  if (days === 0) return { text: 'Vence hoy', color: colors.warning };
-  if (days <= 3) return { text: `Vence en ${days} día${days === 1 ? '' : 's'}`, color: colors.warning };
-  return { text: `Vence en ${days} días`, color: colors.textSecondary };
-}
-
 const BudgetsScreen = () => {
   const { user } = useAuth();
   const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -134,7 +113,6 @@ const BudgetsScreen = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedRepairOrder, setSelectedRepairOrder] = useState<RepairOrder | null>(null);
   const [quoteItems, setQuoteItems] = useState<QuoteItem[]>([]);
-  const [notes, setNotes] = useState('');
   const [formErrors, setFormErrors] = useState<{
     customer?: string;
     order?: string;
@@ -254,7 +232,6 @@ const BudgetsScreen = () => {
     setSelectedCustomer(null);
     setSelectedRepairOrder(null);
     setQuoteItems([]);
-    setNotes('');
     setNewItemDescription('');
     setNewItemQuantity('1');
     setNewItemPrice('');
@@ -285,7 +262,6 @@ const BudgetsScreen = () => {
         customerId: selectedCustomer!.id,
         technicianId: user.id,
         totalAmount,
-        notes: notes.trim() || undefined,
         items: quoteItems.map((item) => ({
           quantity: item.quantity,
           price: item.price,
@@ -481,7 +457,6 @@ const BudgetsScreen = () => {
 
   const renderQuoteCard = (item: Quote) => {
     const status = quoteStatusStyle(item.status);
-    const urgency = getUrgency(item);
     const itemCount = item.items?.length || 0;
     const orderRef = item.repairOrderId ? ` · Orden #${item.repairOrderId.slice(0, 8).toUpperCase()}` : '';
 
@@ -508,9 +483,6 @@ const BudgetsScreen = () => {
         <View style={styles.cardBottomRow}>
           <View style={styles.cardBottomLeft}>
             <Text style={styles.cardCaption}>{itemCount} item{itemCount === 1 ? '' : 's'}</Text>
-            {urgency && (
-              <Text style={[styles.cardUrgency, { color: urgency.color }]}>· {urgency.text}</Text>
-            )}
           </View>
           <Text style={styles.cardDate}>{formatShortDate(item.createdAt)}</Text>
         </View>
@@ -654,16 +626,6 @@ const BudgetsScreen = () => {
           {/* 03 · Resumen */}
           <View style={styles.formSection}>
             <SectionHeader title="03 · Resumen" />
-            <Text style={styles.fieldLabel}>NOTAS</Text>
-            <TextInput
-              style={styles.textArea}
-              placeholder="Notas adicionales..."
-              placeholderTextColor={colors.textMuted}
-              value={notes}
-              onChangeText={setNotes}
-              multiline
-              numberOfLines={3}
-            />
 
             <View style={styles.breakdown}>
               <View style={styles.breakdownRow}>
@@ -878,13 +840,6 @@ const BudgetsScreen = () => {
               ) : (
                 <Text style={styles.docItemMeta}>Sin items registrados</Text>
               )}
-
-              {selectedQuote.laborCost > 0 && (
-                <View style={styles.docItemRow}>
-                  <Text style={styles.docItemName}>Mano de obra</Text>
-                  <Text style={styles.docItemSubtotal}>S/ {selectedQuote.laborCost.toFixed(2)}</Text>
-                </View>
-              )}
             </Card>
 
             {/* Total en banda */}
@@ -894,16 +849,6 @@ const BudgetsScreen = () => {
                 S/ {selectedQuote.totalAmount?.toFixed(2) || '0.00'}
               </Text>
             </View>
-
-            {/* Notas */}
-            {selectedQuote.notes && (
-              <Card style={styles.docSection}>
-                <SectionHeader title="Notas" />
-                <View style={styles.notesBlock}>
-                  <Text style={styles.notesText}>{selectedQuote.notes}</Text>
-                </View>
-              </Card>
-            )}
           </ScrollView>
 
           {/* Footer fijo: máquina de transiciones. Las mutaciones de quotes
@@ -1220,10 +1165,6 @@ const styles = StyleSheet.create({
   cardCaption: {
     ...typography.caption,
   },
-  cardUrgency: {
-    ...typography.caption,
-    fontWeight: '600',
-  },
   cardDate: {
     ...typography.caption,
     flexShrink: 0,
@@ -1283,18 +1224,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 15,
     color: colors.textPrimary,
-  },
-  textArea: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.input,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: 15,
-    color: colors.textPrimary,
-    minHeight: 80,
-    textAlignVertical: 'top',
   },
   inlineError: {
     marginTop: spacing.sm,
@@ -1523,15 +1452,6 @@ const styles = StyleSheet.create({
     ...typography.title,
     fontSize: 22,
     color: colors.success,
-  },
-  notesBlock: {
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radii.button,
-    padding: spacing.md,
-  },
-  notesText: {
-    ...typography.body,
-    color: colors.textSecondary,
   },
 
   // Footer fijo detalle (envuelve a varias acciones por estado)

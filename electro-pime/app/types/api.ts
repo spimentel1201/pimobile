@@ -194,10 +194,6 @@ export interface Quote {
   technician?: User;
   status: QuoteStatus;
   totalAmount: number;
-  laborCost: number;
-  notes?: string;
-  validDays?: number;
-  expiresAt?: string;
   createdAt: string;
   updatedAt: string;
   items: QuoteItem[];
@@ -209,7 +205,6 @@ export interface CreateQuoteDto {
   technicianId: string;
   status?: QuoteStatus;
   totalAmount: number;
-  notes?: string;
   items: { quantity: number; price: number; description?: string }[];
 }
 
