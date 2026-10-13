@@ -12,15 +12,18 @@ import {
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../services/api';
-import { RepairOrder, RepairOrderStatus, Quote } from '../types/api';
+import { RepairOrder, RepairOrderStatus, Quote, QuoteStatus } from '../types/api';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { colors, radii, shadow, spacing, typography, ORDER_STATUS } from '../theme';
+import { colors, radii, shadow, spacing, typography, ORDER_STATUS, quoteStatusStyle } from '../theme';
 import StatusBadge from '../components/ui/StatusBadge';
 import Toast from '../components/ui/Toast';
 import { printOrderReceipt } from '../utils/orderReceipt';
 import { NO_PHONE_MESSAGE, buildTelUrl, buildWhatsAppUrl } from '../utils/phone';
+
+/** Estados que suman al total de la orden (Σ APPROVED + PAID + INVOICED). */
+const BILLABLE_QUOTE_STATUSES: QuoteStatus[] = ['APPROVED', 'PAID', 'INVOICED'];
 
 const statusIcons: Record<RepairOrderStatus, keyof typeof MaterialCommunityIcons.glyphMap> = {
   RECEIVED: 'clock-outline',
@@ -573,6 +576,57 @@ export default function OrderDetailScreen() {
         )}
       </SectionCard>
 
+      {/* Presupuestos de la orden (ciclo quote-to-cash) */}
+      <SectionCard
+        icon="file-document-outline"
+        title="PRESUPUESTOS"
+        pill={
+          orderQuotes.length > 0
+            ? {
+                label: `${orderQuotes.length} ${orderQuotes.length === 1 ? 'emitido' : 'emitidos'}`,
+                color: colors.primary,
+                soft: colors.primarySoft,
+              }
+            : undefined
+        }
+      >
+        {orderQuotes.length === 0 ? (
+          <Text style={styles.emptyText}>Sin presupuestos para esta orden</Text>
+        ) : (
+          orderQuotes.map((quote, index) => {
+            const quoteStyle = quoteStatusStyle(quote.status);
+            const billable = BILLABLE_QUOTE_STATUSES.includes(quote.status);
+            return (
+              <React.Fragment key={quote.id}>
+                {index > 0 && <View style={styles.costDivider} />}
+                <View style={styles.quoteRow}>
+                  <StatusBadge
+                    label={quoteStyle.label}
+                    color={quoteStyle.color}
+                    soft={quoteStyle.soft}
+                  />
+                  <View style={styles.quoteMeta}>
+                    <Text style={styles.quoteRef}>#{quote.id.slice(0, 8).toUpperCase()}</Text>
+                    <Text style={styles.quoteDate}>
+                      {format(new Date(quote.createdAt), 'd/M/yyyy')}
+                    </Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.quoteTotal,
+                      quote.status === 'PAID' && styles.quoteTotalPaid,
+                    ]}
+                  >
+                    {billable ? '' : '≈ '}
+                    S/ {quote.totalAmount?.toFixed(2) || '0.00'}
+                  </Text>
+                </View>
+              </React.Fragment>
+            );
+          })
+        )}
+      </SectionCard>
+
       {/* Fechas */}
       <SectionCard icon="calendar-clock" title="FECHAS">
         <View style={styles.dateRow}>
@@ -905,6 +959,31 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
     borderStyle: 'dashed',
     marginVertical: spacing.md,
+  },
+  quoteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  quoteMeta: {
+    flex: 1,
+  },
+  quoteRef: {
+    ...typography.bodyStrong,
+    color: colors.textPrimary,
+  },
+  quoteDate: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  quoteTotal: {
+    ...typography.bodyStrong,
+    color: colors.textSecondary,
+  },
+  quoteTotalPaid: {
+    color: colors.success,
   },
   totalLabel: {
     ...typography.bodyStrong,

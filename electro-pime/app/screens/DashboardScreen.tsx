@@ -19,6 +19,7 @@ import Card from '../components/ui/Card';
 import StatusBadge from '../components/ui/StatusBadge';
 import SectionHeader from '../components/ui/SectionHeader';
 import EmptyState from '../components/ui/EmptyState';
+import { summarizeQuotesByStatus, QuoteSummaryRow } from '../utils/quoteStats';
 
 const ACTIVE_STATUSES: RepairOrderStatus[] = [
   'RECEIVED',
@@ -55,6 +56,9 @@ const DashboardScreen = () => {
     pending: null,
     salesToday: null,
   });
+  // null = no cargado (o falló): la sección de presupuestos se omite en vez de
+  // mostrar ceros falsos
+  const [quoteRows, setQuoteRows] = useState<QuoteSummaryRow[] | null>(null);
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) {
@@ -65,10 +69,11 @@ const DashboardScreen = () => {
     try {
       setError(null);
 
-      // KPIs y órdenes en paralelo; los KPIs degradan a "—" si fallan
-      const [orders, salesResult] = await Promise.allSettled([
+      // KPIs, órdenes y presupuestos en paralelo; degradan en silencio si fallan
+      const [orders, salesResult, quotesResult] = await Promise.allSettled([
         api.getRepairOrders(),
         api.getSales({ startDate: new Date().toISOString().split('T')[0] }),
+        api.getQuotes(),
       ]);
 
       if (orders.status === 'fulfilled') {
@@ -92,6 +97,13 @@ const DashboardScreen = () => {
         setKpis((prev) => ({ ...prev, salesToday: totalToday }));
       } else {
         console.error('Error fetching sales for KPIs:', salesResult.reason);
+      }
+
+      if (quotesResult.status === 'fulfilled') {
+        setQuoteRows(summarizeQuotesByStatus(quotesResult.value));
+      } else {
+        // GET /quotes es solo-lectura (está permitido para técnicos)
+        console.error('Error fetching quotes:', quotesResult.reason);
       }
     } finally {
       setLoading(false);
@@ -159,6 +171,49 @@ const DashboardScreen = () => {
           </Text>
           <Text style={styles.kpiLabel}>Ventas hoy</Text>
         </View>
+      </View>
+    );
+  };
+
+  const renderQuoteSummary = () => {
+    // Sin datos (falló la carga) → la sección no se muestra
+    if (!quoteRows) return null;
+
+    const visible = quoteRows.filter((row) => row.count > 0);
+
+    return (
+      <View style={styles.section}>
+        <SectionHeader
+          title="Presupuestos"
+          actionLabel="Ver todos"
+          onAction={() => router.push('/budgets')}
+        />
+        <Card>
+          {visible.length === 0 ? (
+            <EmptyState
+              icon="file-document-outline"
+              title="Aún no hay presupuestos"
+              description="Los presupuestos que emitas a tus clientes aparecerán aquí."
+            />
+          ) : (
+            visible.map((row, index) => (
+              <View
+                key={row.status}
+                style={[styles.quoteRow, index > 0 && styles.quoteRowDivider]}
+              >
+                <StatusBadge
+                  label={row.style.label}
+                  color={row.style.color}
+                  soft={row.style.soft}
+                />
+                <Text style={styles.quoteCount}>
+                  {row.count} {row.count === 1 ? 'presupuesto' : 'presupuestos'}
+                </Text>
+                <Text style={styles.quoteAmount}>S/ {row.amount.toFixed(2)}</Text>
+              </View>
+            ))
+          )}
+        </Card>
       </View>
     );
   };
@@ -314,6 +369,7 @@ const DashboardScreen = () => {
       )}
 
       {renderQuickActions()}
+      {renderQuoteSummary()}
       {renderRecentOrders()}
     </ScrollView>
   );
@@ -457,6 +513,30 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     minHeight: 32,
+  },
+
+  // Filas de presupuestos por estado
+  quoteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  quoteRowDivider: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  quoteCount: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    flex: 1,
+    textAlign: 'right',
+  },
+  quoteAmount: {
+    ...typography.bodyStrong,
+    color: colors.textPrimary,
+    minWidth: 96,
+    textAlign: 'right',
   },
 
   // Cards de orden
