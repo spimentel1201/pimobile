@@ -326,8 +326,9 @@ export default function OrderDetailScreen() {
   };
 
   /** Abre WhatsApp en wa.me/51<numero> */
-  const openWhatsApp = (phone: string) => {
-    const url = buildWhatsAppUrl(phone);
+  const openWhatsApp = (phone: string, name?: string) => {
+    const message = name ? `Hola, ${name}, te escribe Electrónica Pimentel por tu equipo en reparación.` : null;
+    const url = buildWhatsAppUrl(phone, message);
     if (!url) {
       showToast(NO_PHONE_MESSAGE, 'error');
       return;
@@ -477,7 +478,7 @@ export default function OrderDetailScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.iconButton, styles.whatsappButton]}
-                onPress={() => openWhatsApp(customerPhone)}
+                onPress={() => openWhatsApp(customerPhone, customerName)}
                 activeOpacity={0.7}
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               >

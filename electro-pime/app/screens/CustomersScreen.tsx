@@ -169,8 +169,9 @@ const CustomersScreen = () => {
   };
 
   /** Abre WhatsApp en wa.me/51<numero> */
-  const openWhatsApp = (raw: string) => {
-    const url = buildWhatsAppUrl(raw);
+  const openWhatsApp = (raw: string, name?: string) => {
+    const message = name ? `Hola, ${name}, te escribe Electrónica Pimentel por tu equipo en reparación.` : null;
+    const url = buildWhatsAppUrl(raw, message);
     if (!url) {
       showToast(NO_PHONE_MESSAGE, 'error');
       return;
@@ -449,7 +450,7 @@ const CustomersScreen = () => {
             </TouchableOpacity>
             <TouchableOpacity activeOpacity={0.7}
               style={[styles.contactIconButton, styles.contactIconButtonWhatsapp]}
-              onPress={() => openWhatsApp(item.phone)}
+              onPress={() => openWhatsApp(item.phone, item.name)}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               accessibilityLabel="WhatsApp"
             >

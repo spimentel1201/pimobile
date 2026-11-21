@@ -34,10 +34,14 @@ export const buildTelUrl = (raw?: string | null): string | null => {
   return phone ? `tel:+${phone}` : null;
 };
 
-/** Construye el enlace `https://wa.me/51<numero>` o `null` si el número no es válido */
-export const buildWhatsAppUrl = (raw?: string | null): string | null => {
+/** Construye el enlace `https://wa.me/51<numero>` o `null` si el número no es válido.
+ *  Si se pasa `message`, se añade como texto pre-cargado en el chat (?text=). */
+export const buildWhatsAppUrl = (raw?: string | null, message?: string | null): string | null => {
   const phone = normalizePhone(raw);
-  return phone ? `https://wa.me/${phone}` : null;
+  if (!phone) return null;
+  const base = `https://wa.me/${phone}`;
+  if (!message || !message.trim()) return base;
+  return `${base}?text=${encodeURIComponent(message.trim())}`;
 };
 
 /**
