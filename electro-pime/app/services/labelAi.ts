@@ -1,5 +1,6 @@
 import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { api } from './api';
 import type { ParsedLabel } from '../utils/labelParser';
 
 // Optional backend endpoint that forwards the label photo + OCR text to
@@ -50,9 +51,13 @@ export async function enhanceLabelWithAi(
 
   const { base64, mimeType } = await prepareImageForAi(imageUri);
 
+  const token = api.getToken();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ imageBase64: base64, mimeType, ocrText }),
   });
 
