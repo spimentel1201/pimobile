@@ -1,3 +1,4 @@
+import { colors } from '../../theme';
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -66,7 +67,7 @@ export default function EditOrderScreen() {
     if (loading) {
         return (
             <View style={styles.centered}>
-                <ActivityIndicator size="large" color="#3B82F6" />
+                <ActivityIndicator size="large" color={colors.primary} />
                 <Text style={styles.loadingText}>Cargando orden...</Text>
             </View>
         );
@@ -105,7 +106,7 @@ export default function EditOrderScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: colors.canvas,
     },
     centered: {
         flex: 1,
@@ -116,11 +117,11 @@ const styles = StyleSheet.create({
     loadingText: {
         marginTop: 12,
         fontSize: 16,
-        color: '#6B7280',
+        color: colors.textSecondary,
     },
     errorText: {
         fontSize: 16,
-        color: '#EF4444',
+        color: colors.danger,
         textAlign: 'center',
     },
 });

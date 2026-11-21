@@ -1,3 +1,4 @@
+import { colors } from '../../theme';
 import React, { useState } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
@@ -59,6 +60,6 @@ export default function NewOrderScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.surface,
   },
 });

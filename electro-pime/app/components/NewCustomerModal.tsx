@@ -1,3 +1,4 @@
+import { colors } from '../theme';
 import React, { useState } from 'react';
 import {
   View,
@@ -51,8 +52,8 @@ const NewCustomerModal = ({ visible, onClose, onSave }: NewCustomerModalProps) =
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Nuevo Cliente</Text>
-            <TouchableOpacity onPress={onClose}>
-              <MaterialCommunityIcons name="close" size={24} color="#0056b3" />
+            <TouchableOpacity activeOpacity={0.7} onPress={onClose}>
+              <MaterialCommunityIcons name="close" size={24} color={colors.primary} />
             </TouchableOpacity>
           </View>
 
@@ -60,7 +61,7 @@ const NewCustomerModal = ({ visible, onClose, onSave }: NewCustomerModalProps) =
             <View style={styles.formGroup}>
               <Text style={styles.label}>Tipo de Documento</Text>
               <View style={styles.documentTypeContainer}>
-                <TouchableOpacity
+                <TouchableOpacity activeOpacity={0.7}
                   style={[
                     styles.documentTypeButton,
                     formData.documentType === 'dni' && styles.documentTypeActive,
@@ -72,7 +73,7 @@ const NewCustomerModal = ({ visible, onClose, onSave }: NewCustomerModalProps) =
                     formData.documentType === 'dni' && styles.documentTypeTextActive,
                   ]}>DNI</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
+                <TouchableOpacity activeOpacity={0.7}
                   style={[
                     styles.documentTypeButton,
                     formData.documentType === 'ruc' && styles.documentTypeActive,
@@ -143,7 +144,7 @@ const NewCustomerModal = ({ visible, onClose, onSave }: NewCustomerModalProps) =
             </View>
           </ScrollView>
 
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+          <TouchableOpacity activeOpacity={0.7} style={styles.saveButton} onPress={handleSave}>
             <Text style={styles.saveButtonText}>Guardar Cliente</Text>
           </TouchableOpacity>
         </View>
@@ -175,7 +176,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#212529',
+    color: colors.textPrimary,
   },
   formContainer: {
     flex: 1,
@@ -185,12 +186,12 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    color: '#212529',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ced4da',
+    borderColor: colors.border,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
@@ -204,22 +205,22 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#ced4da',
+    borderColor: colors.border,
     alignItems: 'center',
   },
   documentTypeActive: {
-    backgroundColor: '#0056b3',
-    borderColor: '#0056b3',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   documentTypeText: {
     fontSize: 16,
-    color: '#212529',
+    color: colors.textPrimary,
   },
   documentTypeTextActive: {
     color: 'white',
   },
   saveButton: {
-    backgroundColor: '#28a745',
+    backgroundColor: colors.success,
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',

@@ -1,3 +1,4 @@
+import { colors } from '../../theme';
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, FlatList, Text, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
@@ -8,13 +9,13 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 const statusMeta: Record<RepairOrderStatus, { label: string; color: string }> = {
-  RECEIVED: { label: 'Recibido', color: '#F59E0B' },
-  DIAGNOSED: { label: 'Diagnosticado', color: '#8B5CF6' },
-  IN_PROGRESS: { label: 'En Progreso', color: '#3B82F6' },
-  WAITING_FOR_PARTS: { label: 'Esperando Repuestos', color: '#6366F1' },
-  COMPLETED: { label: 'Completado', color: '#10B981' },
-  DELIVERED: { label: 'Entregado', color: '#059669' },
-  CANCELLED: { label: 'Cancelado', color: '#EF4444' },
+  RECEIVED: { label: 'Recibido', color: colors.warning },
+  DIAGNOSED: { label: 'Diagnosticado', color: colors.violet },
+  IN_PROGRESS: { label: 'En Progreso', color: colors.primary },
+  WAITING_FOR_PARTS: { label: 'Esperando Repuestos', color: colors.violet },
+  COMPLETED: { label: 'Completado', color: colors.success },
+  DELIVERED: { label: 'Entregado', color: colors.success },
+  CANCELLED: { label: 'Cancelado', color: colors.danger },
 };
 
 export default function OrdersIndexScreen() {
@@ -54,7 +55,7 @@ export default function OrdersIndexScreen() {
   const renderOrderItem = ({ item }: { item: RepairOrder }) => {
     const meta = statusMeta[item.status];
     return (
-      <TouchableOpacity
+      <TouchableOpacity activeOpacity={0.7}
         style={styles.orderCard}
         onPress={() => router.push(`/orders/${item.id}` as never)}
       >
@@ -85,7 +86,7 @@ export default function OrdersIndexScreen() {
   };
 
   const renderFilterButton = (status: RepairOrderStatus | 'all', label: string) => (
-    <TouchableOpacity
+    <TouchableOpacity activeOpacity={0.7}
       key={status}
       style={[
         styles.filterButton,
@@ -108,7 +109,7 @@ export default function OrdersIndexScreen() {
     return (
       <View style={styles.centered}>
         <Text style={styles.errorText}>Error al cargar las órdenes</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={() => fetchOrders()}>
+        <TouchableOpacity activeOpacity={0.7} style={styles.retryButton} onPress={() => fetchOrders()}>
           <Text style={styles.retryButtonText}>Reintentar</Text>
         </TouchableOpacity>
       </View>
@@ -121,11 +122,11 @@ export default function OrdersIndexScreen() {
         options={{
           title: 'Órdenes de Servicio',
           headerRight: () => (
-            <TouchableOpacity
+            <TouchableOpacity activeOpacity={0.7}
               style={styles.addButton}
               onPress={() => router.push('/orders/new')}
             >
-              <MaterialIcons name="add" size={24} color="#fff" />
+              <MaterialIcons name="add" size={24} color={colors.surface} />
             </TouchableOpacity>
           ),
         }}
@@ -140,11 +141,11 @@ export default function OrdersIndexScreen() {
 
       {loading && !refreshing ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#3B82F6" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : filteredOrders.length === 0 ? (
         <View style={styles.centered}>
-          <MaterialIcons name="assignment" size={48} color="#9CA3AF" />
+          <MaterialIcons name="assignment" size={48} color={colors.textMuted} />
           <Text style={styles.emptyText}>No hay órdenes</Text>
           <Text style={styles.emptySubtext}>
             {selectedStatus === 'all'
@@ -170,17 +171,17 @@ export default function OrdersIndexScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.surface,
   },
   listContent: {
     padding: 16,
   },
   orderCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: colors.textPrimary,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
@@ -195,7 +196,7 @@ const styles = StyleSheet.create({
   orderNumber: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.textPrimary,
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -209,12 +210,12 @@ const styles = StyleSheet.create({
   deviceName: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#111827',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   customerName: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.textSecondary,
     marginBottom: 12,
   },
   orderFooter: {
@@ -222,25 +223,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: colors.canvas,
     paddingTop: 12,
   },
   dateText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   costText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.textPrimary,
   },
   filterContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     padding: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   filterButton: {
     paddingHorizontal: 12,
@@ -248,18 +249,18 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginHorizontal: 4,
     marginVertical: 2,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.canvas,
   },
   filterButtonActive: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
   },
   filterButtonText: {
     fontSize: 12,
-    color: '#4B5563',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   filterButtonTextActive: {
-    color: '#FFFFFF',
+    color: colors.surface,
   },
   centered: {
     flex: 1,
@@ -268,36 +269,36 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   errorText: {
-    color: '#EF4444',
+    color: colors.danger,
     fontSize: 16,
     marginBottom: 16,
     textAlign: 'center',
   },
   retryButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
   },
   retryButtonText: {
-    color: '#FFFFFF',
+    color: colors.surface,
     fontWeight: '500',
   },
   emptyText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.textPrimary,
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
   },
   addButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     width: 36,
     height: 36,
     borderRadius: 18,

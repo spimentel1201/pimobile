@@ -1,3 +1,4 @@
+import { colors } from '../theme';
 import React, { useState } from 'react';
 import {
   View,
@@ -118,11 +119,11 @@ const NewSaleScreen = ({ onClose }: { onClose: () => void }) => {
         <View style={[styles.modalContent, { maxHeight: '80%' }]}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Seleccionar Cliente</Text>
-            <TouchableOpacity onPress={() => {
+            <TouchableOpacity activeOpacity={0.7} onPress={() => {
               setShowCustomerModal(false);
               setCustomerSearch('');
             }}>
-              <MaterialCommunityIcons name="close" size={24} color="#0056b3" />
+              <MaterialCommunityIcons name="close" size={24} color={colors.primary} />
             </TouchableOpacity>
           </View>
   
@@ -143,7 +144,7 @@ const NewSaleScreen = ({ onClose }: { onClose: () => void }) => {
   
           <ScrollView style={{ flex: 1 }}>
             {filteredCustomers.map((item) => (
-              <TouchableOpacity
+              <TouchableOpacity activeOpacity={0.7}
                 key={item.id}
                 style={[
                   styles.customerItem,
@@ -158,7 +159,7 @@ const NewSaleScreen = ({ onClose }: { onClose: () => void }) => {
                 <MaterialCommunityIcons 
                   name={selectedCustomer?.id === item.id ? "account-check" : "account"} 
                   size={24} 
-                  color={selectedCustomer?.id === item.id ? "#28a745" : "#6c757d"} 
+                  color={selectedCustomer?.id === item.id ? colors.success : colors.textSecondary} 
                 />
                 <View style={styles.customerInfo}>
                   <Text style={[
@@ -184,8 +185,8 @@ const NewSaleScreen = ({ onClose }: { onClose: () => void }) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={onClose}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color="#0056b3" />
+        <TouchableOpacity activeOpacity={0.7} onPress={onClose}>
+          <MaterialCommunityIcons name="arrow-left" size={24} color={colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Nueva Venta</Text>
         <View style={{ width: 24 }} />
@@ -193,11 +194,11 @@ const NewSaleScreen = ({ onClose }: { onClose: () => void }) => {
 
       <View style={styles.mainContent}>
         {/* Customer Selector */}
-        <TouchableOpacity
+        <TouchableOpacity activeOpacity={0.7}
           style={styles.customerSelector}
           onPress={() => setShowCustomerModal(true)}
         >
-          <MaterialCommunityIcons name="account" size={24} color="#0056b3" />
+          <MaterialCommunityIcons name="account" size={24} color={colors.primary} />
           <Text style={styles.customerSelectorText}>
             {selectedCustomer ? selectedCustomer.name : 'Seleccionar Cliente'}
           </Text>
@@ -205,7 +206,7 @@ const NewSaleScreen = ({ onClose }: { onClose: () => void }) => {
 
         {/* Product Search Bar */}
         <View style={styles.searchContainer}>
-          <MaterialCommunityIcons name="magnify" size={24} color="#6c757d" />
+          <MaterialCommunityIcons name="magnify" size={24} color={colors.textSecondary} />
           <TextInput
             style={styles.productSearchInput}
             placeholder="Buscar productos..."
@@ -223,7 +224,7 @@ const NewSaleScreen = ({ onClose }: { onClose: () => void }) => {
               data={filteredProducts}
               keyExtractor={item => item.id}
               renderItem={({ item }) => (
-                <TouchableOpacity
+                <TouchableOpacity activeOpacity={0.7}
                   style={styles.productItem}
                   onPress={() => addToCart(item)}
                 >
@@ -255,24 +256,24 @@ const NewSaleScreen = ({ onClose }: { onClose: () => void }) => {
                     </Text>
                   </View>
                   <View style={styles.cartItemActions}>
-                    <TouchableOpacity 
+                    <TouchableOpacity activeOpacity={0.7} 
                       onPress={() => updateQuantity(item.id, item.quantity - 1)}
                       style={styles.quantityButton}
                     >
-                      <MaterialCommunityIcons name="minus-circle" size={24} color="#dc3545" />
+                      <MaterialCommunityIcons name="minus-circle" size={24} color={colors.danger} />
                     </TouchableOpacity>
                     <Text style={styles.cartItemQuantity}>{item.quantity}</Text>
-                    <TouchableOpacity 
+                    <TouchableOpacity activeOpacity={0.7} 
                       onPress={() => updateQuantity(item.id, item.quantity + 1)}
                       style={styles.quantityButton}
                     >
-                      <MaterialCommunityIcons name="plus-circle" size={24} color="#28a745" />
+                      <MaterialCommunityIcons name="plus-circle" size={24} color={colors.success} />
                     </TouchableOpacity>
-                    <TouchableOpacity 
+                    <TouchableOpacity activeOpacity={0.7} 
                       onPress={() => removeFromCart(item.id)}
                       style={styles.deleteButton}
                     >
-                      <MaterialCommunityIcons name="delete" size={24} color="#dc3545" />
+                      <MaterialCommunityIcons name="delete" size={24} color={colors.danger} />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -287,7 +288,7 @@ const NewSaleScreen = ({ onClose }: { onClose: () => void }) => {
                   <Text style={styles.cartTotalText}>Total:</Text>
                   <Text style={styles.cartTotalAmount}>${cartTotal.toFixed(2)}</Text>
                 </View>
-                <TouchableOpacity style={styles.checkoutButton}>
+                <TouchableOpacity activeOpacity={0.7} style={styles.checkoutButton}>
                   <Text style={styles.checkoutButtonText}>Procesar Venta</Text>
                 </TouchableOpacity>
               </View>
@@ -306,7 +307,7 @@ const NewSaleScreen = ({ onClose }: { onClose: () => void }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.canvas,
   },
   mainContent: {
     flex: 1,
@@ -341,11 +342,11 @@ const styles = StyleSheet.create({
   cartFooter: {
     marginTop: 'auto',
     borderTopWidth: 1,
-    borderTopColor: '#e9ecef',
+    borderTopColor: colors.border,
     paddingTop: 16,
   },
   checkoutButton: {
-    backgroundColor: '#28a745',
+    backgroundColor: colors.success,
     padding: 16,
     borderRadius: 8,
     marginTop: 16,
@@ -358,7 +359,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     textAlign: 'center',
-    color: '#6c757d',
+    color: colors.textSecondary,
     padding: 16,
   },
   header: {
@@ -368,12 +369,12 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: colors.border,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#0056b3',
+    color: colors.primary,
   },
   customerSelector: {
     flexDirection: 'row',
@@ -381,12 +382,12 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: colors.border,
   },
   customerSelectorText: {
     marginLeft: 12,
     fontSize: 16,
-    color: '#495057',
+    color: colors.textSecondary,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -394,7 +395,7 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: colors.border,
   },
   productSearchInput: {
     flex: 1,
@@ -408,7 +409,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#212529',
+    color: colors.textPrimary,
     marginBottom: 12,
   },
   productItem: {
@@ -425,17 +426,17 @@ const styles = StyleSheet.create({
   },
   productName: {
     fontSize: 16,
-    color: '#212529',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   productPrice: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#28a745',
+    color: colors.success,
   },
   productStock: {
     fontSize: 14,
-    color: '#6c757d',
+    color: colors.textSecondary,
   },
   modalContainer: {
     flex: 1,
@@ -459,7 +460,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: colors.border,
     backgroundColor: 'white',
   },
   customerInfo: {
@@ -467,11 +468,11 @@ const styles = StyleSheet.create({
   },
   customerName: {
     fontSize: 16,
-    color: '#212529',
+    color: colors.textPrimary,
   },
   customerPhone: {
     fontSize: 14,
-    color: '#6c757d',
+    color: colors.textSecondary,
   },
   cartContainer: {
     flex: 1,
@@ -484,18 +485,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: colors.border,
   },
   cartItemInfo: {
     flex: 1,
   },
   cartItemName: {
     fontSize: 16,
-    color: '#212529',
+    color: colors.textPrimary,
   },
   cartItemPrice: {
     fontSize: 14,
-    color: '#28a745',
+    color: colors.success,
     fontWeight: 'bold',
   },
   cartItemActions: {
@@ -514,17 +515,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     borderTopWidth: 1,
-    borderTopColor: '#e9ecef',
+    borderTopColor: colors.border,
   },
   cartTotalText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#212529',
+    color: colors.textPrimary,
   },
   cartTotalAmount: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#28a745',
+    color: colors.success,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -535,13 +536,13 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#212529',
+    color: colors.textPrimary,
   },
   selectedCustomerItem: {
-    backgroundColor: '#e8f5e9',
+    backgroundColor: colors.successSoft,
   },
   selectedCustomerText: {
-    color: '#28a745',
+    color: colors.success,
     fontWeight: 'bold',
   },
 });

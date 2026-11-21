@@ -1,3 +1,4 @@
+import { colors } from '../theme';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -203,17 +204,17 @@ const BudgetScreen = () => {
   const getStatusInfo = (status: OrderStatus): StatusInfo => {
     switch (status) {
       case 'pending':
-        return { text: 'Pendiente', color: '#ffc107', icon: 'clock-outline' };
+        return { text: 'Pendiente', color: colors.warning, icon: 'clock-outline' };
       case 'in_progress':
-        return { text: 'En Proceso', color: '#0056b3', icon: 'tools' };
+        return { text: 'En Proceso', color: colors.primary, icon: 'tools' };
       case 'completed':
-        return { text: 'Completada', color: '#28a745', icon: 'check-circle-outline' };
+        return { text: 'Completada', color: colors.success, icon: 'check-circle-outline' };
       case 'delivered':
-        return { text: 'Entregada', color: '#6610f2', icon: 'package-variant-closed-check' };
+        return { text: 'Entregada', color: colors.violet, icon: 'package-variant-closed-check' };
       case 'cancelled':
-        return { text: 'Cancelada', color: '#dc3545', icon: 'close-circle-outline' };
+        return { text: 'Cancelada', color: colors.danger, icon: 'close-circle-outline' };
       default:
-        return { text: 'Desconocido', color: '#6c757d', icon: 'help-circle-outline' };
+        return { text: 'Desconocido', color: colors.textSecondary, icon: 'help-circle-outline' };
     }
   };
 
@@ -221,13 +222,13 @@ const BudgetScreen = () => {
   const getPriorityInfo = (priority: 'high' | 'medium' | 'low'): { text: string; color: string; icon: string; } => {
     switch (priority) {
       case 'high':
-        return { text: 'Alta', color: '#dc3545', icon: 'alert-circle' };
+        return { text: 'Alta', color: colors.danger, icon: 'alert-circle' };
       case 'medium':
-        return { text: 'Media', color: '#ffc107', icon: 'alert' };
+        return { text: 'Media', color: colors.warning, icon: 'alert' };
       case 'low':
-        return { text: 'Baja', color: '#28a745', icon: 'information' };
+        return { text: 'Baja', color: colors.success, icon: 'information' };
       default:
-        return { text: 'Normal', color: '#6c757d', icon: 'information-outline' };
+        return { text: 'Normal', color: colors.textSecondary, icon: 'information-outline' };
     }
   };
 
@@ -750,14 +751,14 @@ const BudgetScreen = () => {
             }}
           />
         ) : (
-          <TouchableOpacity
+          <TouchableOpacity activeOpacity={0.7}
             style={styles.iconButton}
             onPress={() => setShowSearch(true)}
           >
-            <MaterialCommunityIcons name="magnify" size={24} color="#0056b3" />
+            <MaterialCommunityIcons name="magnify" size={24} color={colors.primary} />
           </TouchableOpacity>
         )}
-        <TouchableOpacity
+        <TouchableOpacity activeOpacity={0.7}
           style={[styles.iconButton, styles.addButton]}
           onPress={() => openFormModal()}
         >
@@ -771,7 +772,7 @@ const BudgetScreen = () => {
   const renderFilters = () => (
     <View style={styles.filtersContainer}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <TouchableOpacity
+        <TouchableOpacity activeOpacity={0.7}
           style={[styles.filterChip, filterStatus === 'all' && styles.filterChipActive]}
           onPress={() => setFilterStatus('all')}
         >
@@ -780,51 +781,51 @@ const BudgetScreen = () => {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
+        <TouchableOpacity activeOpacity={0.7}
           style={[styles.filterChip, filterStatus === 'pending' && styles.filterChipActive]}
           onPress={() => setFilterStatus('pending')}
         >
-          <MaterialCommunityIcons name="clock-outline" size={16} color={filterStatus === 'pending' ? "white" : "#ffc107"} />
+          <MaterialCommunityIcons name="clock-outline" size={16} color={filterStatus === 'pending' ? "white" : colors.warning} />
           <Text style={[styles.filterChipText, filterStatus === 'pending' && styles.filterChipTextActive]}>
             Pendientes
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
+        <TouchableOpacity activeOpacity={0.7}
           style={[styles.filterChip, filterStatus === 'in_progress' && styles.filterChipActive]}
           onPress={() => setFilterStatus('in_progress')}
         >
-          <MaterialCommunityIcons name="tools" size={16} color={filterStatus === 'in_progress' ? "white" : "#0056b3"} />
+          <MaterialCommunityIcons name="tools" size={16} color={filterStatus === 'in_progress' ? "white" : colors.primary} />
           <Text style={[styles.filterChipText, filterStatus === 'in_progress' && styles.filterChipTextActive]}>
             En Proceso
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
+        <TouchableOpacity activeOpacity={0.7}
           style={[styles.filterChip, filterStatus === 'completed' && styles.filterChipActive]}
           onPress={() => setFilterStatus('completed')}
         >
-          <MaterialCommunityIcons name="check-circle-outline" size={16} color={filterStatus === 'completed' ? "white" : "#28a745"} />
+          <MaterialCommunityIcons name="check-circle-outline" size={16} color={filterStatus === 'completed' ? "white" : colors.success} />
           <Text style={[styles.filterChipText, filterStatus === 'completed' && styles.filterChipTextActive]}>
             Completadas
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
+        <TouchableOpacity activeOpacity={0.7}
           style={[styles.filterChip, filterStatus === 'delivered' && styles.filterChipActive]}
           onPress={() => setFilterStatus('delivered')}
         >
-          <MaterialCommunityIcons name="package-variant-closed" size={16} color={filterStatus === 'delivered' ? "white" : "#6610f2"} />
+          <MaterialCommunityIcons name="package-variant-closed" size={16} color={filterStatus === 'delivered' ? "white" : colors.violet} />
           <Text style={[styles.filterChipText, filterStatus === 'delivered' && styles.filterChipTextActive]}>
             Entregadas
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
+        <TouchableOpacity activeOpacity={0.7}
           style={[styles.filterChip, filterStatus === 'cancelled' && styles.filterChipActive]}
           onPress={() => setFilterStatus('cancelled')}
         >
-          <MaterialCommunityIcons name="close-circle-outline" size={16} color={filterStatus === 'cancelled' ? "white" : "#dc3545"} />
+          <MaterialCommunityIcons name="close-circle-outline" size={16} color={filterStatus === 'cancelled' ? "white" : colors.danger} />
           <Text style={[styles.filterChipText, filterStatus === 'cancelled' && styles.filterChipTextActive]}>
             Canceladas
           </Text>
@@ -839,7 +840,7 @@ const BudgetScreen = () => {
       data={filteredOrders}
       keyExtractor={(item) => item.id}
       renderItem={({item}) => (
-        <TouchableOpacity
+        <TouchableOpacity activeOpacity={0.7}
           style={styles.orderCard}
           onPress={() => viewOrderDetails(item)}
         >
@@ -868,7 +869,7 @@ const BudgetScreen = () => {
 
               <View style={styles.orderFooter}>
                 <Text style={styles.technicianName}>
-                  <MaterialCommunityIcons name="account-wrench" size={14} color="#6c757d" />
+                  <MaterialCommunityIcons name="account-wrench" size={14} color={colors.textSecondary} />
                   {' '}{getTechnicianName(item.technicianId)}
                 </Text>
                 <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
@@ -879,9 +880,9 @@ const BudgetScreen = () => {
       )}
       ListEmptyComponent={
         <View style={styles.emptyContainer}>
-          <MaterialCommunityIcons name="clipboard-text-outline" size={64} color="#dee2e6" />
+          <MaterialCommunityIcons name="clipboard-text-outline" size={64} color={colors.border} />
           <Text style={styles.emptyText}>No hay órdenes que coincidan con los filtros</Text>
-          <TouchableOpacity
+          <TouchableOpacity activeOpacity={0.7}
             style={styles.emptyButton}
             onPress={() => {
               setFilterStatus('all');
@@ -912,12 +913,12 @@ const BudgetScreen = () => {
         <View style={styles.modalContainer}>
           <View style={styles.detailModalContent}>
             <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={() => setDetailModalVisible(false)}>
-                <MaterialCommunityIcons name="arrow-left" size={24} color="#0056b3" />
+              <TouchableOpacity activeOpacity={0.7} onPress={() => setDetailModalVisible(false)}>
+                <MaterialCommunityIcons name="arrow-left" size={24} color={colors.primary} />
               </TouchableOpacity>
               <Text style={styles.modalTitle}>Detalles de la Orden</Text>
-              <TouchableOpacity onPress={() => deleteOrder(selectedOrder.id)}>
-                <MaterialCommunityIcons name="delete-outline" size={24} color="#dc3545" />
+              <TouchableOpacity activeOpacity={0.7} onPress={() => deleteOrder(selectedOrder.id)}>
+                <MaterialCommunityIcons name="delete-outline" size={24} color={colors.danger} />
               </TouchableOpacity>
             </View>
 
@@ -927,7 +928,7 @@ const BudgetScreen = () => {
                 <View style={styles.detailHeaderLeft}>
                   <Text style={styles.detailOrderId}>{selectedOrder.id}</Text>
                   <View style={styles.detailDateContainer}>
-                    <MaterialCommunityIcons name="calendar" size={14} color="#6c757d" />
+                    <MaterialCommunityIcons name="calendar" size={14} color={colors.textSecondary} />
                     <Text style={styles.detailDate}>{formatDate(selectedOrder.createdAt)}</Text>
                   </View>
                 </View>
@@ -943,24 +944,24 @@ const BudgetScreen = () => {
                 <Image source={{ uri: selectedOrder.imageUrl }} style={styles.detailImage} />
 
                 <View style={styles.quickActionsContainer}>
-                  <TouchableOpacity
-                    style={[styles.quickActionButton, {backgroundColor: '#0056b3'}]}
+                  <TouchableOpacity activeOpacity={0.7}
+                    style={[styles.quickActionButton, {backgroundColor: colors.primary}]}
                     onPress={() => openFormModal(selectedOrder)}
                   >
                     <MaterialCommunityIcons name="pencil" size={22} color="white" />
                     <Text style={styles.quickActionText}>Editar</Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[styles.quickActionButton, {backgroundColor: '#28a745'}]}
+                  <TouchableOpacity activeOpacity={0.7}
+                    style={[styles.quickActionButton, {backgroundColor: colors.success}]}
                     onPress={() => openBudgetModal(selectedOrder)}
                   >
                     <MaterialCommunityIcons name="cash-multiple" size={22} color="white" />
                     <Text style={styles.quickActionText}>Presupuesto</Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[styles.quickActionButton, {backgroundColor: '#ffc107'}]}
+                  <TouchableOpacity activeOpacity={0.7}
+                    style={[styles.quickActionButton, {backgroundColor: colors.warning}]}
                     onPress={() => openNotifyModal(selectedOrder)}
                   >
                     <MaterialCommunityIcons name="message-text-outline" size={22} color="white" />
@@ -972,7 +973,7 @@ const BudgetScreen = () => {
               {/* Sección de información del cliente */}
               <View style={styles.detailSection}>
                 <Text style={styles.detailSectionTitle}>
-                  <MaterialCommunityIcons name="account" size={18} color="#0056b3" />
+                  <MaterialCommunityIcons name="account" size={18} color={colors.primary} />
                   {' '}Cliente
                 </Text>
 
@@ -980,18 +981,18 @@ const BudgetScreen = () => {
                   <Text style={styles.detailCustomerName}>{selectedOrder.customer.name}</Text>
 
                   <View style={styles.detailContactRow}>
-                    <TouchableOpacity style={styles.detailContactButton}>
-                      <MaterialCommunityIcons name="phone" size={18} color="#28a745" />
+                    <TouchableOpacity activeOpacity={0.7} style={styles.detailContactButton}>
+                      <MaterialCommunityIcons name="phone" size={18} color={colors.success} />
                       <Text style={styles.detailContactText}>{selectedOrder.customer.phone}</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.detailContactButton}>
-                      <MaterialCommunityIcons name="email-outline" size={18} color="#0056b3" />
+                    <TouchableOpacity activeOpacity={0.7} style={styles.detailContactButton}>
+                      <MaterialCommunityIcons name="email-outline" size={18} color={colors.primary} />
                       <Text style={styles.detailContactText}>{selectedOrder.customer.email}</Text>
                     </TouchableOpacity>
                   </View>
 
-                  <TouchableOpacity 
+                  <TouchableOpacity activeOpacity={0.7} 
                     style={styles.historyButton}
                     onPress={() => {
                       const customerOrders = getCustomerOrders(selectedOrder.customer.id);
@@ -1003,7 +1004,7 @@ const BudgetScreen = () => {
                     }}
                   >
                     <Text style={styles.historyButtonText}>Ver historial de órdenes</Text>
-                    <MaterialCommunityIcons name="chevron-right" size={18} color="#0056b3" />
+                    <MaterialCommunityIcons name="chevron-right" size={18} color={colors.primary} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1011,7 +1012,7 @@ const BudgetScreen = () => {
               {/* Sección de información del dispositivo */}
               <View style={styles.detailSection}>
                 <Text style={styles.detailSectionTitle}>
-                  <MaterialCommunityIcons name="cellphone" size={18} color="#0056b3" />
+                  <MaterialCommunityIcons name="cellphone" size={18} color={colors.primary} />
                   {' '}Dispositivo
                 </Text>
 
@@ -1046,7 +1047,7 @@ const BudgetScreen = () => {
               {/* Sección de reparación */}
               <View style={styles.detailSection}>
                 <Text style={styles.detailSectionTitle}>
-                  <MaterialCommunityIcons name="tools" size={18} color="#0056b3" />
+                  <MaterialCommunityIcons name="tools" size={18} color={colors.primary} />
                   {' '}Detalles de Reparación
                 </Text>
 
@@ -1088,7 +1089,7 @@ const BudgetScreen = () => {
               {/* Sección de presupuesto */}
               <View style={styles.detailSection}>
                 <Text style={styles.detailSectionTitle}>
-                  <MaterialCommunityIcons name="cash-multiple" size={18} color="#0056b3" />
+                  <MaterialCommunityIcons name="cash-multiple" size={18} color={colors.primary} />
                   {' '}Presupuesto
                 </Text>
 
@@ -1134,26 +1135,26 @@ const BudgetScreen = () => {
                     <View style={styles.budgetApprovalContainer}>
                       {selectedOrder.budget.approved ? (
                         <View style={styles.budgetApproved}>
-                          <MaterialCommunityIcons name="check-circle" size={16} color="#28a745" />
-                          <Text style={[styles.budgetApprovalText, {color: '#28a745'}]}>Aprobado</Text>
+                          <MaterialCommunityIcons name="check-circle" size={16} color={colors.success} />
+                          <Text style={[styles.budgetApprovalText, {color: colors.success}]}>Aprobado</Text>
                         </View>
                       ) : (
                         <View style={styles.budgetPending}>
-                          <MaterialCommunityIcons name="clock-outline" size={16} color="#ffc107" />
-                          <Text style={[styles.budgetApprovalText, {color: '#ffc107'}]}>Pendiente</Text>
+                          <MaterialCommunityIcons name="clock-outline" size={16} color={colors.warning} />
+                          <Text style={[styles.budgetApprovalText, {color: colors.warning}]}>Pendiente</Text>
                         </View>
                       )}
 
                       {!selectedOrder.budget.approved && (
                         <View style={styles.budgetActions}>
-                          <TouchableOpacity
+                          <TouchableOpacity activeOpacity={0.7}
                             style={styles.budgetApproveButton}
                             onPress={() => updateBudgetApproval(selectedOrder.id, true)}
                           >
                             <Text style={styles.budgetApproveText}>Aprobar</Text>
                           </TouchableOpacity>
 
-                          <TouchableOpacity
+                          <TouchableOpacity activeOpacity={0.7}
                             style={styles.budgetRejectButton}
                             onPress={() => updateBudgetApproval(selectedOrder.id, false)}
                           >
@@ -1169,7 +1170,7 @@ const BudgetScreen = () => {
               {/* Historial de la orden */}
               <View style={styles.detailSection}>
                 <Text style={styles.detailSectionTitle}>
-                  <MaterialCommunityIcons name="history" size={18} color="#0056b3" />
+                  <MaterialCommunityIcons name="history" size={18} color={colors.primary} />
                   {' '}Historial
                 </Text>
 
@@ -1196,40 +1197,40 @@ const BudgetScreen = () => {
                 <Text style={styles.changeStatusTitle}>Cambiar Estado</Text>
 
                 <View style={styles.statusButtonsContainer}>
-                  <TouchableOpacity
-                    style={[styles.statusButton, {backgroundColor: '#ffc107'}]}
+                  <TouchableOpacity activeOpacity={0.7}
+                    style={[styles.statusButton, {backgroundColor: colors.warning}]}
                     onPress={() => changeOrderStatus(selectedOrder.id, 'pending')}
                   >
                     <MaterialCommunityIcons name="clock-outline" size={18} color="white" />
                     <Text style={styles.statusButtonText}>Pendiente</Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[styles.statusButton, {backgroundColor: '#0056b3'}]}
+                  <TouchableOpacity activeOpacity={0.7}
+                    style={[styles.statusButton, {backgroundColor: colors.primary}]}
                     onPress={() => changeOrderStatus(selectedOrder.id, 'in_progress')}
                   >
                     <MaterialCommunityIcons name="tools" size={18} color="white" />
                     <Text style={styles.statusButtonText}>En Proceso</Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[styles.statusButton, {backgroundColor: '#28a745'}]}
+                  <TouchableOpacity activeOpacity={0.7}
+                    style={[styles.statusButton, {backgroundColor: colors.success}]}
                     onPress={() => changeOrderStatus(selectedOrder.id, 'completed')}
                   >
                     <MaterialCommunityIcons name="check-circle-outline" size={18} color="white" />
                     <Text style={styles.statusButtonText}>Completada</Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[styles.statusButton, {backgroundColor: '#6610f2'}]}
+                  <TouchableOpacity activeOpacity={0.7}
+                    style={[styles.statusButton, {backgroundColor: colors.violet}]}
                     onPress={() => changeOrderStatus(selectedOrder.id, 'delivered')}
                   >
                     <MaterialCommunityIcons name="package-variant-closed" size={18} color="white" />
                     <Text style={styles.statusButtonText}>Entregada</Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[styles.statusButton, {backgroundColor: '#dc3545'}]}
+                  <TouchableOpacity activeOpacity={0.7}
+                    style={[styles.statusButton, {backgroundColor: colors.danger}]}
                     onPress={() => changeOrderStatus(selectedOrder.id, 'cancelled')}
                   >
                     <MaterialCommunityIcons name="close-circle-outline" size={18} color="white" />
@@ -1256,14 +1257,14 @@ const BudgetScreen = () => {
         <View style={styles.modalContainer}>
           <View style={styles.formModalContent}>
             <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <MaterialCommunityIcons name="close" size={24} color="#0056b3" />
+              <TouchableOpacity activeOpacity={0.7} onPress={() => setModalVisible(false)}>
+                <MaterialCommunityIcons name="close" size={24} color={colors.primary} />
               </TouchableOpacity>
               <Text style={styles.modalTitle}>
                 {editingOrder ? 'Editar Orden' : 'Nueva Orden'}
               </Text>
-              <TouchableOpacity onPress={saveOrder}>
-                <MaterialCommunityIcons name="content-save" size={24} color="#28a745" />
+              <TouchableOpacity activeOpacity={0.7} onPress={saveOrder}>
+                <MaterialCommunityIcons name="content-save" size={24} color={colors.success} />
               </TouchableOpacity>
             </View>
 
@@ -1271,7 +1272,7 @@ const BudgetScreen = () => {
               {/* Sección de Cliente */}
               <View style={styles.formSection}>
                 <Text style={styles.formSectionTitle}>
-                  <MaterialCommunityIcons name="account" size={18} color="#0056b3" />
+                  <MaterialCommunityIcons name="account" size={18} color={colors.primary} />
                   {' '}Información del Cliente
                 </Text>
 
@@ -1287,12 +1288,12 @@ const BudgetScreen = () => {
                   <Text style={styles.quickCustomersTitle}>Clientes recientes:</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                     {mockCustomers.map((customer) => (
-                      <TouchableOpacity
+                      <TouchableOpacity activeOpacity={0.7}
                         key={customer.id}
                         style={styles.quickCustomerChip}
                         onPress={() => selectExistingCustomer(customer)}
                       >
-                        <MaterialCommunityIcons name="account-circle" size={18} color="#0056b3" />
+                        <MaterialCommunityIcons name="account-circle" size={18} color={colors.primary} />
                         <Text style={styles.quickCustomerName}>{customer.name}</Text>
                       </TouchableOpacity>
                     ))}
@@ -1320,7 +1321,7 @@ const BudgetScreen = () => {
               {/* Sección de Dispositivo */}
               <View style={styles.formSection}>
                 <Text style={styles.formSectionTitle}>
-                  <MaterialCommunityIcons name="cellphone" size={18} color="#0056b3" />
+                  <MaterialCommunityIcons name="cellphone" size={18} color={colors.primary} />
                   {' '}Información del Dispositivo
                 </Text>
 
@@ -1386,7 +1387,7 @@ const BudgetScreen = () => {
               {/* Sección de Reparación */}
               <View style={styles.formSection}>
                 <Text style={styles.formSectionTitle}>
-                  <MaterialCommunityIcons name="tools" size={18} color="#0056b3" />
+                  <MaterialCommunityIcons name="tools" size={18} color={colors.primary} />
                   {' '}Detalles de Reparación
                 </Text>
 
@@ -1454,13 +1455,13 @@ const BudgetScreen = () => {
 
                 <View style={styles.formRow}>
                   <Text style={styles.formLabel}>Fecha estimada:</Text>
-                  <TouchableOpacity style={styles.datePickerButton}>
+                  <TouchableOpacity activeOpacity={0.7} style={styles.datePickerButton}>
                     <Text style={styles.datePickerText}>
                       {formData.estimatedCompletionDate ?
                         formatDate(formData.estimatedCompletionDate) :
                         'Seleccionar fecha'}
                     </Text>
-                    <MaterialCommunityIcons name="calendar" size={18} color="#0056b3" />
+                    <MaterialCommunityIcons name="calendar" size={18} color={colors.primary} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1483,18 +1484,18 @@ const BudgetScreen = () => {
         <View style={styles.modalContainer}>
           <View style={styles.notifyModalContent}>
             <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={() => setNotifyModalVisible(false)}>
-                <MaterialCommunityIcons name="close" size={24} color="#0056b3" />
+              <TouchableOpacity activeOpacity={0.7} onPress={() => setNotifyModalVisible(false)}>
+                <MaterialCommunityIcons name="close" size={24} color={colors.primary} />
               </TouchableOpacity>
               <Text style={styles.modalTitle}>Notificar al Cliente</Text>
-              <TouchableOpacity onPress={sendNotification}>
-                <MaterialCommunityIcons name="send" size={24} color="#28a745" />
+              <TouchableOpacity activeOpacity={0.7} onPress={sendNotification}>
+                <MaterialCommunityIcons name="send" size={24} color={colors.success} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.notifyContent}>
               <View style={styles.customerInfoCard}>
-                <MaterialCommunityIcons name="account-circle" size={36} color="#0056b3" />
+                <MaterialCommunityIcons name="account-circle" size={36} color={colors.primary} />
                 <View style={styles.customerInfoText}>
                   <Text style={styles.customerInfoName}>{selectedOrder?.customer.name}</Text>
                   <Text style={styles.customerInfoContact}>
@@ -1506,7 +1507,7 @@ const BudgetScreen = () => {
               <View style={styles.notifyMethodContainer}>
                 <Text style={styles.notifyLabel}>Método de Notificación:</Text>
                 <View style={styles.notifyMethodButtons}>
-                  <TouchableOpacity
+                  <TouchableOpacity activeOpacity={0.7}
                     style={[
                       styles.notifyMethodButton,
                       notificationData.method === 'sms' && styles.notifyMethodButtonActive
@@ -1516,7 +1517,7 @@ const BudgetScreen = () => {
                     <MaterialCommunityIcons
                       name="message-text"
                       size={18}
-                      color={notificationData.method === 'sms' ? "white" : "#0056b3"}
+                      color={notificationData.method === 'sms' ? "white" : colors.primary}
                     />
                     <Text style={[
                       styles.notifyMethodText,
@@ -1524,7 +1525,7 @@ const BudgetScreen = () => {
                     ]}>SMS</Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity
+                  <TouchableOpacity activeOpacity={0.7}
                     style={[
                       styles.notifyMethodButton,
                       notificationData.method === 'email' && styles.notifyMethodButtonActive
@@ -1534,7 +1535,7 @@ const BudgetScreen = () => {
                     <MaterialCommunityIcons
                       name="email"
                       size={18}
-                      color={notificationData.method === 'email' ? "white" : "#0056b3"}
+                      color={notificationData.method === 'email' ? "white" : colors.primary}
                     />
                     <Text style={[
                       styles.notifyMethodText,
@@ -1559,7 +1560,7 @@ const BudgetScreen = () => {
               <View style={styles.templateContainer}>
                 <Text style={styles.notifyLabel}>Plantillas:</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.templateScroll}>
-                  <TouchableOpacity
+                  <TouchableOpacity activeOpacity={0.7}
                     style={styles.templateButton}
                     onPress={() => setNotificationData({
                       ...notificationData,
@@ -1569,7 +1570,7 @@ const BudgetScreen = () => {
                     <Text style={styles.templateButtonText}>Reparación Lista</Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity
+                  <TouchableOpacity activeOpacity={0.7}
                     style={styles.templateButton}
                     onPress={() => setNotificationData({
                       ...notificationData,
@@ -1579,7 +1580,7 @@ const BudgetScreen = () => {
                     <Text style={styles.templateButtonText}>Iniciando Reparación</Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity
+                  <TouchableOpacity activeOpacity={0.7}
                     style={styles.templateButton}
                     onPress={() => setNotificationData({
                       ...notificationData,
@@ -1609,12 +1610,12 @@ const BudgetScreen = () => {
         <View style={styles.modalContainer}>
           <View style={styles.budgetModalContent}>
             <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={() => setBudgetModalVisible(false)}>
-                <MaterialCommunityIcons name="close" size={24} color="#0056b3" />
+              <TouchableOpacity activeOpacity={0.7} onPress={() => setBudgetModalVisible(false)}>
+                <MaterialCommunityIcons name="close" size={24} color={colors.primary} />
               </TouchableOpacity>
               <Text style={styles.modalTitle}>Presupuesto</Text>
-              <TouchableOpacity onPress={saveBudget}>
-                <MaterialCommunityIcons name="content-save" size={24} color="#28a745" />
+              <TouchableOpacity activeOpacity={0.7} onPress={saveBudget}>
+                <MaterialCommunityIcons name="content-save" size={24} color={colors.success} />
               </TouchableOpacity>
             </View>
 
@@ -1661,11 +1662,11 @@ const BudgetScreen = () => {
                         ${part.price} x {part.quantity} = ${part.price * part.quantity}
                       </Text>
                     </View>
-                    <TouchableOpacity
+                    <TouchableOpacity activeOpacity={0.7}
                       style={styles.budgetPartDelete}
                       onPress={() => removePartFromBudget(part.id)}
                     >
-                      <MaterialCommunityIcons name="delete-outline" size={20} color="#dc3545" />
+                      <MaterialCommunityIcons name="delete-outline" size={20} color={colors.danger} />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -1701,7 +1702,7 @@ const BudgetScreen = () => {
                       />
                     </View>
 
-                    <TouchableOpacity
+                    <TouchableOpacity activeOpacity={0.7}
                       style={styles.addPartButton}
                       onPress={addPartToBudget}
                     >
@@ -1753,7 +1754,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.canvas,
   },
   header: {
     flexDirection: 'row',
@@ -1762,7 +1763,7 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: colors.border,
   },
   headerLeft: {
     flex: 1,
@@ -1770,11 +1771,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#0056b3',
+    color: colors.primary,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#6c757d',
+    color: colors.textSecondary,
     marginTop: 4,
   },
   headerRight: {
@@ -1787,10 +1788,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   addButton: {
-    backgroundColor: '#0056b3',
+    backgroundColor: colors.primary,
   },
   searchInput: {
-    backgroundColor: '#f1f3f5',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -1801,24 +1802,24 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: colors.border,
   },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f1f3f5',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 6,
     marginRight: 8,
   },
   filterChipActive: {
-    backgroundColor: '#0056b3',
+    backgroundColor: colors.primary,
   },
   filterChipText: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#495057',
+    color: colors.textSecondary,
     marginLeft: 4,
   },
   filterChipTextActive: {
@@ -1830,7 +1831,7 @@ const styles = StyleSheet.create({
     margin: 8,
     marginBottom: 4,
     padding: 12,
-    shadowColor: '#000',
+    shadowColor: colors.textPrimary,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -1849,7 +1850,7 @@ const styles = StyleSheet.create({
   orderId: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#495057',
+    color: colors.textSecondary,
     marginRight: 6,
   },
   statusBadge: {
@@ -1880,17 +1881,17 @@ const styles = StyleSheet.create({
   customerName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#212529',
+    color: colors.textPrimary,
     marginBottom: 2,
   },
   deviceInfo: {
     fontSize: 14,
-    color: '#495057',
+    color: colors.textSecondary,
     marginBottom: 2,
   },
   issueText: {
     fontSize: 12,
-    color: '#6c757d',
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   orderFooter: {
@@ -1900,11 +1901,11 @@ const styles = StyleSheet.create({
   },
   technicianName: {
     fontSize: 11,
-    color: '#6c757d',
+    color: colors.textSecondary,
   },
   dateText: {
     fontSize: 11,
-    color: '#6c757d',
+    color: colors.textSecondary,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -1913,13 +1914,13 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#6c757d',
+    color: colors.textSecondary,
     marginTop: 12,
     marginBottom: 16,
     textAlign: 'center',
   },
   emptyButton: {
-    backgroundColor: '#0056b3',
+    backgroundColor: colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
@@ -1969,13 +1970,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: colors.border,
     backgroundColor: 'white',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#212529',
+    color: colors.textPrimary,
   },
   detailScrollView: {
     flex: 1,
@@ -1992,7 +1993,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: colors.border,
   },
   detailHeaderLeft: {
     flex: 1,
@@ -2000,7 +2001,7 @@ const styles = StyleSheet.create({
   detailOrderId: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#212529',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   detailDateContainer: {
@@ -2009,7 +2010,7 @@ const styles = StyleSheet.create({
   },
   detailDate: {
     fontSize: 12,
-    color: '#6c757d',
+    color: colors.textSecondary,
     marginLeft: 4,
   },
   detailStatusBadge: {
@@ -2028,7 +2029,7 @@ const styles = StyleSheet.create({
   detailImageSection: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: colors.border,
   },
   detailImage: {
     width: '100%',
@@ -2058,12 +2059,12 @@ const styles = StyleSheet.create({
   detailSection: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: colors.border,
   },
   detailSectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#212529',
+    color: colors.textPrimary,
     marginBottom: 12,
   },
   detailSectionContent: {
@@ -2072,7 +2073,7 @@ const styles = StyleSheet.create({
   detailCustomerName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#0056b3',
+    color: colors.primary,
     marginBottom: 8,
   },
   detailContactRow: {
@@ -2086,20 +2087,20 @@ const styles = StyleSheet.create({
   },
   detailContactText: {
     fontSize: 14,
-    color: '#495057',
+    color: colors.textSecondary,
     marginLeft: 4,
   },
   historyButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.canvas,
     padding: 8,
     borderRadius: 8,
   },
   historyButtonText: {
     fontSize: 14,
-    color: '#0056b3',
+    color: colors.primary,
   },
   detailRow: {
     flexDirection: 'row',
@@ -2107,12 +2108,12 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 14,
-    color: '#6c757d',
+    color: colors.textSecondary,
     width: 100,
   },
   detailValue: {
     fontSize: 14,
-    color: '#212529',
+    color: colors.textPrimary,
     flex: 1,
   },
   detailValueWithIcon: {
@@ -2121,21 +2122,21 @@ const styles = StyleSheet.create({
   },
   detailNotesContainer: {
     marginTop: 8,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.canvas,
     padding: 8,
     borderRadius: 8,
   },
   detailNotesLabel: {
     fontSize: 14,
-    color: '#6c757d',
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   detailNotesText: {
     fontSize: 14,
-    color: '#212529',
+    color: colors.textPrimary,
   },
   budgetSummary: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.canvas,
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
@@ -2147,35 +2148,35 @@ const styles = StyleSheet.create({
   },
   budgetLabel: {
     fontSize: 14,
-    color: '#6c757d',
+    color: colors.textSecondary,
   },
   budgetValue: {
     fontSize: 14,
-    color: '#212529',
+    color: colors.textPrimary,
     fontWeight: '500',
   },
   budgetTotal: {
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#dee2e6',
+    borderTopColor: colors.border,
   },
   budgetTotalLabel: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#212529',
+    color: colors.textPrimary,
   },
   budgetTotalValue: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#0056b3',
+    color: colors.primary,
   },
   partsList: {
     marginBottom: 16,
   },
   partsListTitle: {
     fontSize: 14,
-    color: '#6c757d',
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   partItem: {
@@ -2184,15 +2185,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 4,
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: colors.border,
   },
   partName: {
     fontSize: 14,
-    color: '#212529',
+    color: colors.textPrimary,
   },
   partPrice: {
     fontSize: 14,
-    color: '#495057',
+    color: colors.textSecondary,
   },
   budgetStatusContainer: {
     flexDirection: 'row',
@@ -2201,7 +2202,7 @@ const styles = StyleSheet.create({
   },
   budgetStatusLabel: {
     fontSize: 14,
-    color: '#6c757d',
+    color: colors.textSecondary,
     width: 60,
   },
   budgetApprovalContainer: {
@@ -2226,7 +2227,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   budgetApproveButton: {
-    backgroundColor: '#28a745',
+    backgroundColor: colors.success,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 4,
@@ -2238,7 +2239,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   budgetRejectButton: {
-    backgroundColor: '#dc3545',
+    backgroundColor: colors.danger,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 4,
@@ -2259,7 +2260,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#0056b3',
+    backgroundColor: colors.primary,
     marginTop: 4,
     marginRight: 8,
     zIndex: 1,
@@ -2270,14 +2271,14 @@ const styles = StyleSheet.create({
     top: 16,
     bottom: -8,
     width: 2,
-    backgroundColor: '#dee2e6',
+    backgroundColor: colors.border,
   },
   historyContent: {
     flex: 1,
   },
   historyAction: {
     fontSize: 14,
-    color: '#212529',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   historyMeta: {
@@ -2286,11 +2287,11 @@ const styles = StyleSheet.create({
   },
   historyUser: {
     fontSize: 12,
-    color: '#6c757d',
+    color: colors.textSecondary,
   },
   historyDate: {
     fontSize: 12,
-    color: '#6c757d',
+    color: colors.textSecondary,
   },
   changeStatusSection: {
     padding: 16,
@@ -2298,7 +2299,7 @@ const styles = StyleSheet.create({
   changeStatusTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#212529',
+    color: colors.textPrimary,
     marginBottom: 12,
   },
   statusButtonsContainer: {
@@ -2323,12 +2324,12 @@ const styles = StyleSheet.create({
   formSection: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: colors.border,
   },
   formSectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#212529',
+    color: colors.textPrimary,
     marginBottom: 16,
   },
   formRow: {
@@ -2336,13 +2337,13 @@ const styles = StyleSheet.create({
   },
   formLabel: {
     fontSize: 14,
-    color: '#495057',
+    color: colors.textSecondary,
     marginBottom: 6,
   },
   formInput: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.canvas,
     borderWidth: 1,
-    borderColor: '#dee2e6',
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -2361,13 +2362,13 @@ const styles = StyleSheet.create({
   },
   quickCustomersTitle: {
     fontSize: 12,
-    color: '#6c757d',
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   quickCustomerChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f1f3f5',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -2375,13 +2376,13 @@ const styles = StyleSheet.create({
   },
   quickCustomerName: {
     fontSize: 12,
-    color: '#495057',
+    color: colors.textSecondary,
     marginLeft: 4,
   },
   formPickerContainer: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.canvas,
     borderWidth: 1,
-    borderColor: '#dee2e6',
+    borderColor: colors.border,
     borderRadius: 8,
     overflow: 'hidden',
   },
@@ -2393,16 +2394,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.canvas,
     borderWidth: 1,
-    borderColor: '#dee2e6',
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   datePickerText: {
     fontSize: 14,
-    color: '#495057',
+    color: colors.textSecondary,
   },
   notifyContent: {
     padding: 16,
@@ -2410,7 +2411,7 @@ const styles = StyleSheet.create({
   customerInfoCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.canvas,
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
@@ -2421,19 +2422,19 @@ const styles = StyleSheet.create({
   customerInfoName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#212529',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   customerInfoContact: {
     fontSize: 12,
-    color: '#6c757d',
+    color: colors.textSecondary,
   },
   notifyMethodContainer: {
     marginBottom: 16,
   },
   notifyLabel: {
     fontSize: 14,
-    color: '#495057',
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   notifyMethodButtons: {
@@ -2443,18 +2444,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f1f3f5',
+    backgroundColor: colors.surfaceMuted,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
     marginRight: 8,
   },
   notifyMethodButtonActive: {
-    backgroundColor: '#0056b3',
+    backgroundColor: colors.primary,
   },
   notifyMethodText: {
     fontSize: 14,
-    color: '#495057',
+    color: colors.textSecondary,
     marginLeft: 8,
   },
   notifyMethodTextActive: {
@@ -2464,9 +2465,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   messageInput: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.canvas,
     borderWidth: 1,
-    borderColor: '#dee2e6',
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -2481,7 +2482,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   templateButton: {
-    backgroundColor: '#f1f3f5',
+    backgroundColor: colors.surfaceMuted,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
@@ -2489,22 +2490,22 @@ const styles = StyleSheet.create({
   },
   templateButtonText: {
     fontSize: 14,
-    color: '#0056b3',
+    color: colors.primary,
   },
   budgetOrderInfo: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: colors.border,
   },
   budgetOrderId: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#212529',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   budgetOrderDesc: {
     fontSize: 14,
-    color: '#6c757d',
+    color: colors.textSecondary,
   },
   budgetFormSection: {
     padding: 16,
@@ -2517,13 +2518,13 @@ const styles = StyleSheet.create({
   },
   budgetFormLabel: {
     fontSize: 14,
-    color: '#495057',
+    color: colors.textSecondary,
     flex: 1,
   },
   budgetFormInput: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.canvas,
     borderWidth: 1,
-    borderColor: '#dee2e6',
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -2533,13 +2534,13 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#e9ecef',
+    backgroundColor: colors.border,
     marginVertical: 16,
   },
   budgetPartsTitle: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#212529',
+    color: colors.textPrimary,
     marginBottom: 12,
   },
   budgetPartItem: {
@@ -2548,25 +2549,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: colors.border,
   },
   budgetPartInfo: {
     flex: 1,
   },
   budgetPartName: {
     fontSize: 14,
-    color: '#212529',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   budgetPartPrice: {
     fontSize: 12,
-    color: '#6c757d',
+    color: colors.textSecondary,
   },
   budgetPartDelete: {
     padding: 8,
   },
   addPartForm: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.canvas,
     padding: 12,
     borderRadius: 8,
     marginTop: 16,
@@ -2575,7 +2576,7 @@ const styles = StyleSheet.create({
   addPartTitle: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#212529',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   addPartRow: {
@@ -2584,7 +2585,7 @@ const styles = StyleSheet.create({
   addPartInput: {
     backgroundColor: 'white',
     borderWidth: 1,
-    borderColor: '#dee2e6',
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -2598,7 +2599,7 @@ const styles = StyleSheet.create({
   addPartPriceInput: {
     backgroundColor: 'white',
     borderWidth: 1,
-    borderColor: '#dee2e6',
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -2609,7 +2610,7 @@ const styles = StyleSheet.create({
   addPartQuantityInput: {
     backgroundColor: 'white',
     borderWidth: 1,
-    borderColor: '#dee2e6',
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -2618,7 +2619,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   addPartButton: {
-    backgroundColor: '#28a745',
+    backgroundColor: colors.success,
     width: 40,
     height: 40,
     borderRadius: 8,
@@ -2629,7 +2630,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#0056b3',
+    backgroundColor: colors.primary,
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -2640,13 +2641,13 @@ const styles = StyleSheet.create({
   },
   budgetNotesLabel: {
     fontSize: 14,
-    color: '#495057',
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   budgetNotesInput: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.canvas,
     borderWidth: 1,
-    borderColor: '#dee2e6',
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,

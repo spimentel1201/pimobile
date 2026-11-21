@@ -1,3 +1,4 @@
+import { colors } from '../theme';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -24,9 +25,9 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const ROLE_COLORS: Record<string, string> = {
-  ADMIN: '#8B5CF6',
-  TECHNICIAN: '#3B82F6',
-  CUSTOMER: '#10B981',
+  ADMIN: colors.violet,
+  TECHNICIAN: colors.primary,
+  CUSTOMER: colors.success,
 };
 
 const UsersScreen = () => {
@@ -144,24 +145,24 @@ const UsersScreen = () => {
   const renderFilters = () => (
     <View style={styles.filtersContainer}>
       <View style={styles.searchContainer}>
-        <MaterialCommunityIcons name="magnify" size={20} color="#9CA3AF" />
+        <MaterialCommunityIcons name="magnify" size={20} color={colors.textMuted} />
         <TextInput
           style={styles.searchInput}
           placeholder="Buscar usuarios..."
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={colors.textMuted}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
         {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <MaterialCommunityIcons name="close-circle" size={20} color="#9CA3AF" />
+          <TouchableOpacity activeOpacity={0.7} onPress={() => setSearchQuery('')}>
+            <MaterialCommunityIcons name="close-circle" size={20} color={colors.textMuted} />
           </TouchableOpacity>
         )}
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.roleFilters}>
         {['all', 'ADMIN', 'TECHNICIAN', 'CUSTOMER'].map((role) => (
-          <TouchableOpacity
+          <TouchableOpacity activeOpacity={0.7}
             key={role}
             style={[
               styles.roleChip,
@@ -183,7 +184,7 @@ const UsersScreen = () => {
   );
 
   const renderUserCard = ({ item }: { item: User }) => (
-    <TouchableOpacity
+    <TouchableOpacity activeOpacity={0.7}
       style={[styles.userCard, !item.isActive && styles.userCardInactive]}
       onPress={() => {
         setSelectedUser(item);
@@ -207,13 +208,13 @@ const UsersScreen = () => {
 
       <View style={styles.userFooter}>
         <View style={styles.statusContainer}>
-          <View style={[styles.statusDot, { backgroundColor: item.isActive ? '#10B981' : '#EF4444' }]} />
+          <View style={[styles.statusDot, { backgroundColor: item.isActive ? colors.success : colors.danger }]} />
           <Text style={styles.statusText}>{item.isActive ? 'Activo' : 'Inactivo'}</Text>
         </View>
 
         <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: item.isActive ? '#F59E0B' : '#10B981' }]}
+          <TouchableOpacity activeOpacity={0.7}
+            style={[styles.actionButton, { backgroundColor: item.isActive ? colors.warning : colors.success }]}
             onPress={() => handleToggleStatus(item)}
           >
             <MaterialCommunityIcons
@@ -222,8 +223,8 @@ const UsersScreen = () => {
               color="white"
             />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: '#EF4444' }]}
+          <TouchableOpacity activeOpacity={0.7}
+            style={[styles.actionButton, { backgroundColor: colors.danger }]}
             onPress={() => handleDeleteUser(item)}
           >
             <MaterialCommunityIcons name="delete" size={18} color="white" />
@@ -245,8 +246,8 @@ const UsersScreen = () => {
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Detalles del Usuario</Text>
-            <TouchableOpacity onPress={() => setShowDetails(false)}>
-              <MaterialCommunityIcons name="close" size={24} color="#374151" />
+            <TouchableOpacity activeOpacity={0.7} onPress={() => setShowDetails(false)}>
+              <MaterialCommunityIcons name="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -267,17 +268,17 @@ const UsersScreen = () => {
 
             <View style={styles.detailSection}>
               <View style={styles.detailRow}>
-                <MaterialCommunityIcons name="email" size={20} color="#6B7280" />
+                <MaterialCommunityIcons name="email" size={20} color={colors.textSecondary} />
                 <Text style={styles.detailText}>{selectedUser.email}</Text>
               </View>
               {selectedUser.phone && (
                 <View style={styles.detailRow}>
-                  <MaterialCommunityIcons name="phone" size={20} color="#6B7280" />
+                  <MaterialCommunityIcons name="phone" size={20} color={colors.textSecondary} />
                   <Text style={styles.detailText}>{selectedUser.phone}</Text>
                 </View>
               )}
               <View style={styles.detailRow}>
-                <MaterialCommunityIcons name="calendar" size={20} color="#6B7280" />
+                <MaterialCommunityIcons name="calendar" size={20} color={colors.textSecondary} />
                 <Text style={styles.detailText}>
                   Creado: {new Date(selectedUser.createdAt).toLocaleDateString()}
                 </Text>
@@ -286,7 +287,7 @@ const UsersScreen = () => {
                 <MaterialCommunityIcons
                   name={selectedUser.isActive ? "check-circle" : "close-circle"}
                   size={20}
-                  color={selectedUser.isActive ? '#10B981' : '#EF4444'}
+                  color={selectedUser.isActive ? colors.success : colors.danger}
                 />
                 <Text style={styles.detailText}>
                   {selectedUser.isActive ? 'Usuario Activo' : 'Usuario Inactivo'}
@@ -302,7 +303,7 @@ const UsersScreen = () => {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Cargando usuarios...</Text>
       </View>
     );
@@ -311,9 +312,9 @@ const UsersScreen = () => {
   if (error) {
     return (
       <View style={styles.centered}>
-        <MaterialCommunityIcons name="alert-circle" size={48} color="#EF4444" />
+        <MaterialCommunityIcons name="alert-circle" size={48} color={colors.danger} />
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchUsers}>
+        <TouchableOpacity activeOpacity={0.7} style={styles.retryButton} onPress={fetchUsers}>
           <Text style={styles.retryButtonText}>Reintentar</Text>
         </TouchableOpacity>
       </View>
@@ -334,7 +335,7 @@ const UsersScreen = () => {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <MaterialCommunityIcons name="account-group-outline" size={64} color="#D1D5DB" />
+            <MaterialCommunityIcons name="account-group-outline" size={64} color={colors.border} />
             <Text style={styles.emptyText}>No hay usuarios</Text>
           </View>
         }
@@ -347,7 +348,7 @@ const UsersScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.canvas,
   },
   centered: {
     flex: 1,
@@ -358,17 +359,17 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   errorText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#EF4444',
+    color: colors.danger,
     textAlign: 'center',
   },
   retryButton: {
     marginTop: 16,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
@@ -381,12 +382,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#111827',
+    color: colors.textPrimary,
     marginBottom: 16,
   },
   statsContainer: {
@@ -394,7 +395,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   statItem: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.surface,
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',
@@ -403,23 +404,23 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#3B82F6',
+    color: colors.primary,
   },
   statLabel: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.textSecondary,
     marginTop: 4,
   },
   filtersContainer: {
     backgroundColor: 'white',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.canvas,
     paddingHorizontal: 12,
     borderRadius: 8,
     marginBottom: 12,
@@ -428,7 +429,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 44,
     fontSize: 16,
-    color: '#111827',
+    color: colors.textPrimary,
     marginLeft: 8,
   },
   roleFilters: {
@@ -438,15 +439,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.canvas,
     marginRight: 8,
   },
   roleChipActive: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
   },
   roleChipText: {
     fontSize: 14,
-    color: '#4B5563',
+    color: colors.textSecondary,
   },
   roleChipTextActive: {
     color: 'white',
@@ -459,7 +460,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: colors.textPrimary,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -477,7 +478,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -493,11 +494,11 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   userEmail: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   roleBadge: {
@@ -516,7 +517,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: colors.canvas,
   },
   statusContainer: {
     flexDirection: 'row',
@@ -530,7 +531,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   actionButtons: {
     flexDirection: 'row',
@@ -552,12 +553,12 @@ const styles = StyleSheet.create({
   emptyText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   // Modal styles
   modalContainer: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.surface,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -566,12 +567,12 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   modalContent: {
     flex: 1,
@@ -588,7 +589,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
@@ -601,7 +602,7 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   detailSection: {
@@ -614,12 +615,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.canvas,
   },
   detailText: {
     marginLeft: 12,
     fontSize: 14,
-    color: '#4B5563',
+    color: colors.textSecondary,
   },
 });
 
