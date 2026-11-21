@@ -6,11 +6,13 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
+  Modal,
   RefreshControl,
   ActivityIndicator,
   DimensionValue,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -61,6 +63,9 @@ const DashboardScreen = () => {
   // null = no cargado (o falló): la sección de presupuestos se omite en vez de
   // mostrar ceros falsos
   const [quoteRows, setQuoteRows] = useState<QuoteSummaryRow[] | null>(null);
+  const [scanVisible, setScanVisible] = useState(false);
+  const [scanProcessed, setScanProcessed] = useState(false);
+  const [scanPermission, requestScanPermission] = useCameraPermissions();
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) {
@@ -144,13 +149,32 @@ const DashboardScreen = () => {
           <Text style={styles.greeting}>¡{saludo}, {user?.firstName || 'Usuario'}!</Text>
           <Text style={styles.date}>{dateStr}</Text>
         </View>
-        <Pressable
-          style={styles.avatar}
-          onPress={() => router.push('/profile')}
-          android_ripple={{ color: colors.primarySoft, borderless: true }}
-        >
-          <Text style={styles.avatarText}>{initials || 'EP'}</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            style={styles.scanButton}
+            onPress={async () => {
+              if (!scanPermission?.granted) {
+                const res = await requestScanPermission();
+                if (!res.granted) {
+                  // no toast util here; use console + alert not needed
+                  return;
+                }
+              }
+              setScanProcessed(false);
+              setScanVisible(true);
+            }}
+            android_ripple={{ color: colors.primarySoft, borderless: true }}
+          >
+            <MaterialCommunityIcons name="qrcode-scan" size={20} color={colors.primary} />
+          </Pressable>
+          <Pressable
+            style={styles.avatar}
+            onPress={() => router.push('/profile')}
+            android_ripple={{ color: colors.primarySoft, borderless: true }}
+          >
+            <Text style={styles.avatarText}>{initials || 'EP'}</Text>
+          </Pressable>
+        </View>
       </View>
     );
   };
@@ -376,6 +400,7 @@ const DashboardScreen = () => {
   }
 
   return (
+    <>
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
@@ -398,10 +423,94 @@ const DashboardScreen = () => {
       {renderQuoteSummary()}
       {renderRecentOrders()}
     </ScrollView>
+    {scanVisible && (
+      <Modal visible transparent animationType="fade" onRequestClose={() => setScanVisible(false)}>
+        <View style={styles.scanOverlay}>
+          <CameraView
+            style={styles.scanCamera}
+            facing="back"
+            barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+            onBarcodeScanned={async ({ data }) => {
+              if (scanProcessed) return;
+              setScanProcessed(true);
+              try {
+                let order: RepairOrder | null = null;
+                if (data.startsWith('serial:')) {
+                  order = await api.getRepairOrderBySerial(data.slice('serial:'.length));
+                } else if (data.startsWith('order:')) {
+                  order = await api.getRepairOrderById(data.slice('order:'.length));
+                } else {
+                  try {
+                    order = await api.getRepairOrderBySerial(data);
+                  } catch {
+                    order = await api.getRepairOrderById(data);
+                  }
+                }
+                setScanVisible(false);
+                if (order) router.push(`/orders/${order.id}` as never);
+              } catch {
+                setScanVisible(false);
+              }
+            }}
+          />
+          <Pressable
+            style={styles.scanClose}
+            onPress={() => setScanVisible(false)}
+            android_ripple={{ color: colors.primarySoft, borderless: true }}
+          >
+            <MaterialCommunityIcons name="close" size={24} color={colors.white} />
+          </Pressable>
+          <Text style={styles.scanHint}>Apunta al código QR de la etiqueta</Text>
+        </View>
+      </Modal>
+    )}
+    </>
   );
 };
 
 const styles = StyleSheet.create({
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  scanButton: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.button,
+    borderCurve: 'continuous',
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scanOverlay: {
+    flex: 1,
+    backgroundColor: colors.textPrimary,
+  },
+  scanCamera: {
+    flex: 1,
+  },
+  scanClose: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scanHint: {
+    position: 'absolute',
+    bottom: 80,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: '600',
+  },
   container: {
     flex: 1,
     backgroundColor: colors.canvas,
