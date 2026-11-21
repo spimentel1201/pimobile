@@ -279,6 +279,10 @@ class ApiService {
     return this.request<RepairOrder>(`/repair-orders/${id}`);
   }
 
+  async getRepairOrderBySerial(serial: string): Promise<RepairOrder> {
+    return this.request<RepairOrder>(`/repair-orders/by-serial/${encodeURIComponent(serial)}`);
+  }
+
   async getRepairOrdersByCustomer(customerId: string): Promise<RepairOrder[]> {
     return this.request<RepairOrder[]>(`/repair-orders/customer/${customerId}`);
   }

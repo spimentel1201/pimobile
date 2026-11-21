@@ -21,6 +21,8 @@ import StatusBadge from '../components/ui/StatusBadge';
 import Toast from '../components/ui/Toast';
 import ReceiptPreview from '../components/ReceiptPreview';
 import { NO_PHONE_MESSAGE, buildTelUrl, buildWhatsAppUrl } from '../utils/phone';
+import { buildQrPayload, printQrLabel } from '../utils/qr';
+import QRCode from 'react-native-qrcode-svg';
 
 /** Estados que suman al total de la orden (Σ APPROVED + PAID + INVOICED). */
 const BILLABLE_QUOTE_STATUSES: QuoteStatus[] = ['APPROVED', 'PAID', 'INVOICED'];
@@ -487,6 +489,48 @@ export default function OrderDetailScreen() {
             </View>
           )}
         </View>
+      </SectionCard>
+
+      {/* Etiqueta QR del artefacto: escanear para ver la orden asociada */}
+      <SectionCard icon="qrcode" title="ETIQUETA QR DEL ARTEFACTO">
+        {(() => {
+          const first = order.items?.[0];
+          const serial = first?.serialNumber || null;
+          const device = first ? `${first.brand} ${first.model}`.trim() : null;
+          const payload = buildQrPayload(serial, order.id);
+          return (
+            <View style={styles.qrBlock}>
+              <QRCode value={payload} size={150} backgroundColor={colors.surface} color={colors.textPrimary} />
+              <Text style={styles.qrHint}>
+                {serial
+                  ? `Serial: ${serial}`
+                  : 'Sin serial detectado: el QR apunta a esta orden.'}
+              </Text>
+              {device ? <Text style={styles.qrHint}>{device}</Text> : null}
+              <TouchableOpacity
+                style={styles.qrPrintButton}
+                onPress={async () => {
+                  try {
+                    await printQrLabel({
+                      payload,
+                      title: 'Electrónica Pimentel',
+                      subtitle: `Orden #${order.id.slice(0, 8)}`,
+                      serial,
+                      customer: customerName,
+                      device,
+                    });
+                  } catch {
+                    showToast('No se pudo imprimir la etiqueta', 'error');
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <MaterialCommunityIcons name="printer" size={18} color={colors.white} />
+                <Text style={styles.qrPrintButtonText}>Imprimir etiqueta</Text>
+              </TouchableOpacity>
+            </View>
+          );
+        })()}
       </SectionCard>
 
       {/* Técnico certificado */}
@@ -1085,5 +1129,31 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: '600',
     fontSize: 16,
+  },
+  qrBlock: {
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  qrHint: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  qrPrintButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radii.button,
+    borderCurve: 'continuous',
+    marginTop: spacing.sm,
+  },
+  qrPrintButtonText: {
+    ...typography.bodyStrong,
+    fontSize: 14,
+    color: colors.white,
   },
 });

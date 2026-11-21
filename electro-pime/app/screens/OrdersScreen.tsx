@@ -13,6 +13,7 @@ import {
   Linking,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { api } from '../services/api';
 import { RepairOrder, RepairOrderStatus } from '../types/api';
@@ -71,6 +72,9 @@ const OrdersScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('ALL');
+  const [scanVisible, setScanVisible] = useState(false);
+  const [scanProcessed, setScanProcessed] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
   const [statusPickerOrder, setStatusPickerOrder] = useState<RepairOrder | null>(null);
   const [receiptOrder, setReceiptOrder] = useState<RepairOrder | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -197,13 +201,31 @@ const OrdersScreen = () => {
     <View style={styles.header}>
       <View style={styles.headerContent}>
         <Text style={styles.headerTitle}>Órdenes de Reparación</Text>
-        <TouchableOpacity activeOpacity={0.7}
-          style={styles.addButton}
-          onPress={() => router.push('/orders/new')}
-        >
-          <MaterialCommunityIcons name="plus" size={20} color="white" />
-          <Text style={styles.addButtonText}>Nueva Orden</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity activeOpacity={0.7}
+            style={styles.scanButton}
+            onPress={async () => {
+              if (!permission?.granted) {
+                const res = await requestPermission();
+                if (!res.granted) {
+                  showToast('Se necesita permiso de cámara para escanear', 'error');
+                  return;
+                }
+              }
+              setScanProcessed(false);
+              setScanVisible(true);
+            }}
+          >
+            <MaterialCommunityIcons name="qrcode-scan" size={20} color={colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity activeOpacity={0.7}
+            style={styles.addButton}
+            onPress={() => router.push('/orders/new')}
+          >
+            <MaterialCommunityIcons name="plus" size={20} color="white" />
+            <Text style={styles.addButtonText}>Nueva Orden</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -456,7 +478,52 @@ const OrdersScreen = () => {
           />
         </View>
       </SafeAreaView>
-      {renderStatusPicker()}
+      {scanVisible && (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setScanVisible(false)}>
+          <View style={styles.scanOverlay}>
+            <CameraView
+              style={styles.scanCamera}
+              facing="back"
+              barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+              onBarcodeScanned={async ({ data }) => {
+                if (scanProcessed) return;
+                setScanProcessed(true);
+                try {
+                  let order: RepairOrder | null = null;
+                  if (data.startsWith('serial:')) {
+                    const serial = data.slice('serial:'.length);
+                    order = await api.getRepairOrderBySerial(serial);
+                  } else if (data.startsWith('order:')) {
+                    const id = data.slice('order:'.length);
+                    order = await api.getRepairOrderById(id);
+                  } else {
+                    // Intentar como serial directo
+                    try {
+                      order = await api.getRepairOrderBySerial(data);
+                    } catch {
+                      order = await api.getRepairOrderById(data);
+                    }
+                  }
+                  setScanVisible(false);
+                  if (order) router.push(`/orders/${order.id}` as never);
+                  else showToast('No se encontró la orden', 'error');
+                } catch {
+                  showToast('No se pudo resolver el código QR', 'error');
+                  setScanVisible(false);
+                }
+              }}
+            />
+            <TouchableOpacity
+              style={styles.scanClose}
+              onPress={() => setScanVisible(false)}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="close" size={24} color={colors.white} />
+            </TouchableOpacity>
+            <Text style={styles.scanHint}>Apunta al código QR de la etiqueta</Text>
+          </View>
+        </Modal>
+      )}
       <ReceiptPreview
         visible={receiptOrder !== null}
         order={receiptOrder}
@@ -575,6 +642,48 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  scanButton: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.button,
+    borderCurve: 'continuous',
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scanOverlay: {
+    flex: 1,
+    backgroundColor: colors.textPrimary,
+  },
+  scanCamera: {
+    flex: 1,
+  },
+  scanClose: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scanHint: {
+    position: 'absolute',
+    bottom: 80,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: '600',
   },
   addButtonText: {
     color: 'white',
