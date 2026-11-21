@@ -92,14 +92,10 @@ export const radii = {
   sheet: 20,
 } as const;
 
-// Sombra única — prohibida la mezcla de elevaciones
+// Sombra única — CSS boxShadow (expo-native-ui): sombras legacy shadow*/elevation prohibidas
 export const shadow: ViewStyle = {
-  shadowColor: colors.textPrimary,
-  shadowOffset: { width: 0, height: 1 },
-  shadowOpacity: 0.06,
-  shadowRadius: 3,
-  elevation: 1,
-};
+  boxShadow: '0 1px 3px rgba(16, 24, 40, 0.06)',
+} as ViewStyle;
 
 // ============================================================
 // Mapa semántico de estados de órdenes de reparación

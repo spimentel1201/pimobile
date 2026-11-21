@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   RefreshControl,
   ActivityIndicator,
   DimensionValue,
@@ -143,13 +143,13 @@ const DashboardScreen = () => {
           <Text style={styles.greeting}>¡{saludo}, {user?.firstName || 'Usuario'}!</Text>
           <Text style={styles.date}>{dateStr}</Text>
         </View>
-        <TouchableOpacity
+        <Pressable
           style={styles.avatar}
           onPress={() => router.push('/profile')}
-          activeOpacity={0.85}
+          android_ripple={{ color: colors.primarySoft, borderless: true }}
         >
           <Text style={styles.avatarText}>{initials || 'EP'}</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     );
   };
@@ -161,15 +161,15 @@ const DashboardScreen = () => {
     return (
       <View style={styles.kpiRow}>
         <View style={styles.kpiCard}>
-          <Text style={styles.kpiValue}>{fmt(kpis.active, false)}</Text>
+          <Text style={styles.kpiValue} selectable>{fmt(kpis.active, false)}</Text>
           <Text style={styles.kpiLabel}>Activas</Text>
         </View>
         <View style={styles.kpiCard}>
-          <Text style={styles.kpiValue}>{fmt(kpis.pending, false)}</Text>
+          <Text style={styles.kpiValue} selectable>{fmt(kpis.pending, false)}</Text>
           <Text style={styles.kpiLabel}>Por cobrar</Text>
         </View>
         <View style={[styles.kpiCard, styles.kpiCardHighlight]}>
-          <Text style={[styles.kpiValue, kpis.salesToday !== null && styles.kpiMoney]} numberOfLines={1} adjustsFontSizeToFit>
+          <Text style={[styles.kpiValue, kpis.salesToday !== null && styles.kpiMoney]} numberOfLines={1} adjustsFontSizeToFit selectable>
             {fmt(kpis.salesToday, true)}
           </Text>
           <Text style={styles.kpiLabel}>Ventas hoy</Text>
@@ -203,11 +203,11 @@ const DashboardScreen = () => {
           ) : (
             <>
               {visible.map((row, index) => (
-                <TouchableOpacity
+                <Pressable
                   key={row.status}
                   style={[styles.quoteRow, index > 0 && styles.quoteRowDivider]}
                   onPress={() => router.push('/budgets')}
-                  activeOpacity={0.6}
+                  android_ripple={{ color: colors.border }}
                   accessibilityLabel={`Filtrar presupuestos en estado ${row.style.label}`}
                 >
                   {/* Barra de acento del color del estado, igual que en las órdenes */}
@@ -223,7 +223,7 @@ const DashboardScreen = () => {
                     </Text>
                   </View>
                   <Text style={styles.quoteAmount}>S/ {row.amount.toFixed(2)}</Text>
-                </TouchableOpacity>
+                </Pressable>
               ))}
 
               {visible.length > 1 && (
@@ -271,11 +271,11 @@ const DashboardScreen = () => {
         <SectionHeader title="Acciones Rápidas" />
         <View style={styles.actionsGrid}>
           {actions.map((action) => (
-            <TouchableOpacity
+            <Pressable
               key={action.label}
               style={[styles.actionPill, { width: pillWidth }, action.primary && styles.actionPillPrimary]}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push(action.route as never); }}
-              activeOpacity={0.85}
+              android_ripple={{ color: colors.primarySoft, borderless: true }}
             >
               <View style={[styles.actionIcon, { backgroundColor: action.bg }, action.primary && styles.actionIconPrimary]}>
                 <MaterialCommunityIcons name={action.icon} size={22} color={action.fg} />
@@ -283,7 +283,7 @@ const DashboardScreen = () => {
               <Text style={[styles.actionLabel, action.primary && styles.actionLabelPrimary]} numberOfLines={2} ellipsizeMode="tail">
                 {action.label}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           ))}
         </View>
       </View>
@@ -378,6 +378,7 @@ const DashboardScreen = () => {
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
+      contentInsetAdjustmentBehavior="automatic"
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
       }
@@ -446,6 +447,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
+    borderCurve: 'continuous',
     backgroundColor: colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
@@ -467,6 +469,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.surface,
     borderRadius: radii.card,
+    borderCurve: 'continuous',
     borderWidth: 1,
     borderColor: colors.border,
     paddingVertical: spacing.md,
@@ -532,6 +535,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: radii.button,
+    borderCurve: 'continuous',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.sm,
@@ -572,6 +576,7 @@ const styles = StyleSheet.create({
     width: 4,
     height: 22,
     borderRadius: 2,
+    borderCurve: 'continuous',
   },
   quoteCountPill: {
     paddingHorizontal: 8,
