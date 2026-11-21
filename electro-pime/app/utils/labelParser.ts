@@ -55,8 +55,7 @@ const MODEL_FALLBACK = [
 ];
 
 const SERIAL_PATTERNS = [
-  // `\bNS\b`: "Contains" contiene "ns" — sin boundaries daba falso positivo tipo "TX FCC ID".
-  /(?:S\/?N\.?|N[OUÚ]?[\.°]?\s*S[EÉ]RIE|SERIAL(?:\.?\s*N[O°.]?)?|SER\.?\s*N[O°.]?|N[UÚ]MERO\s+DE\s+SERIE|S[EÉ]RIE|\bNS\b)\s*(?:N[°ºO]?\.?\s*)?[:#.\-]*\s*([A-Z0-9][A-Z0-9\-\/\. ]{3,30})/i,
+  /(SERIAL\s*(?:NUMBER|NO\.?|N[OA]?\.?)?|S\/?N\.?|SERIE(?:\s*N[O°]?\.?)?|N[OUAs]?[\.]\s*S[EA%]RIE|SER\.?\s*N[OA]?\.?|N[UAs]MERO\s+DE\s+SERIE|\bNS\b)\s*(?:N[A-ZO]?\.?\s*)?[:#.\-]*\s*([A-Z0-9][A-Z0-9\-\/\. ]{3,30})/i,
 ];
 
 // Palabras que no deben devolverse como modelo/serie aunque el regex enganche
@@ -129,7 +128,24 @@ export function parseLabelText(rawText: string): ParsedLabel {
   const brand = detectBrand(lines);
   const model =
     matchFirst(MODEL_PRIMARY, lines, brand) || matchFirst(MODEL_FALLBACK, lines, brand);
-  const serialNumber = matchFirst(SERIAL_PATTERNS, lines);
+  let serialNumber = matchFirst(SERIAL_PATTERNS, lines);
+
+  // Fallback: intentar sobre el texto completo unido (captura casos donde la
+  // etiqueta "Serial Number" y el valor están en líneas distintas o el OCR
+  // insertó saltos de línea en medio).
+  if (!serialNumber) {
+    const joined = lines.join(' ');
+    for (const pattern of SERIAL_PATTERNS) {
+      const m = joined.match(pattern);
+      if (m?.[1]) {
+        const cleaned = cleanToken(m[1]).split(' - ')[0].trim();
+        if (cleaned && !FIELD_JUNK.has(cleaned) && cleaned.length >= 3) {
+          serialNumber = cleaned;
+          break;
+        }
+      }
+    }
+  }
 
   const hits = [deviceType, brand, model, serialNumber].filter((v) => v).length;
   const confidence: ParsedLabel['confidence'] =
