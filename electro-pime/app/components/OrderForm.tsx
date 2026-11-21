@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
+  Platform,
   View,
   StyleSheet,
   TextInput,
@@ -222,7 +223,7 @@ export default function OrderForm({
 
   // Submit
   const handleSubmit = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Platform.OS !== 'web' && Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (!validate()) {
       Alert.alert('Error', 'Por favor complete los campos requeridos');
       return;

@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import {
+    Platform,
     View,
     Text,
     StyleSheet,
@@ -160,7 +161,7 @@ export default function NewSaleScreen() {
             return;
         }
 
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Platform.OS !== 'web' && Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setSaving(true);
         try {
             const saleData: CreateSaleDto = {

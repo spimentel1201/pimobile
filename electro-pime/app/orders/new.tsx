@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Alert, SafeAreaView } from 'react-native';
+import { View, StyleSheet, Alert, SafeAreaView, Platform } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { api } from '../services/api';
 import OrderForm from '../components/OrderForm';
@@ -15,7 +15,7 @@ export default function NewOrderScreen() {
     try {
       setLoading(true);
       await api.createRepairOrder(data);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Platform.OS !== 'web' && Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       Alert.alert(
         '¡Éxito!',

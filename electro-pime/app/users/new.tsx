@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Platform,
   View,
   Text,
   StyleSheet,
@@ -60,7 +61,7 @@ export default function NewUserScreen() {
   };
 
   const handleSubmit = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Platform.OS !== 'web' && Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (!validate()) return;
 
     setLoading(true);

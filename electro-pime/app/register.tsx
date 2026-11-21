@@ -73,7 +73,7 @@ export default function RegisterScreen() {
     };
 
     const handleRegister = async () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        Platform.OS !== 'web' && Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         if (!validate()) return;
 
         setLoading(true);

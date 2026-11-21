@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
+  Platform,
   View,
   Text,
   StyleSheet,
@@ -274,7 +275,7 @@ const DashboardScreen = () => {
             <Pressable
               key={action.label}
               style={[styles.actionPill, { width: pillWidth }, action.primary && styles.actionPillPrimary]}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push(action.route as never); }}
+              onPress={() => { Platform.OS !== 'web' && Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push(action.route as never); }}
               android_ripple={{ color: colors.primarySoft, borderless: true }}
             >
               <View style={[styles.actionIcon, { backgroundColor: action.bg }, action.primary && styles.actionIconPrimary]}>

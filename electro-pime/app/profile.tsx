@@ -21,7 +21,7 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Platform.OS !== 'web' && Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (Platform.OS === 'web') {
       if (window.confirm('¿Está seguro que desea cerrar sesión?')) {
         performLogout();
