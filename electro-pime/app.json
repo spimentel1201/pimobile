@@ -16,7 +16,13 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.pimentel.electropime"
+      "package": "com.pimentel.electropime",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -75,6 +81,12 @@
       "eas": {
         "projectId": "28eab53f-77e4-4718-8d42-0b4aa2355d6e"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/28eab53f-77e4-4718-8d42-0b4aa2355d6e"
     }
   }
 }
