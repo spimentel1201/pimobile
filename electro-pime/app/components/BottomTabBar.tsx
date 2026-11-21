@@ -4,7 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useSegments } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ComponentProps } from 'react';
-import { colors, radii, spacing } from '../theme';
+import { colors, spacing } from '../theme';
 
 type TabItem = {
   name: string;
@@ -56,9 +56,9 @@ export default function BottomTabBar() {
           return (
             <TouchableOpacity
               key={tab.name}
-              style={[styles.tab, active && styles.tabActive]}
+              style={styles.tab}
               onPress={() => handleNavigation(tab.route)}
-              activeOpacity={0.7}
+              activeOpacity={0.6}
             >
               <MaterialCommunityIcons
                 name={tab.icon as ComponentProps<typeof MaterialCommunityIcons>['name']}
@@ -103,17 +103,12 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radii.pill,
-    gap: 6,
-    minHeight: 44,
-  },
-  tabActive: {
-    backgroundColor: colors.primarySoft,
+    paddingVertical: 6,
+    gap: 2,
+    minHeight: 48,
   },
   tabText: {
     fontSize: 12,

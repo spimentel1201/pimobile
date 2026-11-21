@@ -10,6 +10,7 @@ import BottomTabBar from './components/BottomTabBar';
 import CustomHeader, { StackScreenWithCustomHeader } from './components/CustomHeader';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ServiceOrderProvider } from './contexts/ServiceOrderContext';
+import { colors } from './theme';
 // SecureStore is imported in AuthContext
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -47,7 +48,7 @@ function RootLayoutNav() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -58,7 +59,7 @@ function RootLayoutNav() {
         <Stack
           screenOptions={{
             header: (props) => <CustomHeader {...props} />,
-            contentStyle: { backgroundColor: '#f8fafc' },
+            contentStyle: { backgroundColor: colors.canvas },
             headerShown: false,
           }}
         >
@@ -112,7 +113,7 @@ export default function RootLayout() {
   if (!loaded || !fontsLoaded) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -135,6 +136,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: colors.canvas,
   },
 });

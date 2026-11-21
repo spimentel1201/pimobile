@@ -308,7 +308,7 @@ const ProductsScreen = () => {
   const renderHeader = () => (
     <View style={styles.header}>
       <Text style={styles.headerTitle}>Productos</Text>
-      <TouchableOpacity style={styles.addButton} onPress={openNewProductModal}>
+      <TouchableOpacity activeOpacity={0.7} style={styles.addButton} onPress={openNewProductModal}>
         <MaterialIcons name="add" size={20} color="white" />
         <Text style={styles.addButtonText}>Nuevo</Text>
       </TouchableOpacity>
@@ -318,23 +318,23 @@ const ProductsScreen = () => {
   const renderSearchAndFilters = () => (
     <View style={styles.filtersSection}>
       <View style={styles.searchContainer}>
-        <MaterialIcons name="search" size={20} color="#9CA3AF" />
+        <MaterialIcons name="search" size={20} color={colors.textMuted} />
         <TextInput
           style={styles.searchInput}
           placeholder="Buscar productos..."
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={colors.textMuted}
           value={searchQuery}
           onChangeText={handleSearch}
         />
         {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => handleSearch('')}>
-            <MaterialIcons name="close" size={20} color="#9CA3AF" />
+          <TouchableOpacity activeOpacity={0.7} onPress={() => handleSearch('')}>
+            <MaterialIcons name="close" size={20} color={colors.textMuted} />
           </TouchableOpacity>
         )}
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesContainer}>
-        <TouchableOpacity
+        <TouchableOpacity activeOpacity={0.7}
           style={[styles.categoryChip, selectedCategory === 'all' && styles.categoryChipActive]}
           onPress={() => setSelectedCategory('all')}
         >
@@ -343,7 +343,7 @@ const ProductsScreen = () => {
           </Text>
         </TouchableOpacity>
         {categories.map((category) => (
-          <TouchableOpacity
+          <TouchableOpacity activeOpacity={0.7}
             key={category}
             style={[styles.categoryChip, selectedCategory === category && styles.categoryChipActive]}
             onPress={() => setSelectedCategory(category)}
@@ -428,38 +428,34 @@ const ProductsScreen = () => {
               </Text>
             </View>
             <View style={styles.stockActions}>
-              <TouchableOpacity
+              <TouchableOpacity activeOpacity={0.7}
                 style={styles.stockButton}
                 onPress={() => handleUpdateStock(item, 1)}
-                activeOpacity={0.7}
                 hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               >
-                <MaterialIcons name="add" size={20} color="#3B82F6" />
+                <MaterialIcons name="add" size={20} color={colors.primary} />
               </TouchableOpacity>
-              <TouchableOpacity
+              <TouchableOpacity activeOpacity={0.7}
                 style={[styles.stockButton, item.stock <= 0 && styles.stockButtonDisabled]}
                 onPress={() => handleUpdateStock(item, -1)}
                 disabled={item.stock <= 0}
-                activeOpacity={0.7}
                 hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               >
-                <MaterialIcons name="remove" size={20} color="#EF4444" />
+                <MaterialIcons name="remove" size={20} color={colors.danger} />
               </TouchableOpacity>
             </View>
           </View>
 
           <View style={styles.productActions}>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
+            <TouchableOpacity activeOpacity={0.7}
+              style={[styles.actionButton, { backgroundColor: colors.primary }]}
               onPress={() => openEditProductModal(item)}
-              activeOpacity={0.7}
             >
               <MaterialIcons name="edit" size={18} color="white" />
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: '#EF4444' }]}
+            <TouchableOpacity activeOpacity={0.7}
+              style={[styles.actionButton, { backgroundColor: colors.danger }]}
               onPress={() => handleDeleteProduct(item)}
-              activeOpacity={0.7}
             >
               <MaterialIcons name="delete" size={18} color="white" />
             </TouchableOpacity>
@@ -483,7 +479,7 @@ const ProductsScreen = () => {
           <TouchableOpacity
             style={[styles.footerButton, styles.cancelButton]}
             onPress={closeSheet}
-            activeOpacity={0.85}
+            activeOpacity={0.7}
           >
             <Text style={styles.cancelButtonText}>Cancelar</Text>
           </TouchableOpacity>
@@ -491,7 +487,7 @@ const ProductsScreen = () => {
             style={[styles.footerButton, styles.saveButton, saving && styles.buttonDisabled]}
             onPress={handleSaveProduct}
             disabled={saving}
-            activeOpacity={0.85}
+            activeOpacity={0.7}
           >
             {saving ? (
               <ActivityIndicator color="white" />
@@ -554,7 +550,7 @@ const ProductsScreen = () => {
           {categories.length > 0 && (
             <View style={styles.categoryChips}>
               {categories.slice(0, 5).map((category) => (
-                <TouchableOpacity
+                <TouchableOpacity activeOpacity={0.7}
                   key={category}
                   style={[
                     styles.categoryChip,
@@ -564,7 +560,6 @@ const ProductsScreen = () => {
                     setFormData({ ...formData, category });
                     setFormErrors({ ...formErrors, category: undefined });
                   }}
-                  activeOpacity={0.85}
                 >
                   <Text
                     style={[
@@ -643,8 +638,8 @@ const ProductsScreen = () => {
           <Switch
             value={formData.isActive}
             onValueChange={(value) => setFormData({ ...formData, isActive: value })}
-            trackColor={{ false: '#D1D5DB', true: '#93C5FD' }}
-            thumbColor={formData.isActive ? '#3B82F6' : '#9CA3AF'}
+            trackColor={{ false: colors.border, true: '#93C5FD' }}
+            thumbColor={formData.isActive ? colors.primary : colors.textMuted}
           />
         </View>
       </ScrollView>
@@ -654,7 +649,7 @@ const ProductsScreen = () => {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Cargando productos...</Text>
       </View>
     );
@@ -663,9 +658,9 @@ const ProductsScreen = () => {
   if (error) {
     return (
       <View style={styles.centered}>
-        <MaterialIcons name="error" size={48} color="#EF4444" />
+        <MaterialIcons name="error" size={48} color={colors.danger} />
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchProducts}>
+        <TouchableOpacity activeOpacity={0.7} style={styles.retryButton} onPress={fetchProducts}>
           <Text style={styles.retryButtonText}>Reintentar</Text>
         </TouchableOpacity>
       </View>
@@ -696,9 +691,9 @@ const ProductsScreen = () => {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <MaterialCommunityIcons name="package-variant-closed" size={64} color="#D1D5DB" />
+            <MaterialCommunityIcons name="package-variant-closed" size={64} color={colors.border} />
             <Text style={styles.emptyText}>No hay productos</Text>
-            <TouchableOpacity style={styles.emptyButton} onPress={openNewProductModal}>
+            <TouchableOpacity activeOpacity={0.7} style={styles.emptyButton} onPress={openNewProductModal}>
               <Text style={styles.emptyButtonText}>Agregar primer producto</Text>
             </TouchableOpacity>
           </View>
@@ -735,7 +730,7 @@ const ProductsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.canvas,
   },
   stockBanner: {
     position: 'absolute',
@@ -747,7 +742,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.danger,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 999,
@@ -773,17 +768,17 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   errorText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#EF4444',
+    color: colors.danger,
     textAlign: 'center',
   },
   retryButton: {
     marginTop: 16,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
@@ -799,17 +794,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
@@ -823,12 +818,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.canvas,
     marginHorizontal: 16,
     marginTop: 12,
     paddingHorizontal: 12,
@@ -838,7 +833,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 44,
     fontSize: 16,
-    color: '#111827',
+    color: colors.textPrimary,
     marginLeft: 8,
   },
   categoriesContainer: {
@@ -849,15 +844,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.canvas,
     marginRight: 8,
   },
   categoryChipActive: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
   },
   categoryChipText: {
     fontSize: 14,
-    color: '#4B5563',
+    color: colors.textSecondary,
   },
   categoryChipTextActive: {
     color: 'white',
@@ -929,7 +924,7 @@ const styles = StyleSheet.create({
   },
   priceHeroValue: {
     fontSize: 26,
-    fontWeight: '800',
+    fontWeight: '700',
     color: colors.primary,
     letterSpacing: -0.5,
   },
@@ -973,10 +968,10 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   stockLow: {
-    color: '#F59E0B',
+    color: colors.warning,
   },
   stockOut: {
-    color: '#EF4444',
+    color: colors.danger,
   },
   stockActions: {
     flexDirection: 'row',
@@ -1019,11 +1014,11 @@ const styles = StyleSheet.create({
   emptyText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   emptyButton: {
     marginTop: 16,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,

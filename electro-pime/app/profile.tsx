@@ -2,6 +2,8 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, ScrollView }
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from './contexts/AuthContext';
+import * as Haptics from 'expo-haptics';
+import { colors } from './theme';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -19,6 +21,7 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (Platform.OS === 'web') {
       if (window.confirm('¿Está seguro que desea cerrar sesión?')) {
         performLogout();
@@ -70,12 +73,13 @@ export default function ProfileScreen() {
             key={index}
             style={[styles.menuItem, item.isLogout && styles.menuItemLogout]}
             onPress={item.onPress}
+            activeOpacity={0.7}
           >
             <View style={[styles.menuIcon, item.isLogout && styles.menuIconLogout]}>
               <MaterialCommunityIcons
                 name={item.icon as any}
                 size={24}
-                color={item.isLogout ? '#EF4444' : '#4b5563'}
+                color={item.isLogout ? colors.danger : colors.textSecondary}
               />
             </View>
             <Text style={[styles.menuText, item.isLogout && styles.menuTextLogout]}>
@@ -84,7 +88,7 @@ export default function ProfileScreen() {
             <MaterialCommunityIcons
               name="chevron-right"
               size={24}
-              color={item.isLogout ? '#EF4444' : '#9ca3af'}
+              color={item.isLogout ? colors.danger : colors.textMuted}
             />
           </TouchableOpacity>
         ))}
@@ -96,13 +100,13 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: colors.canvas,
   },
   scrollContent: {
     paddingBottom: 120,
   },
   header: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     padding: 24,
     alignItems: 'center',
     paddingTop: 60,
@@ -120,14 +124,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   avatarText: {
-    fontSize: 36,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.surface,
   },
   name: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.surface,
     marginBottom: 4,
   },
   email: {
@@ -142,7 +146,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   roleText: {
-    color: '#fff',
+    color: colors.surface,
     fontSize: 14,
     fontWeight: '500',
   },
@@ -155,7 +159,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: colors.border,
   },
   menuItemLogout: {
     borderBottomWidth: 0,
@@ -165,7 +169,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.canvas,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -176,10 +180,10 @@ const styles = StyleSheet.create({
   menuText: {
     flex: 1,
     fontSize: 16,
-    color: '#1f2937',
+    color: colors.textPrimary,
     fontWeight: '500',
   },
   menuTextLogout: {
-    color: '#EF4444',
+    color: colors.danger,
   },
 });

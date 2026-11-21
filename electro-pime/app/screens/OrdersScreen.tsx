@@ -25,13 +25,13 @@ import ReceiptPreview from '../components/ReceiptPreview';
 import { colors, typography, radii, shadow, spacing, ORDER_STATUS } from '../theme';
 
 const STATUS_COLORS: Record<RepairOrderStatus, string> = {
-  RECEIVED: '#9CA3AF',
-  DIAGNOSED: '#3B82F6',
-  IN_PROGRESS: '#F59E0B',
-  WAITING_FOR_PARTS: '#8B5CF6',
-  COMPLETED: '#10B981',
+  RECEIVED: colors.textMuted,
+  DIAGNOSED: colors.primary,
+  IN_PROGRESS: colors.warning,
+  WAITING_FOR_PARTS: colors.violet,
+  COMPLETED: colors.success,
   DELIVERED: '#059669',
-  CANCELLED: '#EF4444',
+  CANCELLED: colors.danger,
 };
 
 const STATUS_LABELS: Record<RepairOrderStatus, string> = {
@@ -196,7 +196,7 @@ const OrdersScreen = () => {
     <View style={styles.header}>
       <View style={styles.headerContent}>
         <Text style={styles.headerTitle}>Órdenes de Reparación</Text>
-        <TouchableOpacity
+        <TouchableOpacity activeOpacity={0.7}
           style={styles.addButton}
           onPress={() => router.push('/orders/new')}
         >
@@ -211,7 +211,7 @@ const OrdersScreen = () => {
     <View style={styles.filtersContainer}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         {(['ALL', ...Object.keys(STATUS_LABELS)] as FilterStatus[]).map((status) => (
-          <TouchableOpacity
+          <TouchableOpacity activeOpacity={0.7}
             key={status}
             style={[
               styles.filterChip,
@@ -250,9 +250,8 @@ const OrdersScreen = () => {
         {/* Barra de estado 4px del color del estado */}
         <View style={[styles.cardAccent, { backgroundColor: status.color }]} />
 
-        <TouchableOpacity
+        <TouchableOpacity activeOpacity={0.7}
           onPress={() => router.push(`/orders/${item.id}` as never)}
-          activeOpacity={0.7}
         >
           <View style={styles.orderHeader}>
             <StatusBadge label={status.label} color={status.color} soft={status.soft} />
@@ -301,19 +300,17 @@ const OrdersScreen = () => {
         <View style={styles.orderActions}>
           {customerPhone && (
             <>
-              <TouchableOpacity
+              <TouchableOpacity activeOpacity={0.7}
                 style={styles.contactButton}
                 onPress={() => openPhone(customerPhone)}
-                activeOpacity={0.7}
                 hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                 accessibilityLabel="Llamar"
               >
                 <MaterialCommunityIcons name="phone" size={18} color={colors.primary} />
               </TouchableOpacity>
-              <TouchableOpacity
+              <TouchableOpacity activeOpacity={0.7}
                 style={[styles.contactButton, styles.contactButtonWhatsapp]}
                 onPress={() => openWhatsApp(customerPhone)}
-                activeOpacity={0.7}
                 hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                 accessibilityLabel="WhatsApp"
               >
@@ -324,32 +321,28 @@ const OrdersScreen = () => {
 
           <View style={styles.actionSpacer} />
 
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
+          <TouchableOpacity activeOpacity={0.7}
+            style={[styles.actionButton, { backgroundColor: colors.primary }]}
             onPress={() => router.push(`/orders/${item.id}/edit`)}
-            activeOpacity={0.7}
           >
             <MaterialCommunityIcons name="pencil" size={18} color="white" />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: '#10B981' }]}
+          <TouchableOpacity activeOpacity={0.7}
+            style={[styles.actionButton, { backgroundColor: colors.success }]}
             onPress={() => setStatusPickerOrder(item)}
-            activeOpacity={0.7}
           >
             <MaterialCommunityIcons name="swap-horizontal" size={18} color="white" />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: '#8B5CF6' }]}
+          <TouchableOpacity activeOpacity={0.7}
+            style={[styles.actionButton, { backgroundColor: colors.violet }]}
             onPress={() => openReceiptPreview(item)}
-            activeOpacity={0.7}
             accessibilityLabel="Ver recibo e imprimir"
           >
             <MaterialCommunityIcons name="printer" size={18} color="white" />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: '#EF4444' }]}
+          <TouchableOpacity activeOpacity={0.7}
+            style={[styles.actionButton, { backgroundColor: colors.danger }]}
             onPress={() => handleDeleteOrder(item.id)}
-            activeOpacity={0.7}
           >
             <MaterialCommunityIcons name="delete" size={18} color="white" />
           </TouchableOpacity>
@@ -370,12 +363,12 @@ const OrdersScreen = () => {
       >
         <TouchableOpacity
           style={styles.statusOverlay}
-          activeOpacity={1}
+          activeOpacity={0.7}
           onPress={() => setStatusPickerOrder(null)}
         >
           <TouchableOpacity
             style={styles.statusSheet}
-            activeOpacity={1}
+            activeOpacity={0.7}
             onPress={() => {}}
           >
             <Text style={styles.statusSheetTitle}>Cambiar estado</Text>
@@ -388,7 +381,7 @@ const OrdersScreen = () => {
                 <TouchableOpacity
                   key={status}
                   style={[styles.statusOption, isActive && styles.statusOptionActive]}
-                  activeOpacity={0.85}
+                  activeOpacity={0.7}
                   disabled={isActive}
                   onPress={() => handleStatusUpdate(statusPickerOrder.id, status)}
                 >
@@ -399,7 +392,7 @@ const OrdersScreen = () => {
                     {label}
                   </Text>
                   {isActive && (
-                    <MaterialCommunityIcons name="check-circle" size={20} color="#3B82F6" />
+                    <MaterialCommunityIcons name="check-circle" size={20} color={colors.primary} />
                   )}
                 </TouchableOpacity>
               );
@@ -413,7 +406,7 @@ const OrdersScreen = () => {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Cargando órdenes...</Text>
       </View>
     );
@@ -422,9 +415,9 @@ const OrdersScreen = () => {
   if (error) {
     return (
       <View style={styles.centered}>
-        <MaterialCommunityIcons name="alert-circle" size={48} color="#EF4444" />
+        <MaterialCommunityIcons name="alert-circle" size={48} color={colors.danger} />
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchOrders}>
+        <TouchableOpacity activeOpacity={0.7} style={styles.retryButton} onPress={fetchOrders}>
           <Text style={styles.retryButtonText}>Reintentar</Text>
         </TouchableOpacity>
       </View>
@@ -452,9 +445,9 @@ const OrdersScreen = () => {
             }
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <MaterialCommunityIcons name="clipboard-text-outline" size={64} color="#D1D5DB" />
+                <MaterialCommunityIcons name="clipboard-text-outline" size={64} color={colors.border} />
                 <Text style={styles.emptyText}>No hay órdenes</Text>
-                <TouchableOpacity
+                <TouchableOpacity activeOpacity={0.7}
                   style={styles.emptyButton}
                   onPress={() => router.push('/orders/new')}
                 >
@@ -478,7 +471,7 @@ const OrdersScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.canvas,
   },
   safeArea: {
     flex: 1,
@@ -499,11 +492,11 @@ const styles = StyleSheet.create({
   statusSheetTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   statusSheetSubtitle: {
     fontSize: 13,
-    color: '#6B7280',
+    color: colors.textSecondary,
     marginTop: 4,
     marginBottom: 12,
   },
@@ -514,23 +507,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 12,
     marginBottom: 6,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   statusOptionActive: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#3B82F6',
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary,
   },
   statusOptionText: {
     flex: 1,
     fontSize: 15,
     fontWeight: '600',
-    color: '#374151',
+    color: colors.textSecondary,
     marginLeft: 8,
   },
   statusOptionTextActive: {
-    color: '#3B82F6',
+    color: colors.primary,
   },
   centered: {
     flex: 1,
@@ -541,17 +534,17 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   errorText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#EF4444',
+    color: colors.danger,
     textAlign: 'center',
   },
   retryButton: {
     marginTop: 16,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
@@ -565,7 +558,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   headerContent: {
     flexDirection: 'row',
@@ -575,12 +568,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
@@ -598,7 +591,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   filterChip: {
     flexDirection: 'row',
@@ -606,15 +599,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.canvas,
     marginRight: 8,
   },
   filterChipActive: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
   },
   filterChipText: {
     fontSize: 14,
-    color: '#4B5563',
+    color: colors.textSecondary,
   },
   filterChipTextActive: {
     color: 'white',
@@ -765,11 +758,11 @@ const styles = StyleSheet.create({
   emptyText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   emptyButton: {
     marginTop: 16,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,

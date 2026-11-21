@@ -307,7 +307,7 @@ const CustomersScreen = () => {
       <TouchableOpacity
         style={styles.addButton}
         onPress={openNewCustomerSheet}
-        activeOpacity={0.85}
+        activeOpacity={0.7}
       >
         <MaterialCommunityIcons name="plus" size={20} color={colors.white} />
         <Text style={styles.addButtonText}>Nuevo</Text>
@@ -351,7 +351,7 @@ const CustomersScreen = () => {
           returnKeyType="search"
         />
         {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => handleSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity activeOpacity={0.7} onPress={() => handleSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <MaterialCommunityIcons name="close-circle" size={20} color={colors.textMuted} />
           </TouchableOpacity>
         )}
@@ -439,28 +439,25 @@ const CustomersScreen = () => {
 
           {/* Acciones de contacto (solo icono, 44px touch target) */}
           <View style={styles.contactRow}>
-            <TouchableOpacity
+            <TouchableOpacity activeOpacity={0.7}
               style={styles.contactIconButton}
               onPress={() => openPhone(item.phone)}
-              activeOpacity={0.7}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               accessibilityLabel="Llamar"
             >
               <MaterialCommunityIcons name="phone" size={18} color={colors.primary} />
             </TouchableOpacity>
-            <TouchableOpacity
+            <TouchableOpacity activeOpacity={0.7}
               style={[styles.contactIconButton, styles.contactIconButtonWhatsapp]}
               onPress={() => openWhatsApp(item.phone)}
-              activeOpacity={0.7}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               accessibilityLabel="WhatsApp"
             >
               <MaterialCommunityIcons name="whatsapp" size={18} color={colors.success} />
             </TouchableOpacity>
-            <TouchableOpacity
+            <TouchableOpacity activeOpacity={0.7}
               style={[styles.contactIconButton, styles.contactIconButtonEmail, !item.email && styles.contactIconButtonDisabled]}
               onPress={() => openEmail(item.email || '')}
-              activeOpacity={0.7}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               accessibilityLabel="Enviar correo"
             >
@@ -476,17 +473,15 @@ const CustomersScreen = () => {
           <View style={styles.manageRow}>
             <Text style={styles.manageLabel}>Gestionar ficha</Text>
             <View style={styles.actionSpacer} />
-            <TouchableOpacity
+            <TouchableOpacity activeOpacity={0.7}
               style={[styles.actionButton, { backgroundColor: colors.primary }]}
               onPress={() => openEditCustomerSheet(item)}
-              activeOpacity={0.7}
             >
               <MaterialCommunityIcons name="pencil" size={18} color={colors.white} />
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: '#EF4444' }]}
+            <TouchableOpacity activeOpacity={0.7}
+              style={[styles.actionButton, { backgroundColor: colors.danger }]}
               onPress={() => setToDelete(item)}
-              activeOpacity={0.7}
             >
               <MaterialCommunityIcons name="delete" size={18} color={colors.white} />
             </TouchableOpacity>
@@ -507,14 +502,14 @@ const CustomersScreen = () => {
       onClose={closeSheet}
       footer={
         <View style={styles.sheetActions}>
-          <TouchableOpacity style={[styles.footerButton, styles.cancelButton]} onPress={closeSheet} activeOpacity={0.85}>
+          <TouchableOpacity style={[styles.footerButton, styles.cancelButton]} onPress={closeSheet} activeOpacity={0.7}>
             <Text style={styles.cancelButtonText}>Cancelar</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.footerButton, styles.saveButton, saving && styles.buttonDisabled]}
             onPress={handleSaveCustomer}
             disabled={saving}
-            activeOpacity={0.85}
+            activeOpacity={0.7}
           >
             {saving ? (
               <ActivityIndicator color={colors.white} />
@@ -552,12 +547,11 @@ const CustomersScreen = () => {
           <View style={[styles.inputContainer, styles.halfWidth]}>
             <Text style={styles.inputLabel}>Tipo Doc. *</Text>
             <View style={styles.pickerContainer}>
-              <TouchableOpacity
+              <TouchableOpacity activeOpacity={0.7}
                 style={styles.pickerButton}
                 onPress={() =>
                   setFormData({ ...formData, documentType: formData.documentType === 'DNI' ? 'RUC' : 'DNI' })
                 }
-                activeOpacity={0.85}
               >
                 <Text style={styles.pickerText}>{formData.documentType}</Text>
                 <MaterialCommunityIcons name="chevron-down" size={18} color={colors.textSecondary} />
@@ -642,7 +636,7 @@ const CustomersScreen = () => {
           <MaterialCommunityIcons name="alert-circle" size={32} color={colors.danger} />
         </View>
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchCustomers} activeOpacity={0.85}>
+        <TouchableOpacity style={styles.retryButton} onPress={fetchCustomers} activeOpacity={0.7}>
           <Text style={styles.retryButtonText}>Reintentar</Text>
         </TouchableOpacity>
       </View>

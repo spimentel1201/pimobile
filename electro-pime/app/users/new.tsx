@@ -13,6 +13,8 @@ import {
 import { useRouter, Stack } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { api } from '../services/api';
+import * as Haptics from 'expo-haptics';
+import { colors } from '../theme';
 
 const ROLE_OPTIONS: { value: 'ADMIN' | 'TECHNICIAN'; label: string }[] = [
   { value: 'TECHNICIAN', label: 'Técnico' },
@@ -58,6 +60,7 @@ export default function NewUserScreen() {
   };
 
   const handleSubmit = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (!validate()) return;
 
     setLoading(true);
@@ -101,7 +104,7 @@ export default function NewUserScreen() {
             <TextInput
               style={styles.input}
               placeholder="Ingrese el nombre"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.textMuted}
               value={firstName}
               onChangeText={setFirstName}
               autoCapitalize="words"
@@ -114,7 +117,7 @@ export default function NewUserScreen() {
             <TextInput
               style={styles.input}
               placeholder="Ingrese el apellido"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.textMuted}
               value={lastName}
               onChangeText={setLastName}
               autoCapitalize="words"
@@ -127,7 +130,7 @@ export default function NewUserScreen() {
             <TextInput
               style={styles.input}
               placeholder="correo@ejemplo.com"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.textMuted}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -142,7 +145,7 @@ export default function NewUserScreen() {
             <TextInput
               style={styles.input}
               placeholder="999 999 999"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.textMuted}
               value={phone}
               onChangeText={setPhone}
               keyboardType="phone-pad"
@@ -157,19 +160,19 @@ export default function NewUserScreen() {
                 style={[styles.input, styles.passwordInput]}
                 secureTextEntry={!showPassword}
                 placeholder="Mínimo 6 caracteres"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={colors.textMuted}
                 value={password}
                 onChangeText={setPassword}
                 autoCapitalize="none"
               />
-              <TouchableOpacity
+              <TouchableOpacity activeOpacity={0.7}
                 style={styles.passwordToggle}
                 onPress={() => setShowPassword(!showPassword)}
               >
                 <MaterialCommunityIcons
                   name={showPassword ? "eye-outline" : "eye-off-outline"}
                   size={22}
-                  color="#6b7280"
+                  color={colors.textSecondary}
                 />
               </TouchableOpacity>
             </View>
@@ -178,14 +181,14 @@ export default function NewUserScreen() {
           {/* Role Selector */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Rol <Text style={styles.required}>*</Text></Text>
-            <TouchableOpacity
+            <TouchableOpacity activeOpacity={0.7}
               style={styles.select}
               onPress={() => setShowRolePicker(!showRolePicker)}
             >
               <Text style={role ? styles.selectText : styles.placeholderText}>
                 {role ? ROLE_OPTIONS.find(r => r.value === role)?.label : 'Seleccionar rol'}
               </Text>
-              <MaterialCommunityIcons name="chevron-down" size={20} color="#6b7280" />
+              <MaterialCommunityIcons name="chevron-down" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
 
             {showRolePicker && (
@@ -194,6 +197,7 @@ export default function NewUserScreen() {
                   <TouchableOpacity
                     key={option.value}
                     style={styles.pickerItem}
+                    activeOpacity={0.7}
                     onPress={() => {
                       setRole(option.value);
                       setShowRolePicker(false);
@@ -203,12 +207,12 @@ export default function NewUserScreen() {
                       <MaterialCommunityIcons
                         name={option.value === 'ADMIN' ? 'shield-account' : 'account-wrench'}
                         size={20}
-                        color={option.value === 'ADMIN' ? '#8B5CF6' : '#3B82F6'}
+                        color={option.value === 'ADMIN' ? colors.violet : colors.primary}
                       />
                       <Text style={styles.pickerItemText}>{option.label}</Text>
                     </View>
                     {role === option.value && (
-                      <MaterialCommunityIcons name="check" size={20} color="#3B82F6" />
+                      <MaterialCommunityIcons name="check" size={20} color={colors.primary} />
                     )}
                   </TouchableOpacity>
                 ))}
@@ -218,7 +222,7 @@ export default function NewUserScreen() {
 
           {/* Buttons */}
           <View style={styles.buttonContainer}>
-            <TouchableOpacity
+            <TouchableOpacity activeOpacity={0.7}
               style={[styles.button, styles.cancelButton]}
               onPress={() => router.back()}
               disabled={loading}
@@ -230,12 +234,13 @@ export default function NewUserScreen() {
               style={[styles.button, styles.saveButton, loading && styles.buttonDisabled]}
               onPress={handleSubmit}
               disabled={loading}
+              activeOpacity={0.7}
             >
               {loading ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={colors.surface} />
               ) : (
                 <>
-                  <MaterialCommunityIcons name="content-save" size={20} color="#fff" />
+                  <MaterialCommunityIcons name="content-save" size={20} color={colors.surface} />
                   <Text style={styles.saveButtonText}>Guardar</Text>
                 </>
               )}
@@ -250,7 +255,7 @@ export default function NewUserScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: colors.canvas,
   },
   container: {
     flex: 1,
@@ -267,20 +272,20 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#374151',
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   required: {
-    color: '#EF4444',
+    color: colors.danger,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     padding: 14,
     fontSize: 16,
-    color: '#1f2937',
+    color: colors.textPrimary,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.border,
   },
   passwordContainer: {
     position: 'relative',
@@ -297,26 +302,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.border,
   },
   selectText: {
     fontSize: 16,
-    color: '#1f2937',
+    color: colors.textPrimary,
   },
   placeholderText: {
     fontSize: 16,
-    color: '#9ca3af',
+    color: colors.textMuted,
   },
   pickerDropdown: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -329,7 +334,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: colors.canvas,
   },
   pickerItemContent: {
     flexDirection: 'row',
@@ -337,7 +342,7 @@ const styles = StyleSheet.create({
   },
   pickerItemText: {
     fontSize: 16,
-    color: '#374151',
+    color: colors.textSecondary,
     marginLeft: 10,
   },
   buttonContainer: {
@@ -354,25 +359,25 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   cancelButton: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.canvas,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.border,
   },
   saveButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     marginLeft: 8,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   cancelButtonText: {
-    color: '#4b5563',
+    color: colors.textSecondary,
     fontWeight: '600',
     fontSize: 16,
   },
   saveButtonText: {
-    color: '#fff',
+    color: colors.surface,
     fontWeight: '600',
     fontSize: 16,
     marginLeft: 8,

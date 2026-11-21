@@ -15,6 +15,8 @@ import SearchableSelector from './SearchableSelector';
 import ScanLabelButton from './ScanLabelButton';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { colors } from '../theme';
+import * as Haptics from 'expo-haptics';
 import {
   Customer,
   RepairOrder,
@@ -220,6 +222,7 @@ export default function OrderForm({
 
   // Submit
   const handleSubmit = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (!validate()) {
       Alert.alert('Error', 'Por favor complete los campos requeridos');
       return;
@@ -265,12 +268,12 @@ export default function OrderForm({
     <View key={index} style={styles.itemCard}>
       <View style={styles.itemHeader}>
         <View style={styles.itemTitleContainer}>
-          <MaterialCommunityIcons name="devices" size={20} color="#3B82F6" />
+          <MaterialCommunityIcons name="devices" size={20} color={colors.primary} />
           <Text style={styles.itemTitle}>Equipo {index + 1}</Text>
         </View>
         {items.length > 1 && (
-          <TouchableOpacity onPress={() => removeItem(index)} style={styles.removeButton}>
-            <MaterialCommunityIcons name="trash-can-outline" size={22} color="#EF4444" />
+          <TouchableOpacity activeOpacity={0.7} onPress={() => removeItem(index)} style={styles.removeButton}>
+            <MaterialCommunityIcons name="trash-can-outline" size={22} color={colors.danger} />
           </TouchableOpacity>
         )}
       </View>
@@ -289,12 +292,13 @@ export default function OrderForm({
         <Text style={styles.label}>Tipo de dispositivo <Text style={styles.required}>*</Text></Text>
         <TouchableOpacity
           style={styles.select}
+          activeOpacity={0.7}
           onPress={() => updateItem(index, 'showDeviceTypePicker', !item.showDeviceTypePicker)}
         >
           <Text style={item.deviceType ? styles.selectText : styles.placeholderText}>
             {item.deviceType || 'Seleccionar tipo...'}
           </Text>
-          <Ionicons name="chevron-down" size={20} color="#6B7280" />
+          <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
         </TouchableOpacity>
         {item.showDeviceTypePicker && (
           <View style={styles.pickerDropdown}>
@@ -303,6 +307,7 @@ export default function OrderForm({
                 <TouchableOpacity
                   key={type}
                   style={styles.pickerItem}
+                  activeOpacity={0.7}
                   onPress={() => {
                     updateItem(index, 'deviceType', type);
                     updateItem(index, 'showDeviceTypePicker', false);
@@ -310,7 +315,7 @@ export default function OrderForm({
                 >
                   <Text style={styles.pickerItemText}>{type}</Text>
                   {item.deviceType === type && (
-                    <Ionicons name="checkmark" size={20} color="#3B82F6" />
+                    <Ionicons name="checkmark" size={20} color={colors.primary} />
                   )}
                 </TouchableOpacity>
               ))}
@@ -329,7 +334,7 @@ export default function OrderForm({
           <TextInput
             style={[styles.input, styles.inputUppercase]}
             placeholder="Ej: Samsung, LG..."
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={colors.textMuted}
             value={item.brand}
             onChangeText={(text) => updateItem(index, 'brand', text.toUpperCase())}
           />
@@ -342,7 +347,7 @@ export default function OrderForm({
           <TextInput
             style={[styles.input, styles.inputUppercase]}
             placeholder="Ej: Galaxy S21..."
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={colors.textMuted}
             value={item.model}
             onChangeText={(text) => updateItem(index, 'model', text.toUpperCase())}
           />
@@ -358,7 +363,7 @@ export default function OrderForm({
         <TextInput
           style={[styles.input, styles.inputUppercase]}
           placeholder="Ingrese el número de serie"
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={colors.textMuted}
           value={item.serialNumber}
           onChangeText={(text) => updateItem(index, 'serialNumber', text.toUpperCase())}
         />
@@ -370,7 +375,7 @@ export default function OrderForm({
         <TextInput
           style={[styles.input, styles.textArea]}
           placeholder="Describa detalladamente el problema"
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={colors.textMuted}
           value={item.problemDescription}
           onChangeText={(text) => updateItem(index, 'problemDescription', text)}
           multiline
@@ -386,7 +391,7 @@ export default function OrderForm({
         <Text style={styles.label}>Accesorios incluidos</Text>
         <View style={styles.tagsContainer}>
           {ACCESSORY_OPTIONS.map((accessory) => (
-            <TouchableOpacity
+            <TouchableOpacity activeOpacity={0.7}
               key={accessory}
               style={[
                 styles.tag,
@@ -401,7 +406,7 @@ export default function OrderForm({
                 {accessory}
               </Text>
               {item.accessories.includes(accessory) && (
-                <Ionicons name="checkmark" size={14} color="#fff" style={{ marginLeft: 4 }} />
+                <Ionicons name="checkmark" size={14} color={colors.surface} style={{ marginLeft: 4 }} />
               )}
             </TouchableOpacity>
           ))}
@@ -417,7 +422,7 @@ export default function OrderForm({
             value={item.quantity.toString()}
             onChangeText={(text) => updateItem(index, 'quantity', parseInt(text) || 1)}
             keyboardType="numeric"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={colors.textMuted}
           />
         </View>
         <View style={[styles.inputContainer, styles.halfWidth]}>
@@ -425,7 +430,7 @@ export default function OrderForm({
           <TextInput
             style={styles.input}
             placeholder="S/ 0.00"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={colors.textMuted}
             value={item.price}
             onChangeText={(text) => updateItem(index, 'price', text)}
             keyboardType="decimal-pad"
@@ -439,7 +444,7 @@ export default function OrderForm({
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
       {/* Technician Banner - Read Only */}
       <View style={styles.technicianBanner}>
-        <MaterialCommunityIcons name="account-wrench" size={22} color="#3B82F6" />
+        <MaterialCommunityIcons name="account-wrench" size={22} color={colors.primary} />
         <View style={styles.technicianInfo}>
           <Text style={styles.technicianLabel}>Técnico asignado</Text>
           <Text style={styles.technicianName}>{user?.firstName} {user?.lastName}</Text>
@@ -470,7 +475,7 @@ export default function OrderForm({
       {/* Items Section */}
       {moneyLocked && (
         <View style={styles.lockBanner}>
-          <MaterialCommunityIcons name="lock-outline" size={18} color="#B45309" />
+          <MaterialCommunityIcons name="lock-outline" size={18} color={colors.warning} />
           <Text style={styles.lockBannerText}>
             Bloqueado: la orden tiene un presupuesto pagado
             {paidTotal != null ? ` (total fijado S/ ${paidTotal.toFixed(2)})` : ''}. Los equipos y
@@ -483,8 +488,8 @@ export default function OrderForm({
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Equipos a Reparar</Text>
           {!moneyLocked && (
-            <TouchableOpacity style={styles.addButton} onPress={addItem}>
-              <MaterialCommunityIcons name="plus" size={20} color="#fff" />
+            <TouchableOpacity activeOpacity={0.7} style={styles.addButton} onPress={addItem}>
+              <MaterialCommunityIcons name="plus" size={20} color={colors.surface} />
               <Text style={styles.addButtonText}>Agregar</Text>
             </TouchableOpacity>
           )}
@@ -503,7 +508,7 @@ export default function OrderForm({
           <TextInput
             style={[styles.input, styles.textArea]}
             placeholder="Resumen general de la orden de reparación"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={colors.textMuted}
             value={description}
             onChangeText={setDescription}
             multiline
@@ -518,7 +523,7 @@ export default function OrderForm({
           <TextInput
             style={[styles.input, styles.textArea]}
             placeholder="Notas internas o instrucciones especiales"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={colors.textMuted}
             value={notes}
             onChangeText={setNotes}
             multiline
@@ -532,7 +537,7 @@ export default function OrderForm({
           <TextInput
             style={styles.input}
             placeholder="S/ 0.00"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={colors.textMuted}
             value={initialReviewCost}
             onChangeText={setInitialReviewCost}
             keyboardType="decimal-pad"
@@ -544,19 +549,19 @@ export default function OrderForm({
         {initialData && (
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Estado</Text>
-            <TouchableOpacity
+            <TouchableOpacity activeOpacity={0.7}
               style={styles.select}
               onPress={() => setShowStatusPicker(!showStatusPicker)}
             >
               <Text style={styles.selectText}>
                 {STATUS_OPTIONS.find(s => s.value === status)?.label || status}
               </Text>
-              <Ionicons name="chevron-down" size={20} color="#6B7280" />
+              <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
             {showStatusPicker && (
               <View style={styles.pickerDropdown}>
                 {STATUS_OPTIONS.map((option) => (
-                  <TouchableOpacity
+                  <TouchableOpacity activeOpacity={0.7}
                     key={option.value}
                     style={styles.pickerItem}
                     onPress={() => {
@@ -566,7 +571,7 @@ export default function OrderForm({
                   >
                     <Text style={styles.pickerItemText}>{option.label}</Text>
                     {status === option.value && (
-                      <Ionicons name="checkmark" size={20} color="#3B82F6" />
+                      <Ionicons name="checkmark" size={20} color={colors.primary} />
                     )}
                   </TouchableOpacity>
                 ))}
@@ -578,16 +583,16 @@ export default function OrderForm({
 
       {/* Submit Button */}
       <View style={styles.footer}>
-        <TouchableOpacity
+        <TouchableOpacity activeOpacity={0.7}
           style={[styles.submitButton, loading && styles.buttonDisabled]}
           onPress={handleSubmit}
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.surface} />
           ) : (
             <>
-              <Ionicons name="save" size={20} color="#fff" style={styles.buttonIcon} />
+              <Ionicons name="save" size={20} color={colors.surface} style={styles.buttonIcon} />
               <Text style={styles.buttonText}>
                 {initialData ? 'Actualizar Orden' : 'Crear Orden'}
               </Text>
@@ -602,7 +607,7 @@ export default function OrderForm({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.canvas,
   },
   scrollContent: {
     paddingBottom: 100,
@@ -610,7 +615,7 @@ const styles = StyleSheet.create({
   technicianBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: colors.primarySoft,
     padding: 14,
     marginHorizontal: 16,
     marginTop: 16,
@@ -624,7 +629,7 @@ const styles = StyleSheet.create({
   },
   technicianLabel: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   technicianName: {
     fontSize: 16,
@@ -632,18 +637,18 @@ const styles = StyleSheet.create({
     color: '#1E40AF',
   },
   technicianBadge: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
   },
   technicianBadgeText: {
     fontSize: 12,
-    color: '#fff',
+    color: colors.surface,
     fontWeight: '600',
   },
   section: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginHorizontal: 16,
@@ -667,7 +672,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    backgroundColor: '#FFFAEB',
+    backgroundColor: colors.warningSoft,
     borderWidth: 1,
     borderColor: '#FEC84B',
     borderRadius: 12,
@@ -684,7 +689,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.textPrimary,
     marginBottom: 12,
   },
   inputContainer: {
@@ -693,20 +698,20 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#374151',
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   required: {
-    color: '#EF4444',
+    color: colors.danger,
   },
   input: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    color: '#111827',
+    color: colors.textPrimary,
   },
   textArea: {
     minHeight: 80,
@@ -719,24 +724,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     borderRadius: 8,
     padding: 12,
   },
   selectText: {
     fontSize: 16,
-    color: '#111827',
+    color: colors.textPrimary,
   },
   placeholderText: {
     fontSize: 16,
-    color: '#9CA3AF',
+    color: colors.textMuted,
   },
   pickerDropdown: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     borderRadius: 8,
     marginTop: 4,
     maxHeight: 200,
@@ -752,11 +757,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.canvas,
   },
   pickerItemText: {
     fontSize: 16,
-    color: '#374151',
+    color: colors.textSecondary,
   },
   row: {
     flexDirection: 'row',
@@ -767,17 +772,17 @@ const styles = StyleSheet.create({
     marginHorizontal: 6,
   },
   errorText: {
-    color: '#EF4444',
+    color: colors.danger,
     fontSize: 12,
     marginTop: 4,
   },
   itemCard: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   itemHeader: {
     flexDirection: 'row',
@@ -786,7 +791,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   itemTitleContainer: {
     flexDirection: 'row',
@@ -795,7 +800,7 @@ const styles = StyleSheet.create({
   itemTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
+    color: colors.textSecondary,
     marginLeft: 8,
   },
   removeButton: {
@@ -812,31 +817,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   tagSelected: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   tagText: {
     fontSize: 13,
-    color: '#4B5563',
+    color: colors.textSecondary,
   },
   tagTextSelected: {
-    color: '#FFFFFF',
+    color: colors.surface,
   },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#10B981',
+    backgroundColor: colors.success,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
   },
   addButtonText: {
-    color: '#fff',
+    color: colors.surface,
     fontWeight: '600',
     marginLeft: 4,
   },
@@ -848,7 +853,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     borderRadius: 12,
     padding: 16,
   },
@@ -859,7 +864,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: colors.surface,
     fontSize: 16,
     fontWeight: '600',
   },

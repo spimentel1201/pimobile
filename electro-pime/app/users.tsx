@@ -14,6 +14,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { api } from './services/api';
 import { useAuth } from './contexts/AuthContext';
 import { User } from './types/api';
+import { colors } from './theme';
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: 'Administrador',
@@ -23,10 +24,10 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const ROLE_COLORS: Record<string, string> = {
-  ADMIN: '#8B5CF6',
-  TECHNICIAN: '#3B82F6',
-  CUSTOMER: '#10B981',
-  SELLER: '#F59E0B',
+  ADMIN: colors.violet,
+  TECHNICIAN: colors.primary,
+  CUSTOMER: colors.success,
+  SELLER: colors.warning,
 };
 
 export default function UsersScreen() {
@@ -78,11 +79,11 @@ export default function UsersScreen() {
   };
 
   const renderItem = ({ item }: { item: User }) => {
-    const roleColor = ROLE_COLORS[item.role] || '#6B7280';
+    const roleColor = ROLE_COLORS[item.role] || colors.textSecondary;
     const initials = `${item.firstName?.charAt(0) || ''}${item.lastName?.charAt(0) || ''}`.toUpperCase();
 
     return (
-      <TouchableOpacity
+      <TouchableOpacity activeOpacity={0.7}
         style={[styles.userCard, !item.isActive && styles.userCardInactive]}
         onPress={() => handleUserPress(item)}
       >
@@ -105,8 +106,8 @@ export default function UsersScreen() {
             )}
           </View>
         </View>
-        <TouchableOpacity style={styles.menuButton}>
-          <MaterialCommunityIcons name="dots-vertical" size={24} color="#9ca3af" />
+        <TouchableOpacity style={styles.menuButton} activeOpacity={0.7}>
+          <MaterialCommunityIcons name="dots-vertical" size={24} color={colors.textMuted} />
         </TouchableOpacity>
       </TouchableOpacity>
     );
@@ -115,7 +116,7 @@ export default function UsersScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Cargando usuarios...</Text>
       </View>
     );
@@ -124,9 +125,9 @@ export default function UsersScreen() {
   if (error) {
     return (
       <View style={styles.centered}>
-        <MaterialCommunityIcons name="alert-circle" size={48} color="#EF4444" />
+        <MaterialCommunityIcons name="alert-circle" size={48} color={colors.danger} />
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchUsers}>
+        <TouchableOpacity style={styles.retryButton} onPress={fetchUsers} activeOpacity={0.7}>
           <Text style={styles.retryButtonText}>Reintentar</Text>
         </TouchableOpacity>
       </View>
@@ -138,11 +139,11 @@ export default function UsersScreen() {
       {/* Header with title and add button */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Usuarios</Text>
-        <TouchableOpacity
+        <TouchableOpacity activeOpacity={0.7}
           style={styles.headerAddButton}
           onPress={() => router.push('/users/new' as any)}
         >
-          <MaterialCommunityIcons name="plus" size={18} color="#fff" />
+          <MaterialCommunityIcons name="plus" size={18} color={colors.surface} />
           <Text style={styles.headerAddButtonText}>Nuevo</Text>
         </TouchableOpacity>
       </View>
@@ -154,13 +155,13 @@ export default function UsersScreen() {
           <Text style={styles.statLabel}>Total</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={[styles.statValue, { color: '#10B981' }]}>
+          <Text style={[styles.statValue, { color: colors.success }]}>
             {users.filter(u => u.isActive).length}
           </Text>
           <Text style={styles.statLabel}>Activos</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={[styles.statValue, { color: '#8B5CF6' }]}>
+          <Text style={[styles.statValue, { color: colors.violet }]}>
             {users.filter(u => u.role === 'ADMIN').length}
           </Text>
           <Text style={styles.statLabel}>Admins</Text>
@@ -177,7 +178,7 @@ export default function UsersScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <MaterialCommunityIcons name="account-group-outline" size={64} color="#D1D5DB" />
+            <MaterialCommunityIcons name="account-group-outline" size={64} color={colors.border} />
             <Text style={styles.emptyText}>No hay usuarios</Text>
           </View>
         }
@@ -189,7 +190,7 @@ export default function UsersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: colors.canvas,
   },
   header: {
     flexDirection: 'row',
@@ -199,17 +200,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   headerAddButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
@@ -229,17 +230,17 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   errorText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#EF4444',
+    color: colors.danger,
     textAlign: 'center',
   },
   retryButton: {
     marginTop: 16,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
@@ -254,11 +255,11 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   statItem: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.surface,
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',
@@ -266,11 +267,11 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#3B82F6',
+    color: colors.primary,
   },
   statLabel: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.textSecondary,
     marginTop: 4,
   },
   listContent: {
@@ -278,7 +279,7 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   userCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -312,12 +313,12 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1f2937',
+    color: colors.textPrimary,
     marginBottom: 2,
   },
   userEmail: {
     fontSize: 14,
-    color: '#6b7280',
+    color: colors.textSecondary,
     marginBottom: 6,
   },
   roleRow: {
@@ -342,7 +343,7 @@ const styles = StyleSheet.create({
   },
   inactiveText: {
     fontSize: 12,
-    color: '#EF4444',
+    color: colors.danger,
     fontWeight: '500',
   },
   menuButton: {
@@ -357,6 +358,6 @@ const styles = StyleSheet.create({
   emptyText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
 });

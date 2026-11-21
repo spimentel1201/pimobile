@@ -14,6 +14,8 @@ import {
 import { useRouter } from 'expo-router';
 import { useAuth } from './contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { colors } from './theme';
 
 export default function LoginScreen() {
     const router = useRouter();
@@ -42,6 +44,7 @@ export default function LoginScreen() {
     };
 
     const handleLogin = async () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         if (!validate()) return;
 
         setLoading(true);
@@ -68,18 +71,18 @@ export default function LoginScreen() {
                 keyboardShouldPersistTaps="handled"
             >
                 <View style={styles.header}>
-                    <Ionicons name="construct" size={64} color="#3B82F6" />
+                    <Ionicons name="construct" size={64} color={colors.primary} />
                     <Text style={styles.title}>ElectroControl</Text>
                     <Text style={styles.subtitle}>Gestión de Reparaciones</Text>
                 </View>
 
                 <View style={styles.form}>
                     <View style={styles.inputContainer}>
-                        <Ionicons name="mail-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+                        <Ionicons name="mail-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
                         <TextInput
                             style={styles.input}
                             placeholder="Correo electrónico"
-                            placeholderTextColor="#9CA3AF"
+                            placeholderTextColor={colors.textMuted}
                             value={email}
                             onChangeText={setEmail}
                             keyboardType="email-address"
@@ -90,23 +93,23 @@ export default function LoginScreen() {
                     {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
 
                     <View style={styles.inputContainer}>
-                        <Ionicons name="lock-closed-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+                        <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
                         <TextInput
                             style={styles.input}
                             placeholder="Contraseña"
-                            placeholderTextColor="#9CA3AF"
+                            placeholderTextColor={colors.textMuted}
                             value={password}
                             onChangeText={setPassword}
                             secureTextEntry={!showPassword}
                         />
-                        <TouchableOpacity
+                        <TouchableOpacity activeOpacity={0.7}
                             onPress={() => setShowPassword(!showPassword)}
                             style={styles.eyeIcon}
                         >
                             <Ionicons
                                 name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                                 size={20}
-                                color="#6B7280"
+                                color={colors.textSecondary}
                             />
                         </TouchableOpacity>
                     </View>
@@ -116,9 +119,10 @@ export default function LoginScreen() {
                         style={[styles.button, loading && styles.buttonDisabled]}
                         onPress={handleLogin}
                         disabled={loading}
+                        activeOpacity={0.7}
                     >
                         {loading ? (
-                            <ActivityIndicator color="#FFFFFF" />
+                            <ActivityIndicator color={colors.surface} />
                         ) : (
                             <Text style={styles.buttonText}>Iniciar Sesión</Text>
                         )}
@@ -134,7 +138,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#0F172A',
+        backgroundColor: colors.textPrimary,
     },
     scrollContent: {
         flexGrow: 1,
@@ -146,9 +150,9 @@ const styles = StyleSheet.create({
         marginBottom: 48,
     },
     title: {
-        fontSize: 32,
+        fontSize: 28,
         fontWeight: 'bold',
-        color: '#FFFFFF',
+        color: colors.surface,
         marginTop: 16,
     },
     subtitle: {
@@ -175,20 +179,20 @@ const styles = StyleSheet.create({
     input: {
         flex: 1,
         height: 52,
-        color: '#FFFFFF',
+        color: colors.surface,
         fontSize: 16,
     },
     eyeIcon: {
         padding: 8,
     },
     errorText: {
-        color: '#EF4444',
+        color: colors.danger,
         fontSize: 12,
         marginBottom: 8,
         marginLeft: 4,
     },
     button: {
-        backgroundColor: '#3B82F6',
+        backgroundColor: colors.primary,
         borderRadius: 12,
         height: 52,
         justifyContent: 'center',
@@ -199,7 +203,7 @@ const styles = StyleSheet.create({
         opacity: 0.7,
     },
     buttonText: {
-        color: '#FFFFFF',
+        color: colors.surface,
         fontSize: 16,
         fontWeight: '600',
     },
@@ -212,7 +216,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
     linkTextBold: {
-        color: '#3B82F6',
+        color: colors.primary,
         fontWeight: '600',
     },
 });

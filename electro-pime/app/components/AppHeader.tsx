@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors } from '../theme';
 
 type AppHeaderProps = {
   title: string;
@@ -24,8 +25,13 @@ export default function AppHeader({ title, showBackButton = false, headerRight }
     <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
       <View style={styles.headerContent}>
         {showBackButton && (
-          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-            <MaterialCommunityIcons name="arrow-left" size={24} color="#1e40af" />
+          <TouchableOpacity
+            onPress={handleBack}
+            style={styles.backButton}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <MaterialCommunityIcons name="arrow-left" size={24} color={colors.primary} />
           </TouchableOpacity>
         )}
         <Text style={styles.title} numberOfLines={1}>
@@ -39,9 +45,9 @@ export default function AppHeader({ title, showBackButton = false, headerRight }
 
 const styles = StyleSheet.create({
   header: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: colors.border,
     paddingBottom: 16,
     paddingHorizontal: 16,
   },
@@ -50,13 +56,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   backButton: {
-    marginRight: 16,
+    marginRight: 8,
     padding: 4,
+    // Hit target mínimo nativo (44×44) sin empujar el título
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#1f2937',
+    color: colors.textPrimary,
     flex: 1,
   },
 });

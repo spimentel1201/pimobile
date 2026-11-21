@@ -4,6 +4,8 @@ import { Stack, useRouter } from 'expo-router';
 import { api } from '../services/api';
 import OrderForm from '../components/OrderForm';
 import { CreateRepairOrderDto } from '../types/api';
+import { colors } from '../theme';
+import * as Haptics from 'expo-haptics';
 
 export default function NewOrderScreen() {
   const router = useRouter();
@@ -13,6 +15,7 @@ export default function NewOrderScreen() {
     try {
       setLoading(true);
       await api.createRepairOrder(data);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       Alert.alert(
         '¡Éxito!',
@@ -55,6 +58,6 @@ export default function NewOrderScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.canvas,
   },
 });

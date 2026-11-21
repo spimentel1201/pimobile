@@ -11,6 +11,7 @@ import {
     Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme';
 
 interface SearchableSelectorProps<T> {
     label: string;
@@ -107,6 +108,7 @@ export default function SearchableSelector<T>({
             <TouchableOpacity
                 style={[styles.selector, disabled && styles.selectorDisabled]}
                 onPress={handleOpen}
+                activeOpacity={0.7}
                 disabled={disabled}
             >
                 {value ? (
@@ -118,15 +120,15 @@ export default function SearchableSelector<T>({
                             )}
                         </View>
                         {!required && (
-                            <TouchableOpacity onPress={handleClear} style={styles.clearButton}>
-                                <Ionicons name="close-circle" size={20} color="#9CA3AF" />
+                            <TouchableOpacity onPress={handleClear} style={styles.clearButton} activeOpacity={0.7}>
+                                <Ionicons name="close-circle" size={20} color={colors.textMuted} />
                             </TouchableOpacity>
                         )}
                     </View>
                 ) : (
                     <Text style={styles.placeholder}>{placeholder}</Text>
                 )}
-                <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
 
             <Modal
@@ -138,20 +140,20 @@ export default function SearchableSelector<T>({
                 <View style={styles.modalContainer}>
                     <View style={styles.modalHeader}>
                         <Text style={styles.modalTitle}>{label}</Text>
-                        <TouchableOpacity
+                        <TouchableOpacity activeOpacity={0.7}
                             onPress={() => setModalVisible(false)}
                             style={styles.closeButton}
                         >
-                            <Ionicons name="close" size={24} color="#374151" />
+                            <Ionicons name="close" size={24} color={colors.textSecondary} />
                         </TouchableOpacity>
                     </View>
 
                     <View style={styles.searchContainer}>
-                        <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
+                        <Ionicons name="search" size={20} color={colors.textMuted} style={styles.searchIcon} />
                         <TextInput
                             style={styles.searchInput}
                             placeholder="Buscar..."
-                            placeholderTextColor="#9CA3AF"
+                            placeholderTextColor={colors.textMuted}
                             value={searchQuery}
                             onChangeText={setSearchQuery}
                             autoFocus
@@ -159,25 +161,25 @@ export default function SearchableSelector<T>({
                             autoCorrect={false}
                         />
                         {searchQuery.length > 0 && (
-                            <TouchableOpacity onPress={() => setSearchQuery('')}>
-                                <Ionicons name="close-circle" size={20} color="#9CA3AF" />
+                            <TouchableOpacity activeOpacity={0.7} onPress={() => setSearchQuery('')}>
+                                <Ionicons name="close-circle" size={20} color={colors.textMuted} />
                             </TouchableOpacity>
                         )}
                     </View>
 
                     {loading ? (
                         <View style={styles.centered}>
-                            <ActivityIndicator size="large" color="#3B82F6" />
+                            <ActivityIndicator size="large" color={colors.primary} />
                             <Text style={styles.loadingText}>Buscando...</Text>
                         </View>
                     ) : error ? (
                         <View style={styles.centered}>
-                            <Ionicons name="alert-circle" size={48} color="#EF4444" />
+                            <Ionicons name="alert-circle" size={48} color={colors.danger} />
                             <Text style={styles.errorText}>{error}</Text>
                         </View>
                     ) : results.length === 0 ? (
                         <View style={styles.centered}>
-                            <Ionicons name="search" size={48} color="#D1D5DB" />
+                            <Ionicons name="search" size={48} color={colors.border} />
                             <Text style={styles.emptyText}>
                                 {searchQuery.length < 2
                                     ? 'Escribe al menos 2 caracteres para buscar'
@@ -189,7 +191,7 @@ export default function SearchableSelector<T>({
                             data={results}
                             keyExtractor={keyExtractor}
                             renderItem={({ item }) => (
-                                <TouchableOpacity
+                                <TouchableOpacity activeOpacity={0.7}
                                     style={styles.resultItem}
                                     onPress={() => handleSelect(item)}
                                 >
@@ -199,7 +201,7 @@ export default function SearchableSelector<T>({
                                             <Text style={styles.resultSubtitle}>{renderSubtitle(item)}</Text>
                                         )}
                                     </View>
-                                    <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
+                                    <Ionicons name="chevron-forward" size={20} color={colors.border} />
                                 </TouchableOpacity>
                             )}
                             ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -219,20 +221,20 @@ const styles = StyleSheet.create({
     },
     label: {
         fontSize: 14,
-        color: '#374151',
+        color: colors.textSecondary,
         marginBottom: 8,
         fontWeight: '500',
     },
     required: {
-        color: '#EF4444',
+        color: 'colors.danger',
     },
     selector: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        backgroundColor: '#F9FAFB',
+        backgroundColor: colors.surface,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: 'colors.border',
         borderRadius: 8,
         padding: 12,
         minHeight: 48,
@@ -250,11 +252,11 @@ const styles = StyleSheet.create({
     },
     selectedText: {
         fontSize: 16,
-        color: '#111827',
+        color: 'colors.textPrimary',
     },
     selectedSubtitle: {
         fontSize: 12,
-        color: '#6B7280',
+        color: 'colors.textSecondary',
         marginTop: 2,
     },
     clearButton: {
@@ -263,12 +265,12 @@ const styles = StyleSheet.create({
     },
     placeholder: {
         fontSize: 16,
-        color: '#9CA3AF',
+        color: 'colors.textMuted',
         flex: 1,
     },
     modalContainer: {
         flex: 1,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.surface,
     },
     modalHeader: {
         flexDirection: 'row',
@@ -276,12 +278,12 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         padding: 16,
         borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
+        borderBottomColor: 'colors.border',
     },
     modalTitle: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#111827',
+        color: 'colors.textPrimary',
     },
     closeButton: {
         padding: 4,
@@ -289,7 +291,7 @@ const styles = StyleSheet.create({
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#F3F4F6',
+        backgroundColor: colors.canvas,
         margin: 16,
         paddingHorizontal: 12,
         borderRadius: 8,
@@ -301,7 +303,7 @@ const styles = StyleSheet.create({
         flex: 1,
         height: 44,
         fontSize: 16,
-        color: '#111827',
+        color: 'colors.textPrimary',
     },
     centered: {
         flex: 1,
@@ -312,18 +314,18 @@ const styles = StyleSheet.create({
     loadingText: {
         marginTop: 12,
         fontSize: 14,
-        color: '#6B7280',
+        color: 'colors.textSecondary',
     },
     errorText: {
         marginTop: 12,
         fontSize: 14,
-        color: '#EF4444',
+        color: 'colors.danger',
         textAlign: 'center',
     },
     emptyText: {
         marginTop: 12,
         fontSize: 14,
-        color: '#6B7280',
+        color: 'colors.textSecondary',
         textAlign: 'center',
     },
     listContent: {
@@ -339,15 +341,15 @@ const styles = StyleSheet.create({
     },
     resultText: {
         fontSize: 16,
-        color: '#111827',
+        color: 'colors.textPrimary',
     },
     resultSubtitle: {
         fontSize: 13,
-        color: '#6B7280',
+        color: 'colors.textSecondary',
         marginTop: 2,
     },
     separator: {
         height: 1,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: colors.canvas,
     },
 });
