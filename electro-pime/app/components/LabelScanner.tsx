@@ -53,6 +53,7 @@ export default function LabelScanner({ visible, onApply, onClose }: LabelScanner
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [fields, setFields] = useState<ScannedFields>(emptyFields());
   const [fellBack, setFellBack] = useState(false);
+  const [cloudError, setCloudError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [status, setStatus] = useState('');
   const [progress, setProgress] = useState(0);
@@ -140,6 +141,7 @@ export default function LabelScanner({ visible, onApply, onClose }: LabelScanner
     setScanning(true);
     setError(null);
     setFellBack(false);
+    setCloudError(null);
     setStatus('Iniciando...');
     setProgress(0);
     try {
@@ -149,6 +151,7 @@ export default function LabelScanner({ visible, onApply, onClose }: LabelScanner
       });
       setFields(res.fields);
       setFellBack(res.fellBackToLocal);
+      if (res.cloudError) setCloudError(res.cloudError);
       setStep('result');
     } catch {
       setError('No se pudo leer la imagen. Reintenta con mejor luz y encuadre.');
@@ -312,7 +315,10 @@ export default function LabelScanner({ visible, onApply, onClose }: LabelScanner
         </Text>
       </View>
       {fellBack && (
-        <Text style={styles.helpText}>Sin conexión a la nube: se usó OCR local.</Text>
+        <>
+          <Text style={styles.helpText}>Sin conexión a la nube: se usó OCR local.</Text>
+          {cloudError ? <Text style={styles.helpText}>{cloudError}</Text> : null}
+        </>
       )}
       {FIELD_DEFS.map((f) => (
         <View key={f.key} style={styles.fieldRow}>

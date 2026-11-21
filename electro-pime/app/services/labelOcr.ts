@@ -97,6 +97,7 @@ export interface RecognizeResult {
   fields: ScannedFields;
   usedCloud: boolean;
   fellBackToLocal: boolean;
+  cloudError?: string;
 }
 
 /**
@@ -116,10 +117,19 @@ export async function recognizeLabel(
       onProgress?.({ status: 'Completado', progress: 100 });
       return { fields, usedCloud: true, fellBackToLocal: false };
     } catch (err) {
-      console.error('[OCR cloud] falló:', err);
-      // Fall through to local OCR.
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[OCR cloud] falló:', msg);
+      onProgress?.({ status: 'OCR local...', progress: 10 });
+      const parsed = await recognizeLocal(imageUri, onProgress);
+      return { fields: toScannedFields(parsed), usedCloud: false, fellBackToLocal: true, cloudError: msg };
     }
   }
+  if (engine !== 'cloud') {
+    onProgress?.({ status: 'OCR local...', progress: 10 });
+    const parsed = await recognizeLocal(imageUri, onProgress);
+    return { fields: toScannedFields(parsed), usedCloud: false, fellBackToLocal: false };
+  }
+  // Cloud configured but not used? shouldn't happen
   onProgress?.({ status: 'OCR local...', progress: 10 });
   const parsed = await recognizeLocal(imageUri, onProgress);
   return { fields: toScannedFields(parsed), usedCloud: false, fellBackToLocal: engine === 'cloud' };
