@@ -37,11 +37,16 @@ function emptyFields(): ScannedFields {
 }
 
 async function recognizeLocalNative(imageUri: string): Promise<ParsedLabel> {
-  // Dynamic require: expo-mlkit-ocr is native-only (no Expo Go / web).
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { recognizeText } = require('expo-mlkit-ocr');
-  const ocr = await recognizeText(imageUri);
-  return parseLabelText(ocr?.text ?? '');
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { recognizeText } = require('expo-mlkit-ocr');
+    const ocr = await recognizeText(imageUri);
+    return parseLabelText(ocr?.text ?? '');
+  } catch {
+    // expo-mlkit-ocr no disponible (p. ej. build sin el módulo nativo):
+    // se omite el OCR local en nativo y se devuelve vacío.
+    return parseLabelText('');
+  }
 }
 
 async function recognizeLocalWeb(
