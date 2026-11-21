@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
   Modal,
   Switch,
   ScrollView,
@@ -20,6 +19,7 @@ import { useAuth } from '../contexts/AuthContext';
 import StatusBadge from '../components/ui/StatusBadge';
 import BottomSheet from '../components/ui/BottomSheet';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import { FlashList } from '@shopify/flash-list';
 import { colors, radii, shadow, spacing, typography } from '../theme';
 
 type ProductFormErrors = Partial<
@@ -677,15 +677,12 @@ const ProductsScreen = () => {
       )}
       {renderHeader()}
       {renderSearchAndFilters()}
-      <FlatList
+      <FlashList
         data={filteredProducts}
         renderItem={renderProductCard}
         keyExtractor={item => item.id}
+        estimatedItemSize={100}
         contentContainerStyle={styles.listContent}
-        initialNumToRender={8}
-        maxToRenderPerBatch={8}
-        windowSize={7}
-        removeClippedSubviews
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }

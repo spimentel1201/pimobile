@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  FlatList,
   Modal,
   Alert,
   ActivityIndicator,
@@ -19,6 +18,7 @@ import * as Sharing from 'expo-sharing';
 import { api } from '../services/api';
 import { Sale } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
+import { FlashList } from '@shopify/flash-list';
 import {
   colors,
   typography,
@@ -808,15 +808,12 @@ const SalesScreen = () => {
       {renderMetrics()}
       {renderFilters()}
 
-      <FlatList
+      <FlashList
         data={sales}
         renderItem={renderSaleCard}
         keyExtractor={item => item.id}
+        estimatedItemSize={90}
         contentContainerStyle={styles.salesList}
-        initialNumToRender={8}
-        maxToRenderPerBatch={8}
-        windowSize={7}
-        removeClippedSubviews
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }

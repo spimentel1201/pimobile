@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
   Modal,
   ScrollView,
   Alert,
@@ -22,6 +21,7 @@ import Toast from '../components/ui/Toast';
 import StatusBadge from '../components/ui/StatusBadge';
 import { NO_PHONE_MESSAGE, buildTelUrl, buildWhatsAppUrl } from '../utils/phone';
 import ReceiptPreview from '../components/ReceiptPreview';
+import { FlashList } from '@shopify/flash-list';
 import { colors, typography, radii, shadow, spacing, ORDER_STATUS } from '../theme';
 
 const STATUS_COLORS: Record<RepairOrderStatus, string> = {
@@ -431,15 +431,12 @@ const OrdersScreen = () => {
         {renderHeader()}
         <View style={styles.contentContainer}>
           {renderFilters()}
-          <FlatList
+          <FlashList
             data={filteredOrders}
             renderItem={renderOrderCard}
             keyExtractor={item => item.id}
+            estimatedItemSize={120}
             contentContainerStyle={styles.ordersList}
-            initialNumToRender={8}
-            maxToRenderPerBatch={8}
-            windowSize={7}
-            removeClippedSubviews
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
