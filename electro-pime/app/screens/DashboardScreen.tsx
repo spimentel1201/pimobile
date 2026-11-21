@@ -15,6 +15,7 @@ import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { RepairOrder } from '../types/api';
 import { colors, typography, spacing, radii, shadow, ORDER_STATUS, RepairOrderStatus } from '../theme';
+import * as Haptics from 'expo-haptics';
 import Card from '../components/ui/Card';
 import StatusBadge from '../components/ui/StatusBadge';
 import SectionHeader from '../components/ui/SectionHeader';
@@ -126,6 +127,8 @@ const DashboardScreen = () => {
 
   const renderHeader = () => {
     const initials = `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || user?.firstName?.[1] || ''}`.toUpperCase();
+    const hour = new Date().getHours();
+    const saludo = hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
     const dateStr = new Date().toLocaleDateString('es-ES', {
       weekday: 'long',
       year: 'numeric',
@@ -137,7 +140,7 @@ const DashboardScreen = () => {
       <View style={styles.header}>
         <View style={styles.headerText}>
           <Text style={styles.companyLabel}>Electrónica Pimentel</Text>
-          <Text style={styles.greeting}>¡Hola, {user?.firstName || 'Usuario'} 👋</Text>
+          <Text style={styles.greeting}>¡{saludo}, {user?.firstName || 'Usuario'}!</Text>
           <Text style={styles.date}>{dateStr}</Text>
         </View>
         <TouchableOpacity
@@ -165,7 +168,7 @@ const DashboardScreen = () => {
           <Text style={styles.kpiValue}>{fmt(kpis.pending, false)}</Text>
           <Text style={styles.kpiLabel}>Por cobrar</Text>
         </View>
-        <View style={styles.kpiCard}>
+        <View style={[styles.kpiCard, styles.kpiCardHighlight]}>
           <Text style={[styles.kpiValue, kpis.salesToday !== null && styles.kpiMoney]} numberOfLines={1} adjustsFontSizeToFit>
             {fmt(kpis.salesToday, true)}
           </Text>
@@ -246,8 +249,9 @@ const DashboardScreen = () => {
       route: string;
       fg: string;
       bg: string;
+      primary?: boolean;
     }[] = [
-      { icon: 'plus', label: 'Nueva Orden', route: '/orders/new', fg: colors.white, bg: colors.primary },
+      { icon: 'plus', label: 'Nueva Orden', route: '/orders/new', fg: colors.white, bg: colors.primary, primary: true },
       { icon: 'account-plus-outline', label: 'Clientes', route: '/customers', fg: colors.violet, bg: colors.violetSoft },
       { icon: 'package-variant-closed', label: 'Productos', route: '/products', fg: colors.warning, bg: colors.warningSoft },
       { icon: 'file-document-outline', label: 'Presupuestos', route: '/budgets', fg: colors.success, bg: colors.successSoft },
@@ -269,14 +273,14 @@ const DashboardScreen = () => {
           {actions.map((action) => (
             <TouchableOpacity
               key={action.label}
-              style={[styles.actionPill, { width: pillWidth }]}
-              onPress={() => router.push(action.route as never)}
+              style={[styles.actionPill, { width: pillWidth }, action.primary && styles.actionPillPrimary]}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push(action.route as never); }}
               activeOpacity={0.85}
             >
-              <View style={[styles.actionIcon, { backgroundColor: action.bg }]}>
+              <View style={[styles.actionIcon, { backgroundColor: action.bg }, action.primary && styles.actionIconPrimary]}>
                 <MaterialCommunityIcons name={action.icon} size={22} color={action.fg} />
               </View>
-              <Text style={styles.actionLabel} numberOfLines={2} ellipsizeMode="tail">
+              <Text style={[styles.actionLabel, action.primary && styles.actionLabelPrimary]} numberOfLines={2} ellipsizeMode="tail">
                 {action.label}
               </Text>
             </TouchableOpacity>
@@ -470,9 +474,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...shadow,
   },
+  kpiCardHighlight: {
+    backgroundColor: colors.successSoft,
+    borderColor: colors.success,
+  },
   kpiValue: {
     ...typography.title,
     fontSize: 20,
+    fontVariant: ['tabular-nums'],
   },
   kpiMoney: {
     color: colors.success,
@@ -533,6 +542,18 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     minHeight: 32,
+  },
+  actionIconPrimary: {
+    backgroundColor: 'transparent',
+  },
+  actionPillPrimary: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.card,
+    paddingVertical: spacing.sm,
+  },
+  actionLabelPrimary: {
+    color: colors.white,
+    fontWeight: '700',
   },
 
   // Filas de presupuestos por estado
