@@ -562,6 +562,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.lg,
   },
   quoteRowDivider: {
     borderTopWidth: 1,
@@ -588,6 +589,7 @@ const styles = StyleSheet.create({
     ...typography.bodyStrong,
     color: colors.textPrimary,
     marginLeft: 'auto',
+    paddingRight: spacing.md,
     fontVariant: ['tabular-nums'],
   },
   quoteTotal: {
@@ -596,6 +598,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: spacing.sm,
     paddingTop: spacing.sm,
+    paddingHorizontal: spacing.lg,
     borderTopWidth: 1,
     borderTopColor: colors.borderStrong,
   },
@@ -608,6 +611,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textPrimary,
     fontVariant: ['tabular-nums'],
+    paddingRight: spacing.md,
   },
 
   // Cards de orden
