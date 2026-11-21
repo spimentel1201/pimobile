@@ -1,5 +1,6 @@
 import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { Platform } from 'react-native';
 import { api } from './api';
 import { secureStorage } from '../utils/storage';
 import type { ParsedLabel } from '../utils/labelParser';
@@ -24,6 +25,24 @@ export interface LabelAiResult {
 const AI_MAX_WIDTH = 1280;
 const AI_JPEG_QUALITY = 0.8;
 
+async function uriToBase64(uri: string): Promise<string> {
+  if (Platform.OS === 'web') {
+    const res = await fetch(uri);
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        const idx = dataUrl.indexOf(',');
+        resolve(idx >= 0 ? dataUrl.slice(idx + 1) : dataUrl);
+      };
+      reader.onerror = () => reject(new Error('No se pudo leer la imagen'));
+      reader.readAsDataURL(blob);
+    });
+  }
+  return FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+}
+
 async function prepareImageForAi(imageUri: string): Promise<{
   base64: string;
   mimeType: string;
@@ -33,9 +52,7 @@ async function prepareImageForAi(imageUri: string): Promise<{
     [{ resize: { width: AI_MAX_WIDTH } }],
     { compress: AI_JPEG_QUALITY, format: ImageManipulator.SaveFormat.JPEG },
   );
-  const base64 = await FileSystem.readAsStringAsync(manipulated.uri, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
+  const base64 = await uriToBase64(manipulated.uri);
   return { base64, mimeType: 'image/jpeg' };
 }
 
