@@ -1,6 +1,7 @@
 import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { api } from './api';
+import { secureStorage } from '../utils/storage';
 import type { ParsedLabel } from '../utils/labelParser';
 
 // Optional backend endpoint that forwards the label photo + OCR text to
@@ -51,7 +52,14 @@ export async function enhanceLabelWithAi(
 
   const { base64, mimeType } = await prepareImageForAi(imageUri);
 
-  const token = api.getToken();
+  let token = api.getToken();
+  if (!token) {
+    try {
+      token = await secureStorage.getItem('auth_token');
+    } catch {
+      token = null;
+    }
+  }
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -62,7 +70,9 @@ export async function enhanceLabelWithAi(
   });
 
   if (!response.ok) {
-    throw new Error('No se pudo mejorar con IA');
+    let detail = '';
+    try { detail = await response.text(); } catch {}
+    throw new Error(`OCR cloud falló (${response.status}): ${detail.slice(0, 200)}`);
   }
 
   const data = (await response.json()) as LabelAiResult & { parsed?: ParsedLabel };

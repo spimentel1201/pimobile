@@ -115,7 +115,8 @@ export async function recognizeLabel(
       const fields = await recognizeCloud(imageUri);
       onProgress?.({ status: 'Completado', progress: 100 });
       return { fields, usedCloud: true, fellBackToLocal: false };
-    } catch {
+    } catch (err) {
+      console.error('[OCR cloud] falló:', err);
       // Fall through to local OCR.
     }
   }
