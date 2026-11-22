@@ -17,13 +17,14 @@ import NewCustomerModal from './NewCustomerModal';
 import ScanLabelButton from './ScanLabelButton';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { colors } from '../theme';
+import { colors, spacing, radii } from '../theme';
 import * as Haptics from 'expo-haptics';
 import {
   Customer,
   RepairOrder,
   CreateRepairOrderDto,
   RepairOrderStatus,
+  PaymentMethod,
 } from '../types/api';
 
 interface OrderFormProps {
@@ -110,6 +111,9 @@ const [newCustomerInitialName, setNewCustomerInitialName] = useState('');
   const [description, setDescription] = useState('');
   const [notes, setNotes] = useState('');
   const [initialReviewCost, setInitialReviewCost] = useState('');
+  const [reviewPaid, setReviewPaid] = useState(false);
+  const [reviewPaymentMethod, setReviewPaymentMethod] = useState<PaymentMethod>('YAPE');
+  const [reviewPaymentCode, setReviewPaymentCode] = useState('');
   const [status, setStatus] = useState<RepairOrderStatus>('RECEIVED');
   const [showStatusPicker, setShowStatusPicker] = useState(false);
 
@@ -239,6 +243,12 @@ const [newCustomerInitialName, setNewCustomerInitialName] = useState('');
       description: description.trim(),
       notes: notes.trim() || undefined,
       initialReviewCost: initialReviewCost ? parseFloat(initialReviewCost) : undefined,
+      reviewPaid,
+      reviewPaymentMethod: reviewPaid ? reviewPaymentMethod : undefined,
+      reviewPaymentCode: reviewPaid && reviewPaymentMethod === 'YAPE' && reviewPaymentCode.trim()
+        ? reviewPaymentCode.trim()
+        : undefined,
+      reviewPaidAt: reviewPaid ? new Date().toISOString() : undefined,
       items: items.map(item => ({
         deviceType: item.deviceType,
         brand: item.brand.trim(),
@@ -554,6 +564,79 @@ const [newCustomerInitialName, setNewCustomerInitialName] = useState('');
           />
         </View>
 
+        {/* Pago de la revisión */}
+        <View style={styles.inputContainer}>
+          <TouchableOpacity
+            style={styles.toggleRow}
+            onPress={() => setReviewPaid((v) => !v)}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons
+              name={reviewPaid ? 'checkbox-marked' : 'checkbox-blank-outline'}
+              size={22}
+              color={reviewPaid ? colors.success : colors.textMuted}
+            />
+            <Text style={styles.toggleLabel}>Revisión pagada</Text>
+          </TouchableOpacity>
+
+          {reviewPaid && (
+            <View style={styles.paymentBlock}>
+              <Text style={styles.label}>Método de pago</Text>
+              <View style={styles.paymentMethods}>
+                {(['YAPE', 'PLIN', 'CASH'] as PaymentMethod[]).map((m) => (
+                  <TouchableOpacity
+                    key={m}
+                    style={[
+                      styles.paymentChip,
+                      reviewPaymentMethod === m && styles.paymentChipActive,
+                    ]}
+                    onPress={() => setReviewPaymentMethod(m)}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons
+                      name={
+                        m === 'YAPE'
+                          ? 'cellphone'
+                          : m === 'PLIN'
+                            ? 'cellphone'
+                            : 'cash'
+                      }
+                      size={16}
+                      color={reviewPaymentMethod === m ? colors.white : colors.textSecondary}
+                    />
+                    <Text
+                      style={[
+                        styles.paymentChipText,
+                        reviewPaymentMethod === m && styles.paymentChipTextActive,
+                      ]}
+                    >
+                      {m === 'YAPE' ? 'Yape' : m === 'PLIN' ? 'Plin' : 'Efectivo'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {reviewPaymentMethod === 'YAPE' && (
+                <>
+                  <Text style={styles.label}>Código de operación (opcional)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={reviewPaymentCode}
+                    onChangeText={setReviewPaymentCode}
+                    placeholder="Ej. 123456"
+                    placeholderTextColor={colors.textMuted}
+                    autoCapitalize="none"
+                  />
+                </>
+              )}
+
+              <Text style={styles.paymentDate}>
+                Fecha de pago: {new Date().toLocaleDateString('es-ES')}
+              </Text>
+            </View>
+          )}
+        </View>
+
         {/* Status (for editing) */}
         {initialData && (
           <View style={styles.inputContainer}>
@@ -684,6 +767,56 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  toggleLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.textPrimary,
+  },
+  paymentBlock: {
+    marginTop: spacing.sm,
+    gap: spacing.sm,
+  },
+  paymentMethods: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  paymentChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  paymentChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  paymentChipText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
+  paymentChipTextActive: {
+    color: colors.white,
+  },
+  paymentDate: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
+  },
+  saveBtnDisabled: {
+    opacity: 0.6,
   },
   sectionLocked: {
     opacity: 0.6,

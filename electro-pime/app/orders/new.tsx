@@ -16,17 +16,7 @@ export default function NewOrderScreen() {
       setLoading(true);
       await api.createRepairOrder(data);
       Platform.OS !== 'web' && Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-      Alert.alert(
-        '¡Éxito!',
-        'La orden de reparación ha sido creada correctamente.',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/orders'),
-          },
-        ]
-      );
+      router.replace('/orders');
     } catch (error: any) {
       console.error('Error creating order:', error);
       Alert.alert(

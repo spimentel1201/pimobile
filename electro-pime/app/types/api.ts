@@ -131,6 +131,10 @@ export interface RepairOrder {
   notes?: string;
   initialReviewCost?: number;
   totalCost?: number;
+  reviewPaid?: boolean;
+  reviewPaymentMethod?: PaymentMethod;
+  reviewPaymentCode?: string;
+  reviewPaidAt?: string;
   createdAt: string;
   updatedAt: string;
   endDate?: string;
@@ -153,6 +157,10 @@ export interface CreateRepairOrderDto {
   notes?: string;
   initialReviewCost?: number;
   items: Omit<RepairOrderItem, 'id' | 'repairOrderId' | 'createdAt' | 'updatedAt'>[];
+  reviewPaid?: boolean;
+  reviewPaymentMethod?: PaymentMethod;
+  reviewPaymentCode?: string;
+  reviewPaidAt?: string;
 }
 
 export interface UpdateRepairOrderDto extends Partial<CreateRepairOrderDto> { }

@@ -6,13 +6,16 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Modal,
+  TextInput,
+  Alert,
   Linking,
   Share,
   Platform,
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../services/api';
-import { RepairOrder, RepairOrderStatus, Quote, QuoteStatus } from '../types/api';
+import { RepairOrder, RepairOrderStatus, Quote, QuoteStatus, PaymentMethod } from '../types/api';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -139,6 +142,10 @@ export default function OrderDetailScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [showStatusActions, setShowStatusActions] = useState(false);
+  const [reviewPayVisible, setReviewPayVisible] = useState(false);
+  const [reviewPayMethod, setReviewPayMethod] = useState<PaymentMethod>('YAPE');
+  const [reviewPayCode, setReviewPayCode] = useState('');
+  const [reviewPaySaving, setReviewPaySaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [receiptOrder, setReceiptOrder] = useState<RepairOrder | null>(null);
   const [orderQuotes, setOrderQuotes] = useState<Quote[]>([]);
@@ -579,6 +586,51 @@ export default function OrderDetailScreen() {
             {order.initialReviewCost != null ? `S/ ${order.initialReviewCost.toFixed(2)}` : '—'}
           </Text>
         </View>
+
+        <View style={styles.costRow}>
+          <Text style={styles.costLabel}>Pago de revisión</Text>
+          {order.reviewPaid ? (
+            <View style={styles.reviewPaidRow}>
+              <MaterialCommunityIcons
+                name={
+                  order.reviewPaymentMethod === 'YAPE'
+                    ? 'cellphone'
+                    : order.reviewPaymentMethod === 'PLIN'
+                      ? 'cellphone'
+                      : 'cash'
+                }
+                size={16}
+                color={colors.success}
+              />
+              <Text style={styles.reviewPaidText}>
+                {order.reviewPaymentMethod === 'YAPE'
+                  ? 'Yape'
+                  : order.reviewPaymentMethod === 'PLIN'
+                    ? 'Plin'
+                    : 'Efectivo'}
+                {order.reviewPaymentCode ? ` · ${order.reviewPaymentCode}` : ''}
+              </Text>
+              {order.reviewPaidAt && (
+                <Text style={styles.reviewPaidDate}>
+                  {new Date(order.reviewPaidAt).toLocaleDateString('es-ES')}
+                </Text>
+              )}
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.markPaidButton}
+              onPress={() => {
+                setReviewPayMethod('YAPE');
+                setReviewPayCode('');
+                setReviewPayVisible(true);
+              }}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="cash-check" size={16} color={colors.primary} />
+              <Text style={styles.markPaidButtonText}>Marcar como pagada</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <View style={styles.costDivider} />
         <View style={styles.costRow}>
           <View>
@@ -738,6 +790,89 @@ export default function OrderDetailScreen() {
 
       </ScrollView>
       {toast && <Toast message={toast.message} type={toast.type} />}
+
+      <Modal
+        visible={reviewPayVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setReviewPayVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Marcar revisión como pagada</Text>
+            <TouchableOpacity activeOpacity={0.7} onPress={() => setReviewPayVisible(false)}>
+              <MaterialCommunityIcons name="close" size={24} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalContentInner}>
+            <Text style={styles.label}>Método de pago</Text>
+            <View style={styles.paymentMethods}>
+              {(['YAPE', 'PLIN', 'CASH'] as PaymentMethod[]).map((m) => (
+                <TouchableOpacity
+                  key={m}
+                  style={[styles.paymentChip, reviewPayMethod === m && styles.paymentChipActive]}
+                  onPress={() => setReviewPayMethod(m)}
+                  activeOpacity={0.7}
+                >
+                  <MaterialCommunityIcons
+                    name={m === 'CASH' ? 'cash' : 'cellphone'}
+                    size={16}
+                    color={reviewPayMethod === m ? colors.white : colors.textSecondary}
+                  />
+                  <Text style={[styles.paymentChipText, reviewPayMethod === m && styles.paymentChipTextActive]}>
+                    {m === 'YAPE' ? 'Yape' : m === 'PLIN' ? 'Plin' : 'Efectivo'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {reviewPayMethod === 'YAPE' && (
+              <>
+                <Text style={styles.label}>Código de operación (opcional)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={reviewPayCode}
+                  onChangeText={setReviewPayCode}
+                  placeholder="Ej. 123456"
+                  placeholderTextColor={colors.textMuted}
+                  autoCapitalize="none"
+                />
+              </>
+            )}
+
+            <TouchableOpacity
+              style={[styles.saveBtn, reviewPaySaving && styles.saveBtnDisabled]}
+              onPress={async () => {
+                if (!order) return;
+                setReviewPaySaving(true);
+                try {
+                  const updated = await api.updateRepairOrder(order.id, {
+                    reviewPaid: true,
+                    reviewPaymentMethod: reviewPayMethod,
+                    reviewPaymentCode: reviewPayCode.trim() || undefined,
+                    reviewPaidAt: new Date().toISOString(),
+                  });
+                  setOrder(updated);
+                  setReviewPayVisible(false);
+                } catch (err: any) {
+                  Alert.alert('Error', err?.message || 'No se pudo registrar el pago');
+                } finally {
+                  setReviewPaySaving(false);
+                }
+              }}
+              disabled={reviewPaySaving}
+              activeOpacity={0.7}
+            >
+              {reviewPaySaving ? (
+                <ActivityIndicator color={colors.white} />
+              ) : (
+                <Text style={styles.saveBtnText}>Confirmar pago</Text>
+              )}
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </Modal>
+
       <ReceiptPreview
         visible={receiptOrder !== null}
         order={receiptOrder}
@@ -1155,5 +1290,125 @@ const styles = StyleSheet.create({
     ...typography.bodyStrong,
     fontSize: 14,
     color: colors.white,
+  },
+  reviewPaidRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  reviewPaidText: {
+    ...typography.bodyStrong,
+    fontSize: 14,
+    color: colors.success,
+  },
+  reviewPaidDate: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginLeft: spacing.xs,
+  },
+  markPaidButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radii.button,
+    borderCurve: 'continuous',
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  markPaidButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: colors.surface,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  modalContent: {
+    flex: 1,
+  },
+  modalContentInner: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  label: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 6,
+    fontWeight: '500',
+    marginTop: 8,
+  },
+  input: {
+    backgroundColor: colors.canvas,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.button,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: colors.textPrimary,
+    minHeight: 44,
+  },
+  paymentMethods: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  paymentChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  paymentChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  paymentChipText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
+  paymentChipTextActive: {
+    color: colors.white,
+  },
+  saveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    borderRadius: radii.button,
+    borderCurve: 'continuous',
+    marginTop: 20,
+    minHeight: 48,
+  },
+  saveBtnDisabled: {
+    opacity: 0.6,
+  },
+  saveBtnText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
