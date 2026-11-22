@@ -445,7 +445,7 @@ export default function NewSaleScreen() {
                                     <MaterialCommunityIcons
                                         name={method.icon as any}
                                         size={20}
-                                        color={paymentMethod === method.value ? 'colors.primary' : 'colors.textSecondary'}
+                                        color={paymentMethod === method.value ? colors.primary : colors.textSecondary}
                                     />
                                     <Text style={[
                                         styles.paymentOptionText,
@@ -555,7 +555,7 @@ const styles = StyleSheet.create({
         gap: 8,
         backgroundColor: colors.canvas,
         borderWidth: 1,
-        borderColor: 'colors.border',
+        borderColor: colors.border,
         borderRadius: 10,
         paddingHorizontal: 12,
         minHeight: 48,
@@ -563,13 +563,13 @@ const styles = StyleSheet.create({
     customerSearchInput: {
         flex: 1,
         fontSize: 16,
-        color: 'colors.textPrimary',
+        color: colors.textPrimary,
         paddingVertical: 12,
     },
     customerMatches: {
         marginTop: 8,
         borderWidth: 1,
-        borderColor: 'colors.border',
+        borderColor: colors.border,
         borderRadius: 10,
         backgroundColor: colors.surface,
         overflow: 'hidden',
@@ -581,24 +581,24 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         paddingHorizontal: 12,
         borderBottomWidth: 1,
-        borderBottomColor: 'colors.border',
+        borderBottomColor: colors.border,
     },
     customerMatchInfo: {
         flex: 1,
     },
     customerMatchName: {
         fontSize: 15,
-        color: 'colors.textPrimary',
+        color: colors.textPrimary,
         fontWeight: '600',
     },
     customerMatchMeta: {
         fontSize: 12,
-        color: 'colors.textSecondary',
+        color: colors.textSecondary,
         marginTop: 2,
     },
     customerMatchesEmpty: {
         fontSize: 13,
-        color: 'colors.textMuted',
+        color: colors.textMuted,
         padding: 14,
         textAlign: 'center',
     },
@@ -608,7 +608,7 @@ const styles = StyleSheet.create({
         gap: 12,
         backgroundColor: colors.surface,
         borderWidth: 1,
-        borderColor: 'colors.border',
+        borderColor: colors.border,
         borderRadius: 10,
         padding: 12,
     },
@@ -616,7 +616,7 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: 'colors.primary',
+        backgroundColor: colors.primary,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -625,12 +625,12 @@ const styles = StyleSheet.create({
     },
     customerSelectedName: {
         fontSize: 16,
-        color: 'colors.textPrimary',
+        color: colors.textPrimary,
         fontWeight: '600',
     },
     customerSelectedPhone: {
         fontSize: 13,
-        color: 'colors.textSecondary',
+        color: colors.textSecondary,
         marginTop: 2,
     },
     customerClearButton: {
@@ -645,12 +645,12 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: 'colors.textPrimary',
+        color: colors.textPrimary,
     },
     addProductButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'colors.primary',
+        backgroundColor: colors.primary,
         paddingHorizontal: 12,
         paddingVertical: 8,
         borderRadius: 8,
@@ -667,11 +667,11 @@ const styles = StyleSheet.create({
     emptyCartText: {
         marginTop: 12,
         fontSize: 14,
-        color: 'colors.textSecondary',
+        color: colors.textSecondary,
     },
     emptyCartButton: {
         marginTop: 12,
-        backgroundColor: 'colors.primary',
+        backgroundColor: colors.primary,
         paddingHorizontal: 20,
         paddingVertical: 10,
         borderRadius: 8,
@@ -697,17 +697,17 @@ const styles = StyleSheet.create({
     cartItemName: {
         fontSize: 14,
         fontWeight: '500',
-        color: 'colors.textPrimary',
+        color: colors.textPrimary,
     },
     cartItemPrice: {
         fontSize: 12,
-        color: 'colors.textSecondary',
+        color: colors.textSecondary,
         marginTop: 2,
     },
     quantityControls: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'colors.border',
+        backgroundColor: colors.border,
         borderRadius: 8,
     },
     quantityButton: {
@@ -717,12 +717,12 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         fontSize: 14,
         fontWeight: '600',
-        color: 'colors.textPrimary',
+        color: colors.textPrimary,
     },
     cartItemTotal: {
         fontSize: 14,
         fontWeight: '600',
-        color: 'colors.success',
+        color: colors.success,
         minWidth: 70,
         textAlign: 'right',
     },
@@ -733,20 +733,20 @@ const styles = StyleSheet.create({
         padding: 12,
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: 'colors.border',
+        borderColor: colors.border,
         gap: 12,
     },
     paymentText: {
         flex: 1,
         fontSize: 16,
-        color: 'colors.textPrimary',
+        color: colors.textPrimary,
     },
     paymentOptions: {
         marginTop: 8,
         backgroundColor: colors.surface,
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: 'colors.border',
+        borderColor: colors.border,
     },
     paymentOption: {
         flexDirection: 'row',
@@ -754,17 +754,17 @@ const styles = StyleSheet.create({
         padding: 12,
         gap: 12,
         borderBottomWidth: 1,
-        borderBottomColor: 'colors.border',
+        borderBottomColor: colors.border,
     },
     paymentOptionSelected: {
-        backgroundColor: 'colors.primarySoft',
+        backgroundColor: colors.primarySoft,
     },
     paymentOptionText: {
         fontSize: 14,
         color: colors.textSecondary,
     },
     paymentOptionTextSelected: {
-        color: 'colors.primary',
+        color: colors.primary,
         fontWeight: '500',
     },
     footer: {
@@ -772,7 +772,7 @@ const styles = StyleSheet.create({
         padding: 16,
         paddingBottom: 80,
         borderTopWidth: 1,
-        borderTopColor: 'colors.border',
+        borderTopColor: colors.border,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 16,
@@ -785,17 +785,17 @@ const styles = StyleSheet.create({
     },
     totalLabel: {
         fontSize: 14,
-        color: 'colors.textSecondary',
+        color: colors.textSecondary,
     },
     totalAmount: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: 'colors.textPrimary',
+        color: colors.textPrimary,
     },
     submitButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'colors.success',
+        backgroundColor: colors.success,
         paddingHorizontal: 24,
         paddingVertical: 14,
         borderRadius: 8,
@@ -820,12 +820,12 @@ const styles = StyleSheet.create({
         padding: 16,
         backgroundColor: 'white',
         borderBottomWidth: 1,
-        borderBottomColor: 'colors.border',
+        borderBottomColor: colors.border,
     },
     modalTitle: {
         fontSize: 18,
         fontWeight: '600',
-        color: 'colors.textPrimary',
+        color: colors.textPrimary,
     },
     searchContainer: {
         flexDirection: 'row',
@@ -835,14 +835,14 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: 'colors.border',
+        borderColor: colors.border,
     },
     searchInput: {
         flex: 1,
         height: 44,
         fontSize: 16,
         marginLeft: 8,
-        color: 'colors.textPrimary',
+        color: colors.textPrimary,
     },
     centered: {
         flex: 1,
@@ -864,17 +864,17 @@ const styles = StyleSheet.create({
     productName: {
         fontSize: 14,
         fontWeight: '500',
-        color: 'colors.textPrimary',
+        color: colors.textPrimary,
     },
     productStock: {
         fontSize: 12,
-        color: 'colors.textSecondary',
+        color: colors.textSecondary,
         marginTop: 2,
     },
     productPrice: {
         fontSize: 16,
         fontWeight: '600',
-        color: 'colors.success',
+        color: colors.success,
     },
     emptySearch: {
         alignItems: 'center',
@@ -882,6 +882,6 @@ const styles = StyleSheet.create({
     },
     emptySearchText: {
         fontSize: 14,
-        color: 'colors.textSecondary',
+        color: colors.textSecondary,
     },
 });

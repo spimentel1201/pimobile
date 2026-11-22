@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
     required: {
-        color: 'colors.danger',
+        color: colors.danger,
     },
     selector: {
         flexDirection: 'row',
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         backgroundColor: colors.surface,
         borderWidth: 1,
-        borderColor: 'colors.border',
+        borderColor: colors.border,
         borderRadius: 8,
         padding: 12,
         minHeight: 48,
@@ -252,11 +252,11 @@ const styles = StyleSheet.create({
     },
     selectedText: {
         fontSize: 16,
-        color: 'colors.textPrimary',
+        color: colors.textPrimary,
     },
     selectedSubtitle: {
         fontSize: 12,
-        color: 'colors.textSecondary',
+        color: colors.textSecondary,
         marginTop: 2,
     },
     clearButton: {
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
     },
     placeholder: {
         fontSize: 16,
-        color: 'colors.textMuted',
+        color: colors.textMuted,
         flex: 1,
     },
     modalContainer: {
@@ -278,12 +278,12 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         padding: 16,
         borderBottomWidth: 1,
-        borderBottomColor: 'colors.border',
+        borderBottomColor: colors.border,
     },
     modalTitle: {
         fontSize: 18,
         fontWeight: '600',
-        color: 'colors.textPrimary',
+        color: colors.textPrimary,
     },
     closeButton: {
         padding: 4,
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
         flex: 1,
         height: 44,
         fontSize: 16,
-        color: 'colors.textPrimary',
+        color: colors.textPrimary,
     },
     centered: {
         flex: 1,
@@ -314,18 +314,18 @@ const styles = StyleSheet.create({
     loadingText: {
         marginTop: 12,
         fontSize: 14,
-        color: 'colors.textSecondary',
+        color: colors.textSecondary,
     },
     errorText: {
         marginTop: 12,
         fontSize: 14,
-        color: 'colors.danger',
+        color: colors.danger,
         textAlign: 'center',
     },
     emptyText: {
         marginTop: 12,
         fontSize: 14,
-        color: 'colors.textSecondary',
+        color: colors.textSecondary,
         textAlign: 'center',
     },
     listContent: {
@@ -341,11 +341,11 @@ const styles = StyleSheet.create({
     },
     resultText: {
         fontSize: 16,
-        color: 'colors.textPrimary',
+        color: colors.textPrimary,
     },
     resultSubtitle: {
         fontSize: 13,
-        color: 'colors.textSecondary',
+        color: colors.textSecondary,
         marginTop: 2,
     },
     separator: {
