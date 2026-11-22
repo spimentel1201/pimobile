@@ -172,8 +172,8 @@ export const PAYMENT_METHOD: Record<PaymentMethod, StatusStyle> = {
   CREDIT_CARD: { label: 'Tarjeta de Crédito', color: colors.primary, soft: colors.primarySoft },
   DEBIT_CARD: { label: 'Tarjeta de Débito', color: colors.primary, soft: colors.primarySoft },
   TRANSFER: { label: 'Transferencia', color: colors.textSecondary, soft: colors.surfaceMuted },
-  YAPE: { label: 'Yape', color: colors.violet, soft: colors.violetSoft },
-  PLIN: { label: 'Plin', color: colors.violet, soft: colors.violetSoft },
+  YAPE: { label: 'Yape', color: '#6B21A8', soft: '#F3E8FF' },
+  PLIN: { label: 'Plin', color: '#00BFA5', soft: '#E0F7FA' },
 };
 
 // Utilidad: hoja de estilos base para pantallas que consumen tokens

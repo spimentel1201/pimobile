@@ -19,7 +19,7 @@ import { RepairOrder, RepairOrderStatus, Quote, QuoteStatus, PaymentMethod } fro
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { colors, radii, shadow, spacing, typography, ORDER_STATUS, quoteStatusStyle } from '../theme';
+import { colors, radii, shadow, spacing, typography, ORDER_STATUS, quoteStatusStyle, PAYMENT_METHOD } from '../theme';
 import StatusBadge from '../components/ui/StatusBadge';
 import Toast from '../components/ui/Toast';
 import ReceiptPreview from '../components/ReceiptPreview';
@@ -594,15 +594,15 @@ export default function OrderDetailScreen() {
               <MaterialCommunityIcons
                 name={
                   order.reviewPaymentMethod === 'YAPE'
-                    ? 'cellphone'
+                    ? 'qrcode'
                     : order.reviewPaymentMethod === 'PLIN'
                       ? 'cellphone'
                       : 'cash'
                 }
                 size={16}
-                color={colors.success}
+                color={order.reviewPaymentMethod ? PAYMENT_METHOD[order.reviewPaymentMethod].color : colors.success}
               />
-              <Text style={styles.reviewPaidText}>
+              <Text style={[styles.reviewPaidText, { color: order.reviewPaymentMethod ? PAYMENT_METHOD[order.reviewPaymentMethod].color : colors.success }]}>
                 {order.reviewPaymentMethod === 'YAPE'
                   ? 'Yape'
                   : order.reviewPaymentMethod === 'PLIN'
@@ -807,23 +807,28 @@ export default function OrderDetailScreen() {
           <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalContentInner}>
             <Text style={styles.label}>Método de pago</Text>
             <View style={styles.paymentMethods}>
-              {(['YAPE', 'PLIN', 'CASH'] as PaymentMethod[]).map((m) => (
-                <TouchableOpacity
-                  key={m}
-                  style={[styles.paymentChip, reviewPayMethod === m && styles.paymentChipActive]}
-                  onPress={() => setReviewPayMethod(m)}
-                  activeOpacity={0.7}
-                >
-                  <MaterialCommunityIcons
-                    name={m === 'CASH' ? 'cash' : 'cellphone'}
-                    size={16}
-                    color={reviewPayMethod === m ? colors.white : colors.textSecondary}
-                  />
-                  <Text style={[styles.paymentChipText, reviewPayMethod === m && styles.paymentChipTextActive]}>
-                    {m === 'YAPE' ? 'Yape' : m === 'PLIN' ? 'Plin' : 'Efectivo'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {(['YAPE', 'PLIN', 'CASH'] as PaymentMethod[]).map((m) => {
+                const pm = PAYMENT_METHOD[m];
+                const active = reviewPayMethod === m;
+                const icon = m === 'YAPE' ? 'qrcode' : m === 'PLIN' ? 'cellphone' : 'cash';
+                return (
+                  <TouchableOpacity
+                    key={m}
+                    style={[styles.paymentChip, active && { backgroundColor: pm.color, borderColor: pm.color }]}
+                    onPress={() => setReviewPayMethod(m)}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons
+                      name={icon}
+                      size={16}
+                      color={active ? colors.white : colors.textSecondary}
+                    />
+                    <Text style={[styles.paymentChipText, active && { color: colors.white }]}>
+                      {pm.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
             {reviewPayMethod === 'YAPE' && (

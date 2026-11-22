@@ -17,7 +17,7 @@ import NewCustomerModal from './NewCustomerModal';
 import ScanLabelButton from './ScanLabelButton';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { colors, spacing, radii } from '../theme';
+import { colors, spacing, radii, PAYMENT_METHOD } from '../theme';
 import * as Haptics from 'expo-haptics';
 import {
   Customer,
@@ -583,37 +583,36 @@ const [newCustomerInitialName, setNewCustomerInitialName] = useState('');
             <View style={styles.paymentBlock}>
               <Text style={styles.label}>Método de pago</Text>
               <View style={styles.paymentMethods}>
-                {(['YAPE', 'PLIN', 'CASH'] as PaymentMethod[]).map((m) => (
-                  <TouchableOpacity
-                    key={m}
-                    style={[
-                      styles.paymentChip,
-                      reviewPaymentMethod === m && styles.paymentChipActive,
-                    ]}
-                    onPress={() => setReviewPaymentMethod(m)}
-                    activeOpacity={0.7}
-                  >
-                    <MaterialCommunityIcons
-                      name={
-                        m === 'YAPE'
-                          ? 'cellphone'
-                          : m === 'PLIN'
-                            ? 'cellphone'
-                            : 'cash'
-                      }
-                      size={16}
-                      color={reviewPaymentMethod === m ? colors.white : colors.textSecondary}
-                    />
-                    <Text
+                {(['YAPE', 'PLIN', 'CASH'] as PaymentMethod[]).map((m) => {
+                  const pm = PAYMENT_METHOD[m];
+                  const active = reviewPaymentMethod === m;
+                  const icon = m === 'YAPE' ? 'qrcode' : m === 'PLIN' ? 'cellphone' : 'cash';
+                  return (
+                    <TouchableOpacity
+                      key={m}
                       style={[
-                        styles.paymentChipText,
-                        reviewPaymentMethod === m && styles.paymentChipTextActive,
+                        styles.paymentChip,
+                        active && { backgroundColor: pm.color, borderColor: pm.color },
                       ]}
+                      onPress={() => setReviewPaymentMethod(m)}
+                      activeOpacity={0.7}
                     >
-                      {m === 'YAPE' ? 'Yape' : m === 'PLIN' ? 'Plin' : 'Efectivo'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                      <MaterialCommunityIcons
+                        name={icon}
+                        size={16}
+                        color={active ? colors.white : colors.textSecondary}
+                      />
+                      <Text
+                        style={[
+                          styles.paymentChipText,
+                          active && { color: colors.white },
+                        ]}
+                      >
+                        {pm.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
 
               {reviewPaymentMethod === 'YAPE' && (
