@@ -1,5 +1,4 @@
-import { colors } from '../theme';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,229 +7,321 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
+  Keyboard,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-
-import { Customer } from '../types/customer';
+import { colors, typography, spacing, radii } from '../theme';
+import { api } from '../services/api';
+import { Customer, CreateCustomerDto } from '../types/api';
 
 interface NewCustomerModalProps {
   visible: boolean;
+  initialName?: string;
   onClose: () => void;
-  onSave: (customer: Partial<Customer>) => void;
+  onCreated: (customer: Customer) => void;
 }
 
-const NewCustomerModal = ({ visible, onClose, onSave }: NewCustomerModalProps) => {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    address: '',
-    documentType: 'dni' as 'dni' | 'ruc',
-    documentNumber: '',
-  });
+const DOC_TYPES = [
+  { value: 'dni', label: 'DNI' },
+  { value: 'ruc', label: 'RUC' },
+  { value: 'ce', label: 'CE' },
+];
 
-  const handleSave = () => {
-    onSave({
-      ...formData,
-      status: 'active',
-      totalOrders: 0,
-      totalSpent: 0,
-      lastOrder: new Date().toISOString().split('T')[0],
-      photo: `https://api.dicebear.com/7.x/avataaars/png?seed=${formData.name}`,
-    });
-    onClose();
+export default function NewCustomerModal({
+  visible,
+  initialName = '',
+  onClose,
+  onCreated,
+}: NewCustomerModalProps) {
+  const [name, setName] = useState(initialName);
+  const [documentType, setDocumentType] = useState('dni');
+  const [documentNumber, setDocumentNumber] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [address, setAddress] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (visible) {
+      setName(initialName || '');
+      setDocumentType('dni');
+      setDocumentNumber('');
+      setPhone('');
+      setEmail('');
+      setAddress('');
+      setError(null);
+      setSaving(false);
+    }
+  }, [visible, initialName]);
+
+  const handleSave = async () => {
+    setError(null);
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setError('El nombre es obligatorio');
+      return;
+    }
+    if (!phone.trim()) {
+      setError('El teléfono es obligatorio');
+      return;
+    }
+    if (!documentNumber.trim()) {
+      setError('El número de documento es obligatorio');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload: CreateCustomerDto = {
+        name: trimmedName,
+        phone: phone.trim(),
+        documentType,
+        documentNumber: documentNumber.trim(),
+      };
+      if (email.trim()) payload.email = email.trim();
+      if (address.trim()) payload.address = address.trim();
+
+      const created = await api.createCustomer(payload);
+      onCreated(created);
+      onClose();
+    } catch (err: any) {
+      const msg =
+        err?.message ||
+        err?.response?.data?.message ||
+        'No se pudo registrar el cliente';
+      // El backend devuelve 409 con mensaje de duplicado
+      setError(Array.isArray(msg) ? msg.join(', ') : String(msg));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <Modal
       visible={visible}
       animationType="slide"
-      transparent={true}
+      presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Nuevo Cliente</Text>
-            <TouchableOpacity activeOpacity={0.7} onPress={onClose}>
-              <MaterialCommunityIcons name="close" size={24} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.formContainer}>
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Tipo de Documento</Text>
-              <View style={styles.documentTypeContainer}>
-                <TouchableOpacity activeOpacity={0.7}
-                  style={[
-                    styles.documentTypeButton,
-                    formData.documentType === 'dni' && styles.documentTypeActive,
-                  ]}
-                  onPress={() => setFormData({ ...formData, documentType: 'dni' })}
-                >
-                  <Text style={[
-                    styles.documentTypeText,
-                    formData.documentType === 'dni' && styles.documentTypeTextActive,
-                  ]}>DNI</Text>
-                </TouchableOpacity>
-                <TouchableOpacity activeOpacity={0.7}
-                  style={[
-                    styles.documentTypeButton,
-                    formData.documentType === 'ruc' && styles.documentTypeActive,
-                  ]}
-                  onPress={() => setFormData({ ...formData, documentType: 'ruc' })}
-                >
-                  <Text style={[
-                    styles.documentTypeText,
-                    formData.documentType === 'ruc' && styles.documentTypeTextActive,
-                  ]}>RUC</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Número de Documento</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.documentNumber}
-                onChangeText={(text) => setFormData({ ...formData, documentNumber: text })}
-                keyboardType="numeric"
-                maxLength={formData.documentType === 'dni' ? 8 : 11}
-                placeholder={formData.documentType === 'dni' ? "12345678" : "20123456789"}
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Nombre Completo</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.name}
-                onChangeText={(text) => setFormData({ ...formData, name: text })}
-                placeholder="Juan Pérez"
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Correo Electrónico</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.email}
-                onChangeText={(text) => setFormData({ ...formData, email: text })}
-                placeholder="juan@ejemplo.com"
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Teléfono</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.phone}
-                onChangeText={(text) => setFormData({ ...formData, phone: text })}
-                placeholder="612345678"
-                keyboardType="phone-pad"
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Dirección</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.address}
-                onChangeText={(text) => setFormData({ ...formData, address: text })}
-                placeholder="Calle Principal 123"
-              />
-            </View>
-          </ScrollView>
-
-          <TouchableOpacity activeOpacity={0.7} style={styles.saveButton} onPress={handleSave}>
-            <Text style={styles.saveButtonText}>Guardar Cliente</Text>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Nuevo cliente</Text>
+          <TouchableOpacity activeOpacity={0.7} onPress={onClose} style={styles.closeBtn}>
+            <MaterialCommunityIcons name="close" size={24} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
+
+        <ScrollView
+          style={styles.form}
+          contentContainerStyle={styles.formContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          {error ? (
+            <View style={styles.errorBox}>
+              <MaterialCommunityIcons name="alert-circle" size={18} color={colors.danger} />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
+          <Text style={styles.label}>Nombre completo *</Text>
+          <TextInput
+            style={styles.input}
+            value={name}
+            onChangeText={setName}
+            placeholder="Ej. Juan Pérez"
+            placeholderTextColor={colors.textMuted}
+            autoCapitalize="words"
+          />
+
+          <Text style={styles.label}>Tipo de documento *</Text>
+          <View style={styles.docTypeRow}>
+            {DOC_TYPES.map((d) => (
+              <TouchableOpacity
+                key={d.value}
+                style={[styles.docTypeBtn, documentType === d.value && styles.docTypeBtnActive]}
+                onPress={() => setDocumentType(d.value)}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.docTypeText,
+                    documentType === d.value && styles.docTypeTextActive,
+                  ]}
+                >
+                  {d.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={styles.label}>Número de documento *</Text>
+          <TextInput
+            style={styles.input}
+            value={documentNumber}
+            onChangeText={setDocumentNumber}
+            placeholder="DNI / RUC / CE"
+            placeholderTextColor={colors.textMuted}
+            keyboardType="numeric"
+            autoCapitalize="none"
+          />
+
+          <Text style={styles.label}>Teléfono *</Text>
+          <TextInput
+            style={styles.input}
+            value={phone}
+            onChangeText={setPhone}
+            placeholder="9 dígitos"
+            placeholderTextColor={colors.textMuted}
+            keyboardType="phone-pad"
+          />
+
+          <Text style={styles.label}>Correo (opcional)</Text>
+          <TextInput
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+            placeholder="correo@ejemplo.com"
+            placeholderTextColor={colors.textMuted}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+
+          <Text style={styles.label}>Dirección (opcional)</Text>
+          <TextInput
+            style={styles.input}
+            value={address}
+            onChangeText={setAddress}
+            placeholder="Dirección"
+            placeholderTextColor={colors.textMuted}
+          />
+
+          <TouchableOpacity
+            style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+            onPress={handleSave}
+            disabled={saving}
+            activeOpacity={0.7}
+          >
+            {saving ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <>
+                <MaterialCommunityIcons name="content-save" size={20} color={colors.white} />
+                <Text style={styles.saveBtnText}>Registrar cliente</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
       </View>
     </Modal>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  modalContainer: {
+  container: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: colors.surface,
   },
-  modalContent: {
-    backgroundColor: 'white',
-    width: '90%',
-    maxHeight: '90%',
-    borderRadius: 12,
-    padding: 16,
-  },
-  modalHeader: {
+  header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
     color: colors.textPrimary,
   },
-  formContainer: {
+  closeBtn: {
+    padding: 4,
+  },
+  form: {
     flex: 1,
   },
-  formGroup: {
-    marginBottom: 16,
+  formContent: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.dangerSoft,
+    borderRadius: radii.button,
+    padding: 12,
+    marginBottom: 12,
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.danger,
   },
   label: {
-    fontSize: 16,
-    color: colors.textPrimary,
-    marginBottom: 8,
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 6,
+    fontWeight: '500',
+    marginTop: 8,
   },
   input: {
+    backgroundColor: colors.canvas,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: radii.button,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     fontSize: 16,
+    color: colors.textPrimary,
+    minHeight: 44,
   },
-  documentTypeContainer: {
+  docTypeRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
+    marginBottom: 4,
   },
-  documentTypeButton: {
+  docTypeBtn: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
+    paddingVertical: 10,
+    borderRadius: radii.button,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',
+    backgroundColor: colors.surface,
   },
-  documentTypeActive: {
+  docTypeBtnActive: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  documentTypeText: {
-    fontSize: 16,
-    color: colors.textPrimary,
+  docTypeText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textSecondary,
   },
-  documentTypeTextActive: {
-    color: 'white',
+  docTypeTextActive: {
+    color: colors.white,
   },
-  saveButton: {
-    backgroundColor: colors.success,
-    padding: 16,
-    borderRadius: 8,
+  saveBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 16,
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    borderRadius: radii.button,
+    borderCurve: 'continuous',
+    marginTop: 20,
+    minHeight: 48,
   },
-  saveButtonText: {
-    color: 'white',
+  saveBtnDisabled: {
+    opacity: 0.6,
+  },
+  saveBtnText: {
+    color: colors.white,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
 });
-
-export default NewCustomerModal;

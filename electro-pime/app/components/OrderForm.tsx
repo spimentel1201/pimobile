@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import SearchableSelector from './SearchableSelector';
+import NewCustomerModal from './NewCustomerModal';
 import ScanLabelButton from './ScanLabelButton';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -102,6 +103,8 @@ export default function OrderForm({
 
   // Customer
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+const [newCustomerVisible, setNewCustomerVisible] = useState(false);
+const [newCustomerInitialName, setNewCustomerInitialName] = useState('');
 
   // Order details
   const [description, setDescription] = useState('');
@@ -442,6 +445,7 @@ export default function OrderForm({
   );
 
   return (
+    <>
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
       {/* Technician Banner - Read Only */}
       <View style={styles.technicianBanner}>
@@ -465,6 +469,10 @@ export default function OrderForm({
           value={selectedCustomer}
           onSelect={setSelectedCustomer}
           searchFn={searchCustomers}
+          onCreateNew={(query) => {
+            setNewCustomerInitialName(query);
+            setNewCustomerVisible(true);
+          }}
           renderItem={(c) => c.name}
           renderSubtitle={(c) => `${c.documentType}: ${c.documentNumber} | Tel: ${c.phone}`}
           keyExtractor={(c) => c.id}
@@ -602,6 +610,17 @@ export default function OrderForm({
         </TouchableOpacity>
       </View>
     </ScrollView>
+
+    <NewCustomerModal
+      visible={newCustomerVisible}
+      initialName={newCustomerInitialName}
+      onClose={() => setNewCustomerVisible(false)}
+      onCreated={(customer) => {
+        setSelectedCustomer(customer);
+        setNewCustomerVisible(false);
+      }}
+    />
+    </>
   );
 }
 

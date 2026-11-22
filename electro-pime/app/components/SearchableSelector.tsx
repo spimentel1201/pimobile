@@ -11,7 +11,7 @@ import {
     Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../theme';
+import { colors, radii } from '../theme';
 
 interface SearchableSelectorProps<T> {
     label: string;
@@ -25,6 +25,7 @@ interface SearchableSelectorProps<T> {
     required?: boolean;
     disabled?: boolean;
     debounceMs?: number;
+    onCreateNew?: (query: string) => void;
 }
 
 export default function SearchableSelector<T>({
@@ -39,6 +40,7 @@ export default function SearchableSelector<T>({
     required = false,
     disabled = false,
     debounceMs = 300,
+    onCreateNew,
 }: SearchableSelectorProps<T>) {
     const [modalVisible, setModalVisible] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -185,6 +187,22 @@ export default function SearchableSelector<T>({
                                     ? 'Escribe al menos 2 caracteres para buscar'
                                     : 'No se encontraron resultados'}
                             </Text>
+                            {searchQuery.length >= 2 && onCreateNew && (
+                                <TouchableOpacity
+                                    style={styles.createButton}
+                                    onPress={() => {
+                                        const q = searchQuery;
+                                        setModalVisible(false);
+                                        onCreateNew(q);
+                                    }}
+                                    activeOpacity={0.7}
+                                >
+                                    <Ionicons name="person-add" size={18} color={colors.white} />
+                                    <Text style={styles.createButtonText}>
+                                        Registrar nuevo cliente "{searchQuery}"
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
                     ) : (
                         <FlatList
@@ -351,5 +369,21 @@ const styles = StyleSheet.create({
     separator: {
         height: 1,
         backgroundColor: colors.canvas,
+    },
+    createButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        backgroundColor: colors.primary,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: radii.button,
+        borderCurve: 'continuous',
+        marginTop: 16,
+    },
+    createButtonText: {
+        color: colors.white,
+        fontSize: 14,
+        fontWeight: '600',
     },
 });
