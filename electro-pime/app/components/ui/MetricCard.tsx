@@ -38,7 +38,7 @@ export default function MetricCard({ label, value, variant = 'default', icon, st
         )}
         <Text style={[styles.label, isHero && styles.labelHero]}>{label}</Text>
       </View>
-      <Text style={[styles.value, isHero && styles.valueHero]} numberOfLines={1} adjustsFontSizeToFit>
+      <Text style={[styles.value, isHero && styles.valueHero]} numberOfLines={1}>
         {value}
       </Text>
     </View>

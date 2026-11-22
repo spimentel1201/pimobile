@@ -194,7 +194,7 @@ const DashboardScreen = () => {
           <Text style={styles.kpiLabel}>Por cobrar</Text>
         </View>
         <View style={[styles.kpiCard, styles.kpiCardHighlight]}>
-          <Text style={[styles.kpiValue, kpis.salesToday !== null && styles.kpiMoney]} numberOfLines={1} adjustsFontSizeToFit selectable>
+          <Text style={[styles.kpiValue, kpis.salesToday !== null && styles.kpiMoney]} numberOfLines={1} selectable>
             {fmt(kpis.salesToday, true)}
           </Text>
           <Text style={styles.kpiLabel}>Ventas hoy</Text>
