@@ -163,14 +163,14 @@ const DashboardScreen = () => {
               setScanProcessed(false);
               setScanVisible(true);
             }}
-            android_ripple={{ color: 'rgba(20,184,166,0.15)', borderless: true }}
+            android_ripple={{ color: colors.primarySoft, borderless: true }}
           >
-            <MaterialCommunityIcons name="qrcode-scan" size={20} color={'#14B8A6'} />
+            <MaterialCommunityIcons name="qrcode-scan" size={20} color={colors.primary} />
           </Pressable>
           <Pressable
             style={styles.avatar}
             onPress={() => router.push('/profile')}
-            android_ripple={{ color: 'rgba(20,184,166,0.15)', borderless: true }}
+            android_ripple={{ color: colors.primarySoft, borderless: true }}
           >
             <Text style={styles.avatarText}>{initials || 'EP'}</Text>
           </Pressable>
@@ -300,7 +300,7 @@ const DashboardScreen = () => {
               key={action.label}
               style={[styles.actionPill, { width: pillWidth }, action.primary && styles.actionPillPrimary]}
               onPress={() => { Platform.OS !== 'web' && Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push(action.route as never); }}
-              android_ripple={{ color: 'rgba(20,184,166,0.15)', borderless: true }}
+              android_ripple={{ color: colors.primarySoft, borderless: true }}
             >
               <View style={[styles.actionIcon, { backgroundColor: action.bg }, action.primary && styles.actionIconPrimary]}>
                 <MaterialCommunityIcons name={action.icon} size={22} color={action.fg} />
@@ -367,7 +367,7 @@ const DashboardScreen = () => {
                   <MaterialCommunityIcons
                     name="devices"
                     size={16}
-                    color={'#94A3B8'}
+                    color={colors.textSecondary}
                   />
                   <Text style={styles.orderDevice} numberOfLines={1}>
                     <Text style={styles.orderDeviceUpper}>
@@ -394,7 +394,7 @@ const DashboardScreen = () => {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={'#14B8A6'} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -406,7 +406,7 @@ const DashboardScreen = () => {
       contentContainerStyle={styles.content}
       contentInsetAdjustmentBehavior="automatic"
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={'#14B8A6'} />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
       }
     >
       {renderHeader()}
@@ -414,7 +414,7 @@ const DashboardScreen = () => {
 
       {error && (
         <View style={styles.errorBanner}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={18} color={'#F87171'} />
+          <MaterialCommunityIcons name="alert-circle-outline" size={18} color={colors.danger} />
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
@@ -456,9 +456,9 @@ const DashboardScreen = () => {
           <Pressable
             style={styles.scanClose}
             onPress={() => setScanVisible(false)}
-            android_ripple={{ color: 'rgba(20,184,166,0.15)', borderless: true }}
+            android_ripple={{ color: colors.primarySoft, borderless: true }}
           >
-            <MaterialCommunityIcons name="close" size={24} color={'#FFFFFF'} />
+            <MaterialCommunityIcons name="close" size={24} color={colors.white} />
           </Pressable>
           <Text style={styles.scanHint}>Apunta al código QR de la etiqueta</Text>
         </View>
@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: radii.button,
     borderCurve: 'continuous',
-    backgroundColor: '#334155',
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.canvas,
   },
   content: {
     // Deja espacio para el TabBar flotante (pill margin 12 + altura ~66)
@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.canvas,
   },
 
   // Header hero
@@ -540,17 +540,16 @@ const styles = StyleSheet.create({
     marginRight: spacing.md,
   },
   companyLabel: {
-    ...typography.micro,    color: '#14B8A6',
+    ...typography.micro,
+    color: colors.primary,
     marginBottom: spacing.xs,
   },
   greeting: {
     ...typography.display,
-    color: '#F1F5F9',
     fontSize: 24,
   },
   date: {
     ...typography.caption,
-    color: '#94A3B8',
     marginTop: spacing.xs,
     textTransform: 'capitalize',
   },
@@ -559,14 +558,14 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderCurve: 'continuous',
-    backgroundColor: 'rgba(20,184,166,0.15)',
+    backgroundColor: colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#14B8A6',
+    color: colors.primary,
   },
 
   // KPIs
@@ -578,32 +577,30 @@ const styles = StyleSheet.create({
   },
   kpiCard: {
     flex: 1,
-    backgroundColor: '#1E293B',
+    backgroundColor: colors.surface,
     borderRadius: radii.card,
     borderCurve: 'continuous',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.border,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
     alignItems: 'center',
     ...shadow,
   },
   kpiCardHighlight: {
-    backgroundColor: 'rgba(16,185,129,0.15)',
+    backgroundColor: colors.successSoft,
     borderColor: colors.success,
   },
   kpiValue: {
     ...typography.title,
-    color: '#F1F5F9',
     fontSize: 20,
     fontVariant: ['tabular-nums'],
   },
   kpiMoney: {
-    color: '#34D399',
+    color: colors.success,
   },
   kpiLabel: {
     ...typography.caption,
-    color: '#94A3B8',
     marginTop: 2,
   },
 
@@ -614,7 +611,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginHorizontal: spacing.xl,
     marginBottom: spacing.lg,
-    backgroundColor: 'rgba(239,68,68,0.15)',
+    backgroundColor: colors.dangerSoft,
     borderRadius: radii.button,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
@@ -622,7 +619,7 @@ const styles = StyleSheet.create({
   errorText: {
     flex: 1,
     fontSize: 13,
-    color: '#F87171',
+    color: colors.danger,
   },
 
   // Secciones
@@ -656,7 +653,7 @@ const styles = StyleSheet.create({
   actionLabel: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: colors.textSecondary,
     textAlign: 'center',
     minHeight: 32,
   },
@@ -664,7 +661,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   actionPillPrimary: {
-    backgroundColor: '#14B8A6',
+    backgroundColor: colors.primary,
     borderRadius: radii.card,
     paddingVertical: spacing.sm,
   },
@@ -695,17 +692,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: radii.pill,
-    backgroundColor: '#334155',
+    backgroundColor: colors.surfaceMuted,
   },
   quoteCountText: {
     ...typography.caption,
     fontSize: 12,
-    color: '#94A3B8',
+    color: colors.textSecondary,
     fontVariant: ['tabular-nums'],
   },
   quoteAmount: {
     ...typography.bodyStrong,
-    color: '#F1F5F9',
+    color: colors.textPrimary,
     marginLeft: 'auto',
     paddingRight: spacing.md,
     fontVariant: ['tabular-nums'],
@@ -722,12 +719,12 @@ const styles = StyleSheet.create({
   },
   quoteTotalLabel: {
     ...typography.caption,
-    color: '#94A3B8',
+    color: colors.textSecondary,
   },
   quoteTotalAmount: {
     ...typography.bodyStrong,
     fontSize: 16,
-    color: '#F1F5F9',
+    color: colors.textPrimary,
     fontVariant: ['tabular-nums'],
     paddingRight: spacing.md,
   },
@@ -749,18 +746,18 @@ const styles = StyleSheet.create({
   },
   orderAmountLabel: {
     ...typography.micro,
-    color: '#64748B',
+    color: colors.textMuted,
   },
   orderAmount: {
     ...typography.display,
     fontSize: 22,
-    color: '#14B8A6',
+    color: colors.primary,
     letterSpacing: -0.5,
   },
   orderCustomer: {
     ...typography.bodyStrong,
     fontSize: 17,
-    color: '#F1F5F9',
+    color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
   orderDeviceRow: {
@@ -771,7 +768,7 @@ const styles = StyleSheet.create({
   },
   orderDevice: {
     ...typography.caption,
-    color: '#94A3B8',
+    color: colors.textSecondary,
     flex: 1,
   },
   orderDeviceUpper: {
@@ -787,17 +784,14 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   orderDescription: {
-    ...typography.caption,    color: '#64748B',
+    ...typography.caption,
+    color: colors.textMuted,
     flex: 1,
   },
   orderDate: {
     ...typography.caption,
-    color: '#94A3B8',
     flexShrink: 0,
   },
 });
 
 export default DashboardScreen;
-
-
-
