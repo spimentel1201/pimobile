@@ -1,340 +1,295 @@
+// ponytail: M3 Register Screen with M3TextField, validations and native ripple
 import React, { useState } from 'react';
 import {
-    View,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    StyleSheet,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    ActivityIndicator,
-    Alert,
+  View,
+  Text,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+  Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from './contexts/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { colors } from './theme';
+import { colors, radii, spacing, typography } from './theme';
+import M3TextField from './components/ui/M3TextField';
+import Card from './components/ui/Card';
 
 export default function RegisterScreen() {
-    const router = useRouter();
-    const { register } = useAuth();
-    const [formData, setFormData] = useState({
-        email: '',
-        password: '',
-        confirmPassword: '',
-        firstName: '',
-        lastName: '',
-        phone: '',
-    });
-    const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [errors, setErrors] = useState<Record<string, string>>({});
+  const router = useRouter();
+  const { register } = useAuth();
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    firstName: '',
+    lastName: '',
+    phone: '',
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-    const validate = () => {
-        const newErrors: Record<string, string> = {};
+  const validate = () => {
+    const newErrors: Record<string, string> = {};
 
-        if (!formData.firstName.trim()) {
-            newErrors.firstName = 'El nombre es requerido';
-        }
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = 'El nombre es requerido';
+    }
 
-        if (!formData.lastName.trim()) {
-            newErrors.lastName = 'El apellido es requerido';
-        }
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = 'El apellido es requerido';
+    }
 
-        if (!formData.email.trim()) {
-            newErrors.email = 'El correo es requerido';
-        } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-            newErrors.email = 'Ingresa un correo válido';
-        }
+    if (!formData.email.trim()) {
+      newErrors.email = 'El correo es requerido';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Ingresa un correo válido';
+    }
 
-        if (!formData.phone.trim()) {
-            newErrors.phone = 'El teléfono es requerido';
-        } else if (!/^\d{9,15}$/.test(formData.phone.replace(/\s/g, ''))) {
-            newErrors.phone = 'Ingresa un número válido (9-15 dígitos)';
-        }
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'El teléfono es requerido';
+    } else if (!/^\d{9,15}$/.test(formData.phone.replace(/\s/g, ''))) {
+      newErrors.phone = 'Ingresa un número válido (9-15 dígitos)';
+    }
 
-        if (!formData.password) {
-            newErrors.password = 'La contraseña es requerida';
-        } else if (formData.password.length < 8) {
-            newErrors.password = 'Mínimo 8 caracteres';
-        } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/.test(formData.password)) {
-            newErrors.password = 'Debe incluir mayúscula, minúscula, número y símbolo';
-        }
+    if (!formData.password) {
+      newErrors.password = 'La contraseña es requerida';
+    } else if (formData.password.length < 8) {
+      newErrors.password = 'Mínimo 8 caracteres';
+    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/.test(formData.password)) {
+      newErrors.password = 'Debe incluir mayúscula, minúscula, número y símbolo (@$!%*?&)';
+    }
 
-        if (formData.password !== formData.confirmPassword) {
-            newErrors.confirmPassword = 'Las contraseñas no coinciden';
-        }
+    if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Las contraseñas no coinciden';
+    }
 
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
-    const handleRegister = async () => {
-        Platform.OS !== 'web' && Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        if (!validate()) return;
+  const handleRegister = async () => {
+    Platform.OS !== 'web' && Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (!validate()) return;
 
-        setLoading(true);
-        try {
-            await register({
-                email: formData.email.trim(),
-                password: formData.password,
-                firstName: formData.firstName.trim(),
-                lastName: formData.lastName.trim(),
-                phone: formData.phone.trim(),
-            });
-            router.replace('/dashboard');
-        } catch (error: any) {
-            Alert.alert(
-                'Error de registro',
-                error.message || 'No se pudo completar el registro. Por favor, intenta de nuevo.'
-            );
-        } finally {
-            setLoading(false);
-        }
-    };
+    setLoading(true);
+    try {
+      await register({
+        email: formData.email.trim(),
+        password: formData.password,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        phone: formData.phone.trim(),
+      });
+      router.replace('/dashboard');
+    } catch (error: any) {
+      Alert.alert(
+        'Error de registro',
+        error.message || 'No se pudo completar el registro. Intenta de nuevo.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const updateField = (field: string, value: string) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
-        if (errors[field]) {
-            setErrors(prev => ({ ...prev, [field]: '' }));
-        }
-    };
+  const updateField = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: '' }));
+    }
+  };
 
-    return (
-        <KeyboardAvoidingView
-            style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                keyboardShouldPersistTaps="handled"
-            >
-                <View style={styles.header}>
-                    <Ionicons name="person-add" size={56} color={colors.primary} />
-                    <Text style={styles.title}>Crear Cuenta</Text>
-                    <Text style={styles.subtitle}>Completa tus datos para registrarte</Text>
-                </View>
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.header}>
+          <View style={styles.iconCircle}>
+            <MaterialCommunityIcons name="account-plus-outline" size={36} color={colors.primary} />
+          </View>
+          <Text style={styles.title}>Crear Cuenta Técnica</Text>
+          <Text style={styles.subtitle}>Únete al equipo del taller Electro-Pime</Text>
+        </View>
 
-                <View style={styles.form}>
-                    {/* First Name */}
-                    <View style={styles.inputContainer}>
-                        <Ionicons name="person-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Nombre"
-                            placeholderTextColor={colors.textMuted}
-                            value={formData.firstName}
-                            onChangeText={(value) => updateField('firstName', value)}
-                            autoCapitalize="words"
-                        />
-                    </View>
-                    {errors.firstName && <Text style={styles.errorText}>{errors.firstName}</Text>}
+        <Card style={styles.card}>
+          <View style={styles.nameRow}>
+            <M3TextField
+              containerStyle={styles.halfField}
+              label="Nombre *"
+              placeholder="Ej: Carlos"
+              value={formData.firstName}
+              onChangeText={(v) => updateField('firstName', v)}
+              error={errors.firstName}
+              leadingIcon="account-outline"
+            />
+            <M3TextField
+              containerStyle={styles.halfField}
+              label="Apellido *"
+              placeholder="Ej: Méndez"
+              value={formData.lastName}
+              onChangeText={(v) => updateField('lastName', v)}
+              error={errors.lastName}
+              leadingIcon="account-outline"
+            />
+          </View>
 
-                    {/* Last Name */}
-                    <View style={styles.inputContainer}>
-                        <Ionicons name="person-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Apellido"
-                            placeholderTextColor={colors.textMuted}
-                            value={formData.lastName}
-                            onChangeText={(value) => updateField('lastName', value)}
-                            autoCapitalize="words"
-                        />
-                    </View>
-                    {errors.lastName && <Text style={styles.errorText}>{errors.lastName}</Text>}
+          <M3TextField
+            label="Correo Electrónico *"
+            placeholder="tecnico@ejemplo.com"
+            value={formData.email}
+            onChangeText={(v) => updateField('email', v)}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            error={errors.email}
+            leadingIcon="email-outline"
+          />
 
-                    {/* Email */}
-                    <View style={styles.inputContainer}>
-                        <Ionicons name="mail-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Correo electrónico"
-                            placeholderTextColor={colors.textMuted}
-                            value={formData.email}
-                            onChangeText={(value) => updateField('email', value)}
-                            keyboardType="email-address"
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                        />
-                    </View>
-                    {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+          <M3TextField
+            label="Teléfono / Celular *"
+            placeholder="987 654 321"
+            value={formData.phone}
+            onChangeText={(v) => updateField('phone', v)}
+            keyboardType="phone-pad"
+            error={errors.phone}
+            leadingIcon="phone-outline"
+          />
 
-                    {/* Phone */}
-                    <View style={styles.inputContainer}>
-                        <Ionicons name="call-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Teléfono"
-                            placeholderTextColor={colors.textMuted}
-                            value={formData.phone}
-                            onChangeText={(value) => updateField('phone', value)}
-                            keyboardType="phone-pad"
-                        />
-                    </View>
-                    {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
+          <M3TextField
+            label="Contraseña *"
+            placeholder="Mínimo 8 caracteres..."
+            value={formData.password}
+            onChangeText={(v) => updateField('password', v)}
+            secureTextEntry={!showPassword}
+            error={errors.password}
+            leadingIcon="lock-outline"
+            trailingIcon={showPassword ? 'eye-off-outline' : 'eye-outline'}
+            onTrailingIconPress={() => setShowPassword(!showPassword)}
+          />
 
-                    {/* Password */}
-                    <View style={styles.inputContainer}>
-                        <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Contraseña"
-                            placeholderTextColor={colors.textMuted}
-                            value={formData.password}
-                            onChangeText={(value) => updateField('password', value)}
-                            secureTextEntry={!showPassword}
-                        />
-                        <TouchableOpacity activeOpacity={0.7}
-                            onPress={() => setShowPassword(!showPassword)}
-                            style={styles.eyeIcon}
-                        >
-                            <Ionicons
-                                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                                size={20}
-                                color={colors.textSecondary}
-                            />
-                        </TouchableOpacity>
-                    </View>
-                    {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+          <M3TextField
+            label="Confirmar Contraseña *"
+            placeholder="Repite la contraseña..."
+            value={formData.confirmPassword}
+            onChangeText={(v) => updateField('confirmPassword', v)}
+            secureTextEntry={!showConfirmPassword}
+            error={errors.confirmPassword}
+            leadingIcon="lock-check-outline"
+            trailingIcon={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+            onTrailingIconPress={() => setShowConfirmPassword(!showConfirmPassword)}
+          />
 
-                    {/* Confirm Password */}
-                    <View style={styles.inputContainer}>
-                        <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Confirmar contraseña"
-                            placeholderTextColor={colors.textMuted}
-                            value={formData.confirmPassword}
-                            onChangeText={(value) => updateField('confirmPassword', value)}
-                            secureTextEntry={!showConfirmPassword}
-                        />
-                        <TouchableOpacity activeOpacity={0.7}
-                            onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                            style={styles.eyeIcon}
-                        >
-                            <Ionicons
-                                name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
-                                size={20}
-                                color={colors.textSecondary}
-                            />
-                        </TouchableOpacity>
-                    </View>
-                    {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
+          <Pressable
+            style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
+            onPress={handleRegister}
+            disabled={loading}
+            android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color={colors.white} />
+            ) : (
+              <>
+                <Text style={styles.submitBtnText}>Registrarse</Text>
+                <MaterialCommunityIcons name="check" size={20} color={colors.white} />
+              </>
+            )}
+          </Pressable>
 
-                    <TouchableOpacity
-                        style={[styles.button, loading && styles.buttonDisabled]}
-                        onPress={handleRegister}
-                        disabled={loading}
-                        activeOpacity={0.7}
-                    >
-                        {loading ? (
-                            <ActivityIndicator color={colors.surface} />
-                        ) : (
-                            <Text style={styles.buttonText}>Registrarse</Text>
-                        )}
-                    </TouchableOpacity>
-
-                    <TouchableOpacity activeOpacity={0.7}
-                        style={styles.linkContainer}
-                        onPress={() => router.push('/login')}
-                    >
-                        <Text style={styles.linkText}>
-                            ¿Ya tienes cuenta? <Text style={styles.linkTextBold}>Inicia Sesión</Text>
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
-    );
+          <View style={styles.loginPrompt}>
+            <Text style={styles.promptText}>¿Ya tienes una cuenta? </Text>
+            <Pressable onPress={() => router.push('/login')}>
+              <Text style={styles.promptLink}>Inicia sesión</Text>
+            </Pressable>
+          </View>
+        </Card>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: colors.textPrimary,
-    },
-    scrollContent: {
-        flexGrow: 1,
-        justifyContent: 'center',
-        padding: 24,
-        paddingVertical: 48,
-    },
-    header: {
-        alignItems: 'center',
-        marginBottom: 32,
-    },
-    title: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: colors.surface,
-        marginTop: 16,
-    },
-    subtitle: {
-        fontSize: 14,
-        color: '#94A3B8',
-        marginTop: 8,
-    },
-    form: {
-        width: '100%',
-    },
-    inputContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#1E293B',
-        borderRadius: 12,
-        marginBottom: 8,
-        paddingHorizontal: 16,
-        borderWidth: 1,
-        borderColor: '#334155',
-    },
-    inputIcon: {
-        marginRight: 12,
-    },
-    input: {
-        flex: 1,
-        height: 52,
-        color: colors.surface,
-        fontSize: 16,
-    },
-    eyeIcon: {
-        padding: 8,
-    },
-    errorText: {
-        color: colors.danger,
-        fontSize: 12,
-        marginBottom: 8,
-        marginLeft: 4,
-    },
-    button: {
-        backgroundColor: colors.primary,
-        borderRadius: 12,
-        height: 52,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 16,
-    },
-    buttonDisabled: {
-        opacity: 0.7,
-    },
-    buttonText: {
-        color: colors.surface,
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    linkContainer: {
-        alignItems: 'center',
-        marginTop: 24,
-    },
-    linkText: {
-        color: '#94A3B8',
-        fontSize: 14,
-    },
-    linkTextBold: {
-        color: colors.primary,
-        fontWeight: '600',
-    },
+  container: {
+    flex: 1,
+    backgroundColor: colors.canvas,
+  },
+  scrollContent: {
+    padding: spacing.lg,
+    paddingVertical: spacing.xl,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  iconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: radii.full,
+    backgroundColor: colors.primarySoft,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  title: {
+    ...typography.headlineSmall,
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  subtitle: {
+    ...typography.bodyMedium,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  card: {
+    padding: spacing.lg,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  halfField: {
+    flex: 1,
+  },
+  submitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.primary,
+    borderRadius: radii.full,
+    minHeight: 52,
+    marginTop: spacing.md,
+  },
+  submitBtnDisabled: {
+    opacity: 0.6,
+  },
+  submitBtnText: {
+    ...typography.labelLarge,
+    color: colors.white,
+    fontWeight: '700',
+  },
+  loginPrompt: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: spacing.lg,
+  },
+  promptText: {
+    ...typography.bodyMedium,
+    color: colors.textSecondary,
+  },
+  promptLink: {
+    ...typography.bodyMedium,
+    color: colors.primary,
+    fontWeight: '700',
+  },
 });

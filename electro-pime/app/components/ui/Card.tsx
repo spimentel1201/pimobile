@@ -1,22 +1,24 @@
+// ponytail: M3 Card with ripple and tonal elevation variants
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, StyleProp, ViewStyle } from 'react-native';
-import { colors, radii, shadow, spacing } from '../../theme';
+import { View, Pressable, StyleSheet, StyleProp, ViewStyle, Platform } from 'react-native';
+import { colors, radii, tonalElevation, spacing } from '../../theme';
 
 interface CardProps {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
-  /** Barra de color opcional en el borde izquierdo (StatusPillBar integrado) */
+  variant?: 'elevated' | 'filled' | 'outlined';
   accentColor?: string;
   onPress?: () => void;
   activeOpacity?: number;
 }
 
-/**
- * Card base: superficie + radio 16 + borde 1px + sombra única del tema.
- * Con `onPress` se vuelve tocable (activeOpacity 0.85).
- * Con `accentColor` muestra la barra de estado de 4px en el borde izquierdo.
- */
-export default function Card({ children, style, accentColor, onPress, activeOpacity = 0.85 }: CardProps) {
+export default function Card({
+  children,
+  style,
+  variant = 'elevated',
+  accentColor,
+  onPress,
+}: CardProps) {
   const content = accentColor ? (
     <View style={styles.row}>
       <View style={[styles.accent, { backgroundColor: accentColor }]} />
@@ -26,30 +28,57 @@ export default function Card({ children, style, accentColor, onPress, activeOpac
     children
   );
 
+  const variantStyle =
+    variant === 'filled'
+      ? styles.filled
+      : variant === 'outlined'
+        ? styles.outlined
+        : styles.elevated;
+
   if (onPress) {
     return (
-      <TouchableOpacity
-        style={[styles.card, style]}
-        onPress={onPress}
-        activeOpacity={activeOpacity}
-      >
-        {content}
-      </TouchableOpacity>
+      <View style={[styles.card, variantStyle, style]}>
+        <Pressable
+          onPress={onPress}
+          android_ripple={{ color: 'rgba(0, 82, 255, 0.08)', foreground: true }}
+          style={({ pressed }) => [
+            styles.pressable,
+            Platform.OS !== 'android' && pressed && styles.pressed,
+          ]}
+        >
+          {content}
+        </Pressable>
+      </View>
     );
   }
 
-  return <View style={[styles.card, style]}>{content}</View>;
+  return <View style={[styles.card, variantStyle, style]}>{content}</View>;
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
     borderRadius: radii.card,
-    borderCurve: 'continuous',
+    overflow: 'hidden',
+  },
+  pressable: {
+    width: '100%',
+  },
+  pressed: {
+    opacity: 0.9,
+  },
+  elevated: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: 'rgba(195, 199, 208, 0.4)',
+    ...tonalElevation.level1,
+  },
+  filled: {
+    backgroundColor: colors.surfaceContainer,
+  },
+  outlined: {
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    overflow: 'hidden',
-    ...shadow,
   },
   row: {
     flexDirection: 'row',
@@ -60,7 +89,6 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
-    // Padding interno para que el contenido quede encajado tras la barra de acento
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.lg,
   },

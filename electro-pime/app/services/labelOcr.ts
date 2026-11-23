@@ -132,7 +132,21 @@ export async function recognizeLabel(
   if (engine !== 'cloud') {
     onProgress?.({ status: 'OCR local...', progress: 10 });
     const parsed = await recognizeLocal(imageUri, onProgress);
-    return { fields: toScannedFields(parsed), usedCloud: false, fellBackToLocal: false };
+    const fields = toScannedFields(parsed);
+    // Si el OCR local no detectó campos y la nube está disponible, intentar nube automáticamente
+    if (countDetectedFields(fields) === 0 && isCloudOcrConfigured()) {
+      try {
+        onProgress?.({ status: 'Consultando nube (Gemini)...', progress: 50 });
+        const cloudFields = await recognizeCloud(imageUri);
+        if (countDetectedFields(cloudFields) > 0) {
+          onProgress?.({ status: 'Completado con nube', progress: 100 });
+          return { fields: cloudFields, usedCloud: true, fellBackToLocal: false };
+        }
+      } catch (cloudErr) {
+        console.warn('[OCR auto-fallback nube]:', cloudErr);
+      }
+    }
+    return { fields, usedCloud: false, fellBackToLocal: false };
   }
   // Cloud configured but not used? shouldn't happen
   onProgress?.({ status: 'OCR local...', progress: 10 });

@@ -1,11 +1,11 @@
+// ponytail: M3 CustomersScreen with metric cards, search, FlashList, BottomSheet and quick actions
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   TextInput,
-  FlatList,
   Linking,
   ActivityIndicator,
   RefreshControl,
@@ -13,8 +13,8 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FlashList } from '@shopify/flash-list';
 import { api } from '../services/api';
 import { Customer, CreateCustomerDto } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -23,14 +23,17 @@ import ConfirmDialog from '../components/ui/ConfirmDialog';
 import EmptyState from '../components/ui/EmptyState';
 import MetricCard from '../components/ui/MetricCard';
 import Toast from '../components/ui/Toast';
+import Card from '../components/ui/Card';
+import M3Fab from '../components/ui/M3Fab';
+import M3TextField from '../components/ui/M3TextField';
+import { NO_PHONE_MESSAGE, buildTelUrl, buildWhatsAppUrl } from '../utils/phone';
 import {
-  NO_PHONE_MESSAGE,
-  buildTelUrl,
-  buildWhatsAppUrl,
-} from '../utils/phone';
-import { colors, radii, shadow, spacing, typography } from '../theme';
-
-type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+  colors,
+  radii,
+  spacing,
+  typography,
+  tonalElevation,
+} from '../theme';
 
 type CustomerFormErrors = Partial<Record<'name' | 'phone' | 'documentNumber', string>>;
 
@@ -43,37 +46,8 @@ const emptyForm: CreateCustomerDto = {
   address: '',
 };
 
-const getInitials = (name: string) =>
-  name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((word) => word.charAt(0).toUpperCase())
-    .join('') || '—';
-
-/** Tono del pill según el tipo de documento del cliente */
-const documentTone = (documentType: string) => {
-  switch ((documentType || '').toUpperCase()) {
-    case 'RUC':
-      return { label: 'RUC', color: colors.violet, soft: colors.violetSoft };
-    case 'DNI':
-      return { label: 'DNI', color: colors.primary, soft: colors.primarySoft };
-    default:
-      return { label: documentType || 'Sin Doc.', color: colors.textSecondary, soft: colors.surfaceMuted };
-  }
-};
-
-function Pill({ label, color, soft }: { label: string; color: string; soft: string }) {
-  return (
-    <View style={[styles.pill, { backgroundColor: soft }]}>
-      <Text style={[styles.pillText, { color }]} numberOfLines={1}>
-        {label}
-      </Text>
-    </View>
-  );
-}
-
-const CustomersScreen = () => {
+export default function CustomersScreen() {
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,17 +58,11 @@ const CustomersScreen = () => {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [saving, setSaving] = useState(false);
   const [formErrors, setFormErrors] = useState<CustomerFormErrors>({});
-  const [successDialog, setSuccessDialog] = useState<{
-    title: string;
-    message: string;
-    details: { label: string; value: string }[];
-  } | null>(null);
   const [toDelete, setToDelete] = useState<Customer | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Form state
   const [formData, setFormData] = useState<CreateCustomerDto>(emptyForm);
 
   const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
@@ -128,39 +96,34 @@ const CustomersScreen = () => {
     } else {
       setLoading(false);
     }
-  }, [user, fetchCustomers]);
-
-  useEffect(() => {
-    return () => {
-      if (toastTimer.current) clearTimeout(toastTimer.current);
-    };
-  }, []);
+  }, [fetchCustomers, user]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchCustomers();
   }, [fetchCustomers]);
 
-  const handleSearch = async (query: string) => {
-    setSearchQuery(query);
-    if (query.length >= 2) {
-      try {
-        const results = await api.searchCustomers(query);
-        setCustomers(results);
-      } catch (err) {
-        console.error('Search error:', err);
-      }
-    } else if (query.length === 0) {
-      fetchCustomers();
-    }
-  };
+  const filteredCustomers = useMemo(() => {
+    if (!searchQuery.trim()) return customers;
+    const q = searchQuery.toLowerCase().trim();
+    return customers.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        (c.phone && c.phone.includes(q)) ||
+        (c.documentNumber && c.documentNumber.includes(q)) ||
+        (c.email && c.email.toLowerCase().includes(q))
+    );
+  }, [customers, searchQuery]);
 
-  const withEmail = useMemo(() => customers.filter(c => !!c.email).length, [customers]);
-  const withAddress = useMemo(() => customers.filter(c => !!c.address).length, [customers]);
+  const metrics = useMemo(() => {
+    const total = customers.length;
+    const withPhone = customers.filter((c) => Boolean(c.phone)).length;
+    const withEmail = customers.filter((c) => Boolean(c.email)).length;
+    return { total, withPhone, withEmail };
+  }, [customers]);
 
-  /** Abre el marcador con prefijo internacional: tel:+51<numero> */
-  const openPhone = (raw: string) => {
-    const url = buildTelUrl(raw);
+  const openPhone = (phone: string) => {
+    const url = buildTelUrl(phone);
     if (!url) {
       showToast(NO_PHONE_MESSAGE, 'error');
       return;
@@ -168,10 +131,9 @@ const CustomersScreen = () => {
     Linking.openURL(url).catch(() => showToast('No se pudo abrir el teléfono', 'error'));
   };
 
-  /** Abre WhatsApp en wa.me/51<numero> */
-  const openWhatsApp = (raw: string, name?: string) => {
-    const message = name ? `Hola, ${name}, te escribe Electrónica Pimentel por tu equipo en reparación.` : null;
-    const url = buildWhatsAppUrl(raw, message);
+  const openWhatsApp = (phone: string, name?: string) => {
+    const message = name ? `Hola, ${name}, te contactamos de Electro-Pime.` : null;
+    const url = buildWhatsAppUrl(phone, message);
     if (!url) {
       showToast(NO_PHONE_MESSAGE, 'error');
       return;
@@ -179,103 +141,48 @@ const CustomersScreen = () => {
     Linking.openURL(url).catch(() => showToast('No se pudo abrir WhatsApp', 'error'));
   };
 
-  const openEmail = (address: string) => {
-    if (!address) {
-      showToast('Este cliente no tiene un correo válido', 'error');
-      return;
-    }
-    Linking.openURL(`mailto:${address}`).catch(() => showToast('No se pudo abrir el correo', 'error'));
-  };
-
-  const openNewCustomerSheet = () => {
+  const handleOpenCreate = () => {
     setEditingCustomer(null);
-    setFormData({ ...emptyForm });
+    setFormData(emptyForm);
     setFormErrors({});
     setShowSheet(true);
   };
 
-  const openEditCustomerSheet = (customer: Customer) => {
+  const handleOpenEdit = (customer: Customer) => {
     setEditingCustomer(customer);
     setFormData({
       name: customer.name,
       email: customer.email || '',
-      phone: customer.phone,
-      documentType: customer.documentType,
-      documentNumber: customer.documentNumber,
+      phone: customer.phone || '',
+      documentType: customer.documentType || 'DNI',
+      documentNumber: customer.documentNumber || '',
       address: customer.address || '',
     });
     setFormErrors({});
     setShowSheet(true);
   };
 
-  const closeSheet = () => {
-    if (saving) return;
-    setShowSheet(false);
-    setFormErrors({});
+  const validate = (): boolean => {
+    const errs: CustomerFormErrors = {};
+    if (!formData.name.trim()) errs.name = 'Ingrese el nombre completo';
+    if (!formData.phone.trim()) errs.phone = 'Ingrese el número de teléfono';
+    setFormErrors(errs);
+    return Object.keys(errs).length === 0;
   };
 
-  /** Validación por campo con mensajes inline bajo el input */
-  const validateForm = (): CustomerFormErrors => {
-    const errors: CustomerFormErrors = {};
-    const name = (formData.name || '').trim();
-    const phoneDigits = (formData.phone || '').replace(/\D/g, '');
-
-    if (!name) {
-      errors.name = 'Ingresa el nombre del cliente';
-    } else if (name.length < 3) {
-      errors.name = 'El nombre debe tener al menos 3 caracteres';
-    }
-
-    if (!phoneDigits) {
-      errors.phone = 'Ingresa un número de teléfono';
-    } else if (phoneDigits.length < 7) {
-      errors.phone = 'El teléfono debe tener al menos 7 dígitos';
-    }
-
-    if (!(formData.documentNumber || '').trim()) {
-      errors.documentNumber = 'Ingresa el número de documento';
-    }
-
-    return errors;
-  };
-
-  const handleSaveCustomer = async () => {
-    const errors = validateForm();
-    setFormErrors(errors);
-    if (Object.keys(errors).length > 0) {
-      return;
-    }
-
-    const payload: CreateCustomerDto = {
-      ...formData,
-      name: (formData.name || '').trim(),
-      email: (formData.email || '').trim() || undefined,
-      phone: (formData.phone || '').trim(),
-      documentType: formData.documentType || 'DNI',
-      documentNumber: (formData.documentNumber || '').trim(),
-      address: (formData.address || '').trim() || undefined,
-    };
+  const handleSave = async () => {
+    if (!validate()) return;
 
     setSaving(true);
     try {
       if (editingCustomer) {
-        await api.updateCustomer(editingCustomer.id, payload);
+        await api.updateCustomer(editingCustomer.id, formData);
+        showToast('Cliente actualizado correctamente');
       } else {
-        await api.createCustomer(payload);
+        await api.createCustomer(formData);
+        showToast('Cliente registrado con éxito');
       }
       setShowSheet(false);
-      setFormErrors({});
-      setSuccessDialog({
-        title: editingCustomer ? 'Cliente actualizado' : 'Cliente registrado',
-        message: editingCustomer
-          ? `Se actualizaron los datos de “${payload.name}”.`
-          : `“${payload.name}” ya está en el directorio.`,
-        details: [
-          { label: 'Documento', value: `${payload.documentType} ${payload.documentNumber}` },
-          { label: 'Teléfono', value: payload.phone },
-          { label: 'Correo', value: payload.email || 'Sin registrar' },
-        ],
-      });
       fetchCustomers();
     } catch (err: any) {
       showToast(err.message || 'No se pudo guardar el cliente', 'error');
@@ -284,13 +191,13 @@ const CustomersScreen = () => {
     }
   };
 
-  const confirmDeleteCustomer = async () => {
+  const handleDelete = async () => {
     if (!toDelete) return;
     setDeleting(true);
     try {
       await api.deleteCustomer(toDelete.id);
-      showToast('Cliente eliminado correctamente');
       setToDelete(null);
+      showToast('Cliente eliminado');
       fetchCustomers();
     } catch (err: any) {
       showToast(err.message || 'No se pudo eliminar el cliente', 'error');
@@ -299,827 +206,540 @@ const CustomersScreen = () => {
     }
   };
 
-  const renderHeader = () => (
-    <View style={styles.header}>
-      <View style={styles.headerText}>
-        <Text style={styles.headerLabel}>DIRECTORIO</Text>
-        <Text style={styles.headerTitle}>Clientes</Text>
-      </View>
-      <TouchableOpacity
-        style={styles.addButton}
-        onPress={openNewCustomerSheet}
-        activeOpacity={0.7}
-      >
-        <MaterialCommunityIcons name="plus" size={20} color={colors.white} />
-        <Text style={styles.addButtonText}>Nuevo</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderMetrics = () => (
-    <View style={styles.metricsRow}>
-      <MetricCard
-        label="Total Clientes"
-        value={String(customers.length)}
-        icon="account-group"
-        variant="hero"
-      />
-      <MetricCard
-        label="Con Correo"
-        value={String(withEmail)}
-        icon="email-outline"
-        variant="default"
-      />
-      <MetricCard
-        label="Con Dirección"
-        value={String(withAddress)}
-        icon="map-marker-outline"
-        variant="default"
-      />
-    </View>
-  );
-
-  const renderSearchBar = () => (
-    <View style={styles.searchCard}>
-      <View style={styles.searchContainer}>
-        <MaterialCommunityIcons name="magnify" size={20} color={colors.textMuted} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Buscar por nombre, teléfono o documento..."
-          placeholderTextColor={colors.textMuted}
-          value={searchQuery}
-          onChangeText={handleSearch}
-          returnKeyType="search"
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity activeOpacity={0.7} onPress={() => handleSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <MaterialCommunityIcons name="close-circle" size={20} color={colors.textMuted} />
-          </TouchableOpacity>
-        )}
-      </View>
-      <Text style={styles.searchMeta}>
-        {searchQuery.trim().length >= 2
-          ? `${customers.length} resultado${customers.length === 1 ? '' : 's'} para “${searchQuery.trim()}”`
-          : `${customers.length} cliente${customers.length === 1 ? '' : 's'} en el directorio`}
-      </Text>
-    </View>
-  );
-
   const renderCustomerCard = ({ item }: { item: Customer }) => {
-    const tone = documentTone(item.documentType);
+    const isRuc = item.documentType?.toUpperCase() === 'RUC';
 
     return (
-      <View style={styles.customerCard}>
-        {/* Banda superior: etiqueta micro + tipo de documento en pill */}
-        <View style={styles.cardBand}>
-          <View style={styles.cardBandTitle}>
-            <MaterialCommunityIcons name="account-outline" size={16} color={colors.primary} />
-            <Text style={styles.cardBandLabel} numberOfLines={1}>
-              CLIENTE REGISTRADO
+      <Card style={styles.customerCard}>
+        <View style={styles.cardHeader}>
+          <View style={styles.avatarBubble}>
+            <Text style={styles.avatarText}>
+              {item.name ? item.name.charAt(0).toUpperCase() : 'C'}
             </Text>
           </View>
-          <Pill label={tone.label} color={tone.color} soft={tone.soft} />
-        </View>
 
-        <View style={styles.cardBody}>
-          {/* Identidad */}
-          <View style={styles.personRow}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{getInitials(item.name)}</Text>
-            </View>
-            <View style={styles.personInfo}>
-              <Text style={styles.personName} numberOfLines={1}>
-                {item.name}
-              </Text>
-              <View style={styles.personMetaRow}>
-                <Text style={styles.personMeta} numberOfLines={1}>
-                  {item.documentType} {item.documentNumber}
+          <View style={styles.headerInfo}>
+            <Text style={styles.customerName} numberOfLines={1}>
+              {item.name}
+            </Text>
+            <View style={styles.docRow}>
+              <View style={[styles.docBadge, isRuc ? styles.docBadgeRuc : styles.docBadgeDni]}>
+                <Text style={[styles.docBadgeText, isRuc ? styles.docBadgeTextRuc : styles.docBadgeTextDni]}>
+                  {item.documentType || 'DNI'}: {item.documentNumber || '—'}
                 </Text>
-                <MaterialCommunityIcons
-                  name="check-decagram"
-                  size={14}
-                  color={colors.success}
-                  style={styles.verifiedIcon}
-                />
-                <Text style={styles.personMetaVerified}>Verificado</Text>
               </View>
             </View>
           </View>
-
-          {/* Ficha de contacto */}
-          <View style={styles.detailList}>
-            <View style={styles.detailRow}>
-              <MaterialCommunityIcons name="phone-outline" size={16} color={colors.textMuted} />
-              <Text style={styles.detailLabel}>Teléfono</Text>
-              <Text style={styles.detailValue} numberOfLines={1}>
-                {item.phone}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <MaterialCommunityIcons name="email-outline" size={16} color={colors.textMuted} />
-              <Text style={styles.detailLabel}>Correo</Text>
-              <Text style={styles.detailValue} numberOfLines={1}>
-                {item.email || 'Sin registrar'}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <MaterialCommunityIcons name="map-marker-outline" size={16} color={colors.textMuted} />
-              <Text style={styles.detailLabel}>Dirección</Text>
-              <Text style={styles.detailValue} numberOfLines={1}>
-                {item.address || 'Sin registrar'}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <MaterialCommunityIcons name="calendar-outline" size={16} color={colors.textMuted} />
-              <Text style={styles.detailLabel}>Registrado</Text>
-              <Text style={styles.detailValue}>
-                {format(new Date(item.createdAt), 'd MMM yyyy', { locale: es })}
-              </Text>
-            </View>
-          </View>
-
-          {/* Acciones de contacto (solo icono, 44px touch target) */}
-          <View style={styles.contactRow}>
-            <TouchableOpacity activeOpacity={0.7}
-              style={styles.contactIconButton}
-              onPress={() => openPhone(item.phone)}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              accessibilityLabel="Llamar"
-            >
-              <MaterialCommunityIcons name="phone" size={18} color={colors.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity activeOpacity={0.7}
-              style={[styles.contactIconButton, styles.contactIconButtonWhatsapp]}
-              onPress={() => openWhatsApp(item.phone, item.name)}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              accessibilityLabel="WhatsApp"
-            >
-              <MaterialCommunityIcons name="whatsapp" size={18} color={colors.success} />
-            </TouchableOpacity>
-            <TouchableOpacity activeOpacity={0.7}
-              style={[styles.contactIconButton, styles.contactIconButtonEmail, !item.email && styles.contactIconButtonDisabled]}
-              onPress={() => openEmail(item.email || '')}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              accessibilityLabel="Enviar correo"
-            >
-              <MaterialCommunityIcons
-                name="email"
-                size={18}
-                color={item.email ? colors.violet : colors.textMuted}
-              />
-            </TouchableOpacity>
-          </View>
-
-          {/* Acciones de gestión */}
-          <View style={styles.manageRow}>
-            <Text style={styles.manageLabel}>Gestionar ficha</Text>
-            <View style={styles.actionSpacer} />
-            <TouchableOpacity activeOpacity={0.7}
-              style={[styles.actionButton, { backgroundColor: colors.primary }]}
-              onPress={() => openEditCustomerSheet(item)}
-            >
-              <MaterialCommunityIcons name="pencil" size={18} color={colors.white} />
-            </TouchableOpacity>
-            <TouchableOpacity activeOpacity={0.7}
-              style={[styles.actionButton, { backgroundColor: colors.danger }]}
-              onPress={() => setToDelete(item)}
-            >
-              <MaterialCommunityIcons name="delete" size={18} color={colors.white} />
-            </TouchableOpacity>
-          </View>
         </View>
-      </View>
+
+        {/* Contact info row */}
+        <View style={styles.contactDetailsRow}>
+          {item.phone ? (
+            <View style={styles.contactDetailItem}>
+              <MaterialCommunityIcons name="phone-outline" size={16} color={colors.textSecondary} />
+              <Text style={styles.contactDetailText}>{item.phone}</Text>
+            </View>
+          ) : null}
+
+          {item.email ? (
+            <View style={styles.contactDetailItem}>
+              <MaterialCommunityIcons name="email-outline" size={16} color={colors.textMuted} />
+              <Text style={styles.contactDetailText} numberOfLines={1}>
+                {item.email}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+
+        {item.address ? (
+          <View style={styles.addressRow}>
+            <MaterialCommunityIcons name="map-marker-outline" size={16} color={colors.textMuted} />
+            <Text style={styles.addressText} numberOfLines={1}>
+              {item.address}
+            </Text>
+          </View>
+        ) : null}
+
+        {/* Quick Action buttons */}
+        <View style={styles.actionsRow}>
+          {item.phone ? (
+            <>
+              <Pressable
+                style={styles.actionPillBtn}
+                onPress={() => openPhone(item.phone)}
+                android_ripple={{ color: 'rgba(0, 82, 255, 0.15)' }}
+              >
+                <MaterialCommunityIcons name="phone" size={18} color={colors.primary} />
+                <Text style={styles.actionPillText}>Llamar</Text>
+              </Pressable>
+
+              <Pressable
+                style={[styles.actionPillBtn, styles.actionPillSuccess]}
+                onPress={() => openWhatsApp(item.phone, item.name)}
+                android_ripple={{ color: 'rgba(0, 109, 68, 0.15)' }}
+              >
+                <MaterialCommunityIcons name="whatsapp" size={18} color={colors.success} />
+                <Text style={[styles.actionPillText, { color: colors.success }]}>WhatsApp</Text>
+              </Pressable>
+            </>
+          ) : null}
+
+          <View style={styles.spacer} />
+
+          <Pressable
+            style={styles.iconActionBtn}
+            onPress={() => handleOpenEdit(item)}
+            hitSlop={8}
+            android_ripple={{ color: 'rgba(0, 82, 255, 0.15)', borderless: true, radius: 20 }}
+          >
+            <MaterialCommunityIcons name="pencil-outline" size={20} color={colors.primary} />
+          </Pressable>
+
+          <Pressable
+            style={styles.iconActionBtn}
+            onPress={() => setToDelete(item)}
+            hitSlop={8}
+            android_ripple={{ color: 'rgba(186, 26, 26, 0.15)', borderless: true, radius: 20 }}
+          >
+            <MaterialCommunityIcons name="trash-can-outline" size={20} color={colors.danger} />
+          </Pressable>
+        </View>
+      </Card>
     );
   };
-
-  const renderFieldError = (field: keyof CustomerFormErrors) =>
-    formErrors[field] ? <Text style={styles.fieldError}>{formErrors[field]}</Text> : null;
-
-  const renderSheet = () => (
-    <BottomSheet
-      visible={showSheet}
-      title={editingCustomer ? 'Editar cliente' : 'Nuevo cliente'}
-      subtitle="Los campos con * son obligatorios"
-      onClose={closeSheet}
-      footer={
-        <View style={styles.sheetActions}>
-          <TouchableOpacity style={[styles.footerButton, styles.cancelButton]} onPress={closeSheet} activeOpacity={0.7}>
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.footerButton, styles.saveButton, saving && styles.buttonDisabled]}
-            onPress={handleSaveCustomer}
-            disabled={saving}
-            activeOpacity={0.7}
-          >
-            {saving ? (
-              <ActivityIndicator color={colors.white} />
-            ) : (
-              <Text style={styles.saveButtonText}>
-                {editingCustomer ? 'Actualizar' : 'Guardar cliente'}
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      }
-    >
-      <ScrollView
-        style={styles.sheetScroll}
-        contentContainerStyle={styles.sheetScrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Nombre *</Text>
-          <TextInput
-            style={[styles.input, formErrors.name && styles.inputError]}
-            placeholder="Nombre completo"
-            placeholderTextColor={colors.textMuted}
-            value={formData.name}
-            onChangeText={(text) => {
-              setFormData({ ...formData, name: text });
-              if (formErrors.name) setFormErrors({ ...formErrors, name: undefined });
-            }}
-          />
-          {renderFieldError('name')}
-        </View>
-
-        <View style={styles.row}>
-          <View style={[styles.inputContainer, styles.halfWidth]}>
-            <Text style={styles.inputLabel}>Tipo Doc. *</Text>
-            <View style={styles.pickerContainer}>
-              <TouchableOpacity activeOpacity={0.7}
-                style={styles.pickerButton}
-                onPress={() =>
-                  setFormData({ ...formData, documentType: formData.documentType === 'DNI' ? 'RUC' : 'DNI' })
-                }
-              >
-                <Text style={styles.pickerText}>{formData.documentType}</Text>
-                <MaterialCommunityIcons name="chevron-down" size={18} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-          </View>
-          <View style={[styles.inputContainer, styles.halfWidth]}>
-            <Text style={styles.inputLabel}>Número Doc. *</Text>
-            <TextInput
-              style={[styles.input, formErrors.documentNumber && styles.inputError]}
-              placeholder="00000000"
-              placeholderTextColor={colors.textMuted}
-              value={formData.documentNumber}
-              onChangeText={(text) => {
-                setFormData({ ...formData, documentNumber: text });
-                if (formErrors.documentNumber) setFormErrors({ ...formErrors, documentNumber: undefined });
-              }}
-              keyboardType="numeric"
-            />
-            {renderFieldError('documentNumber')}
-          </View>
-        </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Teléfono *</Text>
-          <TextInput
-            style={[styles.input, formErrors.phone && styles.inputError]}
-            placeholder="999999999"
-            placeholderTextColor={colors.textMuted}
-            value={formData.phone}
-            onChangeText={(text) => {
-              setFormData({ ...formData, phone: text });
-              if (formErrors.phone) setFormErrors({ ...formErrors, phone: undefined });
-            }}
-            keyboardType="phone-pad"
-          />
-          {renderFieldError('phone')}
-        </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Email</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="correo@ejemplo.com"
-            placeholderTextColor={colors.textMuted}
-            value={formData.email}
-            onChangeText={(text) => setFormData({ ...formData, email: text })}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-        </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Dirección</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="Dirección completa"
-            placeholderTextColor={colors.textMuted}
-            value={formData.address}
-            onChangeText={(text) => setFormData({ ...formData, address: text })}
-            multiline
-            numberOfLines={3}
-          />
-        </View>
-      </ScrollView>
-    </BottomSheet>
-  );
 
   if (loading) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Cargando clientes...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.centered}>
-        <View style={styles.errorIcon}>
-          <MaterialCommunityIcons name="alert-circle" size={32} color={colors.danger} />
-        </View>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchCustomers} activeOpacity={0.7}>
-          <Text style={styles.retryButtonText}>Reintentar</Text>
-        </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {toast && <Toast message={toast.message} type={toast.type} />}
-      <SafeAreaView style={styles.safeArea}>
-        {renderHeader()}
-        <ScrollView
-          style={styles.scrollArea}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {renderMetrics()}
-          {renderSearchBar()}
-        </ScrollView>
+    <SafeAreaView style={styles.container}>
+      <View style={[styles.topHeader, { paddingTop: insets.top + spacing.xs }]}>
+        <Text style={styles.screenTitle}>Directorio de Clientes</Text>
+      </View>
 
-        <FlatList
-          data={customers}
-          renderItem={renderCustomerCard}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContent}
-          keyboardShouldPersistTaps="handled"
-          initialNumToRender={6}
-          maxToRenderPerBatch={6}
-          windowSize={7}
-          removeClippedSubviews
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          ListEmptyComponent={
-            <EmptyState
-              icon={searchQuery.trim().length >= 2 ? 'account-search-outline' : 'account-off-outline'}
-              title={searchQuery.trim().length >= 2 ? 'Sin coincidencias' : 'Aún no hay clientes'}
-              description={
-                searchQuery.trim().length >= 2
-                  ? `No encontramos clientes que coincidan con “${searchQuery.trim()}”.`
-                  : 'Registra al primer cliente para poder crear órdenes de reparación.'
-              }
-              ctaLabel={searchQuery.trim().length >= 2 ? undefined : 'Agregar primer cliente'}
-              onCta={searchQuery.trim().length >= 2 ? undefined : openNewCustomerSheet}
-              style={styles.emptyState}
-            />
-          }
+      {/* Metrics Row */}
+      <View style={styles.metricsRow}>
+        <MetricCard
+          label="Total Clientes"
+          value={String(metrics.total)}
+          icon="account-group"
+          style={styles.metricCard}
         />
-      </SafeAreaView>
+        <MetricCard
+          label="Con Teléfono"
+          value={String(metrics.withPhone)}
+          icon="phone-check"
+          iconColor={colors.success}
+          iconBg={colors.successSoft}
+          style={styles.metricCard}
+        />
+      </View>
 
-      {renderSheet()}
+      {/* Search Bar M3 */}
+      <View style={styles.searchBar}>
+        <MaterialCommunityIcons name="magnify" size={20} color={colors.textMuted} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Buscar por nombre, documento o teléfono..."
+          placeholderTextColor={colors.textMuted}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery.length > 0 && (
+          <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+            <MaterialCommunityIcons name="close-circle" size={18} color={colors.textMuted} />
+          </Pressable>
+        )}
+      </View>
 
-      {/* Confirmación al registrar / actualizar */}
-      <ConfirmDialog
-        visible={!!successDialog}
-        icon="check-circle-outline"
-        tone="success"
-        title={successDialog?.title || ''}
-        message={successDialog?.message}
-        details={successDialog?.details}
-        confirmLabel="Listo"
-        onConfirm={() => setSuccessDialog(null)}
-      />
+      {error && (
+        <View style={styles.errorBanner}>
+          <MaterialCommunityIcons name="alert-circle-outline" size={18} color={colors.danger} />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
 
-      {/* Confirmación de eliminación */}
-      <ConfirmDialog
-        visible={!!toDelete}
-        icon="alert-circle-outline"
-        tone="danger"
-        title="Eliminar cliente"
-        message={
-          toDelete
-            ? `Se eliminará “${toDelete.name}” del directorio. Esta acción no se puede deshacer.`
-            : undefined
-        }
-        confirmLabel="Eliminar"
-        cancelLabel="Cancelar"
-        busy={deleting}
-        onCancel={() => setToDelete(null)}
-        onConfirm={confirmDeleteCustomer}
-      />
-    </View>
+      <View style={styles.listContainer}>
+        {filteredCustomers.length === 0 ? (
+          <EmptyState
+            icon="account-search-outline"
+            title="Sin clientes encontrados"
+            description={
+              searchQuery
+                ? `No hay coincidencias para "${searchQuery}".`
+                : 'Añade tu primer cliente registrado en el sistema.'
+            }
+            ctaLabel={searchQuery ? 'Limpiar búsqueda' : 'Nuevo Cliente'}
+            onCta={searchQuery ? () => setSearchQuery('') : handleOpenCreate}
+          />
+        ) : (
+          <FlashList
+            data={filteredCustomers}
+            keyExtractor={(item) => item.id}
+            renderItem={renderCustomerCard}
+            estimatedItemSize={160}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.primary}
+                colors={[colors.primary]}
+              />
+            }
+          />
+        )}
+      </View>
+
+      {/* Extended FAB */}
+      <View style={[styles.fabWrapper, { bottom: insets.bottom + 80 }]}>
+        <M3Fab
+          label="Nuevo Cliente"
+          icon="account-plus-outline"
+          onPress={handleOpenCreate}
+        />
+      </View>
+
+      {/* Create / Edit BottomSheet */}
+      {showSheet && (
+        <BottomSheet
+          visible={showSheet}
+          title={editingCustomer ? 'Editar Cliente' : 'Nuevo Cliente'}
+          onClose={() => setShowSheet(false)}
+          footer={
+            <Pressable
+              style={styles.saveBtn}
+              onPress={handleSave}
+              disabled={saving}
+              android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <Text style={styles.saveBtnText}>
+                  {editingCustomer ? 'Guardar Cambios' : 'Registrar Cliente'}
+                </Text>
+              )}
+            </Pressable>
+          }
+        >
+          <ScrollView style={styles.formScroll} keyboardShouldPersistTaps="handled">
+            <M3TextField
+              label="Nombre completo *"
+              placeholder="Ej: Juan Pérez Martínez"
+              value={formData.name}
+              onChangeText={(text) => setFormData((p) => ({ ...p, name: text }))}
+              error={formErrors.name}
+              leadingIcon="account-outline"
+            />
+
+            <View style={styles.docTypeRow}>
+              {(['DNI', 'RUC', 'OTRO'] as const).map((dt) => {
+                const isSelected = formData.documentType === dt;
+                return (
+                  <Pressable
+                    key={dt}
+                    style={[styles.docTypeChip, isSelected && styles.docTypeChipSelected]}
+                    onPress={() => setFormData((p) => ({ ...p, documentType: dt }))}
+                  >
+                    <Text style={[styles.docTypeChipText, isSelected && styles.docTypeChipTextSelected]}>
+                      {dt}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <M3TextField
+              label="Número de Documento"
+              placeholder="Número de DNI o RUC..."
+              value={formData.documentNumber}
+              onChangeText={(text) => setFormData((p) => ({ ...p, documentNumber: text }))}
+              keyboardType="numeric"
+              leadingIcon="card-account-details-outline"
+            />
+
+            <M3TextField
+              label="Teléfono / Celular *"
+              placeholder="Ej: 987 654 321"
+              value={formData.phone}
+              onChangeText={(text) => setFormData((p) => ({ ...p, phone: text }))}
+              keyboardType="phone-pad"
+              error={formErrors.phone}
+              leadingIcon="phone-outline"
+            />
+
+            <M3TextField
+              label="Correo electrónico (opcional)"
+              placeholder="cliente@ejemplo.com"
+              value={formData.email}
+              onChangeText={(text) => setFormData((p) => ({ ...p, email: text }))}
+              keyboardType="email-address"
+              leadingIcon="email-outline"
+            />
+
+            <M3TextField
+              label="Dirección (opcional)"
+              placeholder="Calle, avenida o referencia..."
+              value={formData.address}
+              onChangeText={(text) => setFormData((p) => ({ ...p, address: text }))}
+              leadingIcon="map-marker-outline"
+            />
+          </ScrollView>
+        </BottomSheet>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {toDelete && (
+        <ConfirmDialog
+          visible={Boolean(toDelete)}
+          title="Eliminar Cliente"
+          message={`¿Confirma que desea eliminar a ${toDelete.name}? Esta acción no se puede deshacer.`}
+          confirmLabel="Eliminar"
+          onConfirm={handleDelete}
+          onCancel={() => setToDelete(null)}
+          tone="danger"
+          busy={deleting}
+          icon="trash-can-outline"
+        />
+      )}
+
+      {toast && <Toast message={toast.message} type={toast.type} />}
+    </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,
   },
-  safeArea: {
-    flex: 1,
-  },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.xxl,
     backgroundColor: colors.canvas,
   },
-  loadingText: {
-    ...typography.body,
-    marginTop: spacing.md,
-  },
-
-  // Encabezado hero
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.lg,
-  },
-  headerText: {
-    flex: 1,
-    marginRight: spacing.md,
-  },
-  headerLabel: {
-    ...typography.micro,
-    color: colors.primary,
-    marginBottom: spacing.xs,
-  },
-  headerTitle: {
-    ...typography.display,
-    fontSize: 24,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.primary,
+  topHeader: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderRadius: radii.button,
-    ...shadow,
+    paddingBottom: spacing.xs,
   },
-  addButtonText: {
-    color: colors.white,
-    fontSize: 14,
+  screenTitle: {
+    ...typography.headlineSmall,
+    color: colors.textPrimary,
     fontWeight: '700',
-  },
-
-  // Métricas + buscador
-  scrollArea: {
-    flexGrow: 0,
-  },
-  scrollContent: {
-    paddingBottom: spacing.lg,
   },
   metricsRow: {
     flexDirection: 'row',
     gap: spacing.md,
-    paddingHorizontal: spacing.xl,
-    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    marginVertical: spacing.xs,
   },
-  searchCard: {
-    marginHorizontal: spacing.xl,
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radii.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadow,
+  metricCard: {
+    flex: 1,
   },
-  searchContainer: {
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radii.input,
+    backgroundColor: colors.surfaceContainer,
+    borderRadius: radii.full,
     paddingHorizontal: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginVertical: spacing.xs,
+    minHeight: 48,
+    gap: spacing.xs,
   },
   searchInput: {
     flex: 1,
-    height: 44,
-    fontSize: 15,
+    ...typography.bodyMedium,
     color: colors.textPrimary,
   },
-  searchMeta: {
-    ...typography.caption,
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.xs,
+  listContainer: {
+    flex: 1,
   },
-
-  // Lista
   listContent: {
-    paddingHorizontal: spacing.xl,
-    paddingBottom: 120,
-  },
-
-  // Tarjeta de cliente
-  customerCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-    marginBottom: spacing.md,
-    ...shadow,
-  },
-  cardBand: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.surfaceMuted,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    paddingVertical: spacing.sm + 2,
     paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
+    paddingBottom: 110,
   },
-  cardBandTitle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    flexShrink: 1,
+  customerCard: {
+    padding: spacing.md,
+    marginBottom: spacing.md,
   },
-  cardBandLabel: {
-    ...typography.micro,
-    color: colors.textSecondary,
-    flexShrink: 1,
-  },
-  pill: {
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: 4,
-    borderRadius: radii.pill,
-    maxWidth: '50%',
-  },
-  pillText: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-  },
-  cardBody: {
-    padding: spacing.lg,
-  },
-  personRow: {
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
   },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.textPrimary,
+  avatarBubble: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.full,
+    backgroundColor: colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
-    fontSize: 16,
+    ...typography.titleMedium,
+    color: colors.primary,
     fontWeight: '700',
-    color: colors.white,
   },
-  personInfo: {
+  headerInfo: {
     flex: 1,
   },
-  personName: {
-    ...typography.bodyStrong,
-    fontSize: 16,
+  customerName: {
+    ...typography.titleMedium,
     color: colors.textPrimary,
+    fontWeight: '700',
   },
-  personMetaRow: {
+  docRow: {
+    marginTop: 2,
+  },
+  docBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radii.full,
+    alignSelf: 'flex-start',
+  },
+  docBadgeDni: {
+    backgroundColor: colors.primarySoft,
+  },
+  docBadgeRuc: {
+    backgroundColor: colors.violetSoft,
+  },
+  docBadgeText: {
+    ...typography.labelSmall,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  docBadgeTextDni: {
+    color: colors.primary,
+  },
+  docBadgeTextRuc: {
+    color: colors.violet,
+  },
+  contactDetailsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+    marginTop: spacing.sm,
+    paddingTop: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(195, 199, 208, 0.3)',
+  },
+  contactDetailItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 2,
   },
-  personMeta: {
-    ...typography.caption,
+  contactDetailText: {
+    ...typography.bodyMedium,
     color: colors.textSecondary,
-    flexShrink: 1,
   },
-  verifiedIcon: {
-    marginLeft: 2,
-  },
-  personMetaVerified: {
-    ...typography.caption,
-    color: colors.success,
-  },
-  detailList: {
-    marginTop: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing.md,
-    gap: spacing.sm,
-  },
-  detailRow: {
+  addressRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 4,
+    marginTop: 4,
   },
-  detailLabel: {
-    ...typography.body,
-    flex: 1,
-  },
-  detailValue: {
-    ...typography.bodyStrong,
-    flexShrink: 1,
-    maxWidth: '58%',
-    textAlign: 'right',
-  },
-  contactRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.lg,
-  },
-  contactIconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  contactIconButtonWhatsapp: {
-    backgroundColor: colors.successSoft,
-    borderColor: colors.successSoft,
-  },
-  contactIconButtonEmail: {
-    backgroundColor: colors.violetSoft,
-    borderColor: colors.violetSoft,
-  },
-  contactIconButtonDisabled: {
-    backgroundColor: colors.surfaceMuted,
-    borderColor: colors.border,
-    opacity: 0.7,
-  },
-  manageRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.lg,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  manageLabel: {
-    ...typography.micro,
+  addressText: {
+    ...typography.bodySmall,
     color: colors.textMuted,
   },
-  actionSpacer: {
-    flex: 1,
-  },
-  actionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.input,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  // Estado vacío y error
-  emptyState: {
-    paddingTop: spacing.xxl,
-  },
-  errorIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.dangerSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorText: {
-    ...typography.body,
-    color: colors.danger,
-    textAlign: 'center',
-    marginTop: spacing.lg,
-    marginBottom: spacing.lg,
-  },
-  retryButton: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    borderRadius: radii.button,
-  },
-  retryButtonText: {
-    color: colors.white,
-    fontWeight: '700',
-    fontSize: 15,
-  },
-
-  // Bottom sheet
-  sheetScroll: {
-    maxHeight: 420,
-  },
-  sheetScrollContent: {
-    paddingBottom: spacing.sm,
-  },
-  sheetActions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  inputContainer: {
-    marginBottom: spacing.lg,
-  },
-  inputLabel: {
-    ...typography.body,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.input,
-    padding: spacing.md,
-    fontSize: 16,
-    color: colors.textPrimary,
-    minHeight: 48,
-  },
-  inputError: {
-    borderColor: colors.danger,
-    backgroundColor: colors.dangerSoft,
-  },
-  fieldError: {
-    ...typography.caption,
-    color: colors.danger,
-    marginTop: spacing.xs,
-  },
-  textArea: {
-    minHeight: 84,
-    textAlignVertical: 'top',
-  },
-  row: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  halfWidth: {
-    flex: 1,
-  },
-  pickerContainer: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.input,
-    overflow: 'hidden',
-  },
-  pickerButton: {
+  actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+    gap: spacing.xs,
+  },
+  actionPillBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.primarySoft,
     paddingHorizontal: spacing.md,
-    minHeight: 48,
+    paddingVertical: 6,
+    borderRadius: radii.full,
   },
-  pickerText: {
-    fontSize: 16,
-    color: colors.textPrimary,
+  actionPillSuccess: {
+    backgroundColor: colors.successSoft,
   },
-  footerButton: {
+  actionPillText: {
+    ...typography.labelSmall,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  spacer: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: radii.button,
-    alignItems: 'center',
+  },
+  iconActionBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: radii.full,
     justifyContent: 'center',
-    minHeight: 48,
+    alignItems: 'center',
   },
-  cancelButton: {
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.border,
+  fabWrapper: {
+    position: 'absolute',
+    right: spacing.lg,
+    zIndex: 99,
   },
-  cancelButtonText: {
+  formScroll: {
+    maxHeight: 420,
+    paddingVertical: spacing.xs,
+  },
+  docTypeRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  docTypeChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceContainer,
+  },
+  docTypeChipSelected: {
+    backgroundColor: colors.primary,
+  },
+  docTypeChipText: {
+    ...typography.labelSmall,
     color: colors.textSecondary,
     fontWeight: '600',
   },
-  saveButton: {
-    backgroundColor: colors.primary,
-  },
-  saveButtonText: {
+  docTypeChipTextSelected: {
     color: colors.white,
     fontWeight: '700',
-    fontSize: 15,
   },
-  buttonDisabled: {
-    opacity: 0.7,
+  saveBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.full,
+    minHeight: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  saveBtnText: {
+    ...typography.labelLarge,
+    color: colors.white,
+    fontWeight: '700',
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.dangerSoft,
+    padding: spacing.md,
+    marginHorizontal: spacing.lg,
+    borderRadius: radii.md,
+    gap: spacing.sm,
+  },
+  errorText: {
+    ...typography.bodyMedium,
+    color: colors.danger,
+    flex: 1,
   },
 });
-
-export default CustomersScreen;

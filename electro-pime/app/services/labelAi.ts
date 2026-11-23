@@ -56,15 +56,23 @@ async function prepareImageForAi(imageUri: string): Promise<{
   return { base64, mimeType: 'image/jpeg' };
 }
 
+export function getLabelAiUrl(): string {
+  if (process.env.EXPO_PUBLIC_LABEL_AI_URL) {
+    return process.env.EXPO_PUBLIC_LABEL_AI_URL;
+  }
+  const base = process.env.EXPO_PUBLIC_API_URL || 'https://repair-service-api.vercel.app';
+  return `${base.replace(/\/+$/, '')}/labels/extract`;
+}
+
 export function isLabelAiConfigured(): boolean {
-  return !!process.env.EXPO_PUBLIC_LABEL_AI_URL;
+  return !!getLabelAiUrl();
 }
 
 export async function enhanceLabelWithAi(
   imageUri: string,
-  ocrText: string,
+  ocrText: string = '',
 ): Promise<LabelAiResult> {
-  const url = process.env.EXPO_PUBLIC_LABEL_AI_URL;
+  const url = getLabelAiUrl();
   if (!url) throw new Error('IA no configurada');
 
   const { base64, mimeType } = await prepareImageForAi(imageUri);

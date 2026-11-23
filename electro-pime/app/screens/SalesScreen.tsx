@@ -1,18 +1,19 @@
+// ponytail: M3 SalesScreen with financial KPIs, FlashList, BottomSheet and Ticket print
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Modal,
-  Alert,
   ActivityIndicator,
   RefreshControl,
   Platform,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { api } from '../services/api';
@@ -24,20 +25,20 @@ import {
   typography,
   spacing,
   radii,
-  shadow,
+  tonalElevation,
   PAYMENT_METHOD,
   PaymentMethod,
 } from '../theme';
 import Card from '../components/ui/Card';
 import StatusBadge from '../components/ui/StatusBadge';
-import SectionHeader from '../components/ui/SectionHeader';
 import MetricCard from '../components/ui/MetricCard';
 import EmptyState from '../components/ui/EmptyState';
-import SegmentedControl from '../components/ui/SegmentedControl';
+import BottomSheet from '../components/ui/BottomSheet';
+import M3Fab from '../components/ui/M3Fab';
 
 type DateFilter = 'today' | 'week' | 'month' | 'all';
+type TicketSize = '58' | '80' | 'A4' | 'LETTER';
 
-// Fecha relativa: "Hoy 14:22", "Ayer", "3 mar"
 function formatRelativeDate(iso: string): string {
   const date = new Date(iso);
   const now = new Date();
@@ -53,75 +54,9 @@ function formatRelativeDate(iso: string): string {
   return `${day} ${month}`;
 }
 
-// Tamaños de papel para el ticket — ticketeras térmicas usuales (58 mm / 80 mm)
-// y hoja completa (A4 / Carta). El CSS resultante adapta la impresión al ancho.
-type TicketSize = '58' | '80' | 'A4' | 'LETTER';
-
-function ticketSizeCss(size: TicketSize): string {
-  if (size === '58') {
-    return `
-            @page { size: 58mm auto; margin: 0; }
-            body { width: 58mm; padding: 4mm; font-size: 10px; }
-            .logo-placeholder { width: 32px; height: 32px; font-size: 15px; margin-bottom: 6px; }
-            .company-name { font-size: 13px; letter-spacing: 0; }
-            .company-details { font-size: 8px; max-width: 100%; }
-            .receipt-label { font-size: 12px; }
-            .receipt-no { font-size: 11px; }
-            .receipt-date { font-size: 8px; }
-            .section-divider { margin: 10px 0; }
-            .info-label, .table-title, .sign-label { font-size: 8px; letter-spacing: 0.5px; }
-            .info-main { font-size: 10px; }
-            .info-sub { font-size: 8px; }
-            .badge { font-size: 7px; padding: 1px 4px; }
-            .sku { font-size: 8px; }
-            .product-name { font-size: 10px; }
-            .product-row { margin-bottom: 9px; }
-            .price-row, .summary-row { font-size: 9px; }
-            .summary-section { margin-top: 12px; padding-top: 10px; }
-            .total-label { font-size: 11px; }
-            .total-value { font-size: 16px; }
-            .total-row { margin-top: 8px; padding-top: 8px; }
-            .warranty-box { margin-top: 14px; padding: 8px; }
-            .warranty-title { font-size: 8px; }
-            .warranty-text { font-size: 7.5px; }
-            .signatures { margin-top: 22px; }
-            .footer-strip { margin-top: 14px; padding: 7px; font-size: 7.5px; letter-spacing: 0.5px; }
-          `;
-  }
-  if (size === '80') {
-    return `
-            @page { size: 80mm auto; margin: 0; }
-            body { width: 80mm; padding: 5mm; font-size: 11px; }
-            .logo-placeholder { width: 40px; height: 40px; font-size: 20px; }
-            .company-name { font-size: 16px; }
-            .company-details { font-size: 9px; max-width: 100%; }
-            .receipt-label { font-size: 15px; }
-            .receipt-no { font-size: 13px; }
-            .receipt-date { font-size: 9px; }
-            .info-label, .table-title, .sign-label { font-size: 9px; }
-            .info-main { font-size: 11px; }
-            .product-name { font-size: 11.5px; }
-            .price-row, .summary-row { font-size: 10px; }
-            .total-label { font-size: 13px; }
-            .total-value { font-size: 20px; }
-            .warranty-box { padding: 10px; }
-            .footer-strip { font-size: 9px; }
-          `;
-  }
-  if (size === 'A4') {
-    return `
-            @page { size: A4; margin: 14mm; }
-            body { padding: 12px; }
-          `;
-  }
-  return `
-            @page { size: letter; margin: 14mm; }
-            body { padding: 12px; }
-          `;
-}
-
-const SalesScreen = () => {
+export default function SalesScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,8 +77,8 @@ const SalesScreen = () => {
     try {
       setError(null);
       const params: { startDate?: string; endDate?: string } = {};
-
       const today = new Date();
+
       if (dateFilter === 'today') {
         params.startDate = today.toISOString().split('T')[0];
         params.endDate = today.toISOString().split('T')[0];
@@ -158,11 +93,10 @@ const SalesScreen = () => {
       }
 
       const data = await api.getSales(params);
-      // Sort sales by createdAt descending (newest first)
-      const sortedData = data.sort((a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      const sorted = data.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
-      setSales(sortedData);
+      setSales(sorted);
     } catch (err: any) {
       console.error('Error fetching sales:', err);
       setError(err.message || 'Error al cargar las ventas');
@@ -178,667 +112,324 @@ const SalesScreen = () => {
     } else {
       setLoading(false);
     }
-  }, [user, fetchSales]);
+  }, [fetchSales, user]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchSales();
   }, [fetchSales]);
 
-  const handleViewInvoice = (sale: Sale) => {
-    setSelectedSale(sale);
-    setShowDetails(true);
-  };
-
-  const handlePrintTicket = (sale: Sale) => {
-    setSelectedSale(sale);
-    setShowTicket(true);
-  };
-
   const metrics = useMemo(() => {
-    const total = sales.reduce((sum, sale) => sum + sale.totalAmount, 0);
-    const avgTicket = sales.length > 0 ? total / sales.length : 0;
-    return { total, avgTicket, count: sales.length };
+    const total = sales.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
+    const avg = sales.length > 0 ? total / sales.length : 0;
+    return { total, avg, count: sales.length };
   }, [sales]);
 
-  const renderMetrics = () => (
-    <View style={styles.metricsGrid}>
-      <MetricCard
-        variant="hero"
-        label="TOTAL VENTAS"
-        value={`S/ ${metrics.total.toFixed(2)}`}
-        icon="cash-multiple"
-        style={styles.metricsHero}
-      />
-      <View style={styles.metricsRow}>
-        <MetricCard label="TRANSACCIONES" value={String(metrics.count)} icon="receipt" />
-        <MetricCard
-          label="TICKET PROMEDIO"
-          value={`S/ ${metrics.avgTicket.toFixed(2)}`}
-          icon="chart-line"
-        />
-      </View>
-    </View>
-  );
+  const handlePrint = async (sale: Sale) => {
+    const html = `
+      <html>
+        <head>
+          <style>
+            body { font-family: monospace; padding: 10px; font-size: 12px; }
+            .center { text-align: center; }
+            .bold { font-weight: bold; }
+            .row { display: flex; justify-content: space-between; margin: 4px 0; }
+            hr { border: 0.5px dashed #000; }
+          </style>
+        </head>
+        <body>
+          <div class="center bold">ELECTRO-PIME</div>
+          <div class="center">Servicio Técnico y Repuestos</div>
+          <div class="center">Ticket #${sale.id.slice(0, 8).toUpperCase()}</div>
+          <div class="center">${new Date(sale.createdAt).toLocaleString('es-ES')}</div>
+          <hr/>
+          <div>Cliente: ${sale.customerFullName || sale.customerName || 'Cliente General'}</div>
+          <div>Atendido por: ${sale.userName || 'Técnico'}</div>
+          <hr/>
+          ${(sale.items || [])
+            .map(
+              (it) => `
+            <div class="row">
+              <span>${it.quantity}x ${it.productName || it.description}</span>
+              <span>S/ ${(it.price * it.quantity).toFixed(2)}</span>
+            </div>`
+            )
+            .join('')}
+          <hr/>
+          <div class="row bold">
+            <span>TOTAL:</span>
+            <span>S/ ${sale.totalAmount.toFixed(2)}</span>
+          </div>
+          <div class="row">
+            <span>Método de Pago:</span>
+            <span>${sale.paymentMethod}</span>
+          </div>
+          <hr/>
+          <div class="center">¡Gracias por su preferencia!</div>
+        </body>
+      </html>
+    `;
 
-  const renderFilters = () => (
-    <View style={styles.filterContainer}>
-      <SegmentedControl<DateFilter>
-        options={[
-          { value: 'today', label: 'Hoy' },
-          { value: 'week', label: 'Semana' },
-          { value: 'month', label: 'Mes' },
-          { value: 'all', label: 'Todas' },
-        ]}
-        value={dateFilter}
-        onChange={setDateFilter}
-      />
-    </View>
-  );
+    try {
+      if (Platform.OS === 'web') {
+        window.print();
+      } else {
+        await Print.printAsync({ html });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleShare = async (sale: Sale) => {
+    try {
+      const html = `
+        <html>
+          <body>
+            <h2>Comprobante de Venta - Electro-Pime</h2>
+            <p><strong>Ticket:</strong> #${sale.id.slice(0, 8).toUpperCase()}</p>
+            <p><strong>Cliente:</strong> ${sale.customerFullName || sale.customerName || 'General'}</p>
+            <p><strong>Total:</strong> S/ ${sale.totalAmount.toFixed(2)}</p>
+          </body>
+        </html>
+      `;
+      const { uri } = await Print.printToFileAsync({ html });
+      await Sharing.shareAsync(uri);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const renderFilters = () => {
+    const filters: { key: DateFilter; label: string }[] = [
+      { key: 'all', label: 'Todas' },
+      { key: 'today', label: 'Hoy' },
+      { key: 'week', label: 'Esta Semana' },
+      { key: 'month', label: 'Este Mes' },
+    ];
+
+    return (
+      <View style={styles.filterScroll}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+          {filters.map((f) => {
+            const active = dateFilter === f.key;
+            return (
+              <Pressable
+                key={f.key}
+                style={[styles.filterChip, active && styles.filterChipActive]}
+                onPress={() => setDateFilter(f.key)}
+                android_ripple={{ color: 'rgba(0, 82, 255, 0.15)' }}
+              >
+                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                  {f.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
+    );
+  };
 
   const renderSaleCard = ({ item }: { item: Sale }) => {
-    const method = PAYMENT_METHOD[item.paymentMethod as PaymentMethod];
+    const method = PAYMENT_METHOD[item.paymentMethod as PaymentMethod] ?? PAYMENT_METHOD.CASH;
     const customer = item.customerFullName || item.customerName || 'Cliente General';
     const items = item.items || [];
-    const itemCount = items.length;
-    const firstProduct = items[0]?.productName || items[0]?.description;
-    const extraCount = itemCount > 1 ? itemCount - 1 : 0;
+    const firstProduct = items[0]?.productName || items[0]?.description || 'Producto';
 
     return (
       <Card
         style={styles.saleCard}
-        accentColor={method?.color ?? colors.borderStrong}
         onPress={() => {
           setSelectedSale(item);
           setShowDetails(true);
         }}
       >
-        {/* Fila 1: método de pago + monto héroe grande */}
-        <View style={styles.saleTopRow}>
-          {method ? (
-            <StatusBadge label={method.label} color={method.color} soft={method.soft} />
-          ) : (
-            <StatusBadge
-              label={String(item.paymentMethod)}
-              color={colors.textSecondary}
-              soft={colors.surfaceMuted}
-            />
-          )}
-          <Text style={styles.saleAmount} numberOfLines={1} adjustsFontSizeToFit>
-            S/ {item.totalAmount.toFixed(2)}
-          </Text>
+        <View style={styles.cardTopRow}>
+          <StatusBadge
+            label={method.label}
+            color={method.color}
+            soft={method.soft}
+            icon={method.icon}
+            compact
+          />
+          <Text style={styles.saleAmount}>S/ {item.totalAmount.toFixed(2)}</Text>
         </View>
 
-        {/* Fila 2: cliente como protagonista secundario */}
-        <View style={styles.saleCustomerRow}>
+        <View style={styles.customerRow}>
           <MaterialCommunityIcons name="account-outline" size={18} color={colors.textSecondary} />
-          <Text style={styles.saleCustomer} numberOfLines={1}>
+          <Text style={styles.customerName} numberOfLines={1}>
             {customer}
           </Text>
         </View>
 
-        {/* Fila 3: resumen de productos, legible de un vistazo */}
-        <View style={styles.saleProductsRow}>
-          <MaterialCommunityIcons name="package-variant-closed" size={16} color={colors.textSecondary} />
-          <Text style={styles.saleProductsText} numberOfLines={1}>
-            {itemCount === 0
-              ? 'Sin productos'
-              : firstProduct
-                ? `${itemCount} ${itemCount === 1 ? 'producto' : 'productos'} · ${firstProduct}${extraCount > 0 ? ` +${extraCount} más` : ''}`
-                : `${itemCount} ${itemCount === 1 ? 'producto' : 'productos'}`}
+        <View style={styles.productsRow}>
+          <MaterialCommunityIcons name="package-variant-closed" size={16} color={colors.textMuted} />
+          <Text style={styles.productsSummary} numberOfLines={1}>
+            {items.length === 0
+              ? 'Sin ítems'
+              : `${items.length} ítem(s) · ${firstProduct}${items.length > 1 ? ` +${items.length - 1} más` : ''}`}
           </Text>
         </View>
 
-        {/* Fila 4: vendedor + fecha relativa, texto claro */}
-        <View style={styles.saleMetaRow}>
-          <View style={styles.saleSellerRow}>
-            <MaterialCommunityIcons name="account-wrench-outline" size={14} color={colors.textMuted} />
-            <Text style={styles.saleSellerText} numberOfLines={1}>
-              {item.userName ? `Atendido por ${item.userName}` : 'Sin vendedor'}
-            </Text>
-          </View>
-          <View style={styles.saleDate}>
-            <MaterialCommunityIcons name="clock-outline" size={14} color={colors.textMuted} />
-            <Text style={styles.saleDateText} numberOfLines={1}>
-              {formatRelativeDate(item.createdAt)}
-            </Text>
-          </View>
-        </View>
-
-        {/* Fila 5: acciones de contorno etiquetadas */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleViewInvoice(item)}
-            hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
-            activeOpacity={0.85}
-          >
-            <MaterialCommunityIcons
-              name="file-document-outline"
-              size={18}
-              color={colors.textSecondary}
-            />
-            <Text style={styles.actionButtonText}>Detalle</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handlePrintTicket(item)}
-            hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
-            activeOpacity={0.85}
-          >
-            <MaterialCommunityIcons name="printer" size={18} color={colors.textSecondary} />
-            <Text style={styles.actionButtonText}>Ticket</Text>
-          </TouchableOpacity>
+        <View style={styles.cardBottomRow}>
+          <Text style={styles.sellerName} numberOfLines={1}>
+            {item.userName ? `Atendido por ${item.userName}` : 'Venta en caja'}
+          </Text>
+          <Text style={styles.dateText}>{formatRelativeDate(item.createdAt)}</Text>
         </View>
       </Card>
     );
-  };
-
-  const renderSaleDetails = () => {
-    if (!selectedSale) return null;
-
-    return (
-      <Modal
-        visible={showDetails}
-        animationType="slide"
-        onRequestClose={() => setShowDetails(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Venta #{selectedSale.id.slice(0, 8).toUpperCase()}</Text>
-            <TouchableOpacity
-              onPress={() => setShowDetails(false)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <MaterialCommunityIcons name="close" size={24} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.modalContent}>
-            <Card style={styles.detailSection}>
-              <SectionHeader title="Información general" />
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Cliente</Text>
-                <Text style={styles.detailValue}>
-                  {selectedSale.customerFullName || selectedSale.customerName || 'Cliente General'}
-                </Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Vendedor</Text>
-                <Text style={styles.detailValue}>{selectedSale.userName || '—'}</Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Método de pago</Text>
-                <Text style={styles.detailValue}>
-                  {PAYMENT_METHOD[selectedSale.paymentMethod as PaymentMethod]?.label || selectedSale.paymentMethod}
-                </Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Fecha</Text>
-                <Text style={styles.detailValue}>
-                  {new Date(selectedSale.createdAt).toLocaleString()}
-                </Text>
-              </View>
-            </Card>
-
-            <Card style={styles.detailSection}>
-              <SectionHeader title="Productos" />
-              {selectedSale.items?.map((item, index) => (
-                <View key={index} style={styles.productItem}>
-                  <View style={styles.productInfo}>
-                    <Text style={styles.productName}>{item.productName || item.description || 'Producto'}</Text>
-                    <Text style={styles.productQty}>
-                      {item.quantity} x S/ {item.price.toFixed(2)}
-                    </Text>
-                  </View>
-                  <Text style={styles.productTotal}>S/ {(item.quantity * item.price).toFixed(2)}</Text>
-                </View>
-              ))}
-            </Card>
-
-            <View style={styles.totalBand}>
-              <Text style={styles.totalBandLabel}>Total</Text>
-              <Text style={styles.totalBandValue}>S/ {selectedSale.totalAmount.toFixed(2)}</Text>
-            </View>
-          </ScrollView>
-
-          <View style={styles.modalFooter}>
-            <TouchableOpacity
-              style={styles.footerButton}
-              activeOpacity={0.85}
-              onPress={() => {
-                setShowDetails(false);
-                handlePrintTicket(selectedSale);
-              }}
-            >
-              <MaterialCommunityIcons name="printer" size={20} color={colors.white} />
-              <Text style={styles.footerButtonText}>Ver Ticket</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-    );
-  };
-
-  const renderTicketModal = () => {
-    if (!selectedSale) return null;
-
-    // Previsualización adaptada al tamaño de papel elegido
-    const isRoll = ticketSize === '58' || ticketSize === '80';
-    const scale = ticketSize === '58' ? 0.72 : ticketSize === '80' ? 0.88 : 1;
-    const fs = (n: number) => Math.round(n * scale);
-    const rollWidth = ticketSize === '58' ? 236 : ticketSize === '80' ? 302 : undefined;
-
-    return (
-      <Modal
-        visible={showTicket}
-        animationType="slide"
-        onRequestClose={() => setShowTicket(false)}
-      >
-        <View style={styles.ticketContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity
-              onPress={() => setShowTicket(false)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <MaterialCommunityIcons name="close" size={24} color={colors.textSecondary} />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Ticket de Venta</Text>
-            <View style={{ width: 24 }} />
-          </View>
-
-          <View style={styles.sizeSelectorWrap}>
-            <Text style={styles.sizeSelectorLabel}>Tamaño de papel</Text>
-            <SegmentedControl<TicketSize>
-              options={[
-                { value: '58', label: '58 mm' },
-                { value: '80', label: '80 mm' },
-                { value: 'A4', label: 'A4' },
-                { value: 'LETTER', label: 'Carta' },
-              ]}
-              value={ticketSize}
-              onChange={setTicketSize}
-            />
-          </View>
-
-          <ScrollView style={styles.ticketContent}>
-            <View
-              style={[
-                styles.ticket,
-                rollWidth !== undefined && {
-                  width: rollWidth,
-                  alignSelf: 'center',
-                  padding: ticketSize === '58' ? spacing.md : spacing.lg,
-                },
-              ]}
-            >
-              {/* Ticket Header */}
-              <View style={[styles.ticketBrand, isRoll && { paddingVertical: spacing.sm }]}>
-                <Text style={[styles.ticketBrandName, { fontSize: fs(22) }]}>ELECTRONICA PIMENTEL</Text>
-                <Text style={[styles.ticketBrandSubtitle, { fontSize: fs(12) }]}>Reparación de Electrodomésticos en general y venta de componentes electrónicos</Text>
-              </View>
-
-              <View style={[styles.ticketDivider, isRoll && { marginVertical: spacing.sm }]} />
-
-              <View style={styles.ticketInfo}>
-                <Text style={[styles.ticketInfoText, { fontSize: fs(13) }]}>Fecha: {new Date(selectedSale.createdAt).toLocaleString()}</Text>
-                <Text style={[styles.ticketInfoText, { fontSize: fs(13) }]}>Ticket: #{selectedSale.id.slice(0, 8).toUpperCase()}</Text>
-                <Text style={[styles.ticketInfoText, { fontSize: fs(13) }]}>Cliente: {selectedSale.customerFullName || selectedSale.customerName || 'Cliente General'}</Text>
-                <Text style={[styles.ticketInfoText, { fontSize: fs(13) }]}>Método: {PAYMENT_METHOD[selectedSale.paymentMethod as PaymentMethod]?.label || selectedSale.paymentMethod}</Text>
-              </View>
-
-              <View style={[styles.ticketDivider, isRoll && { marginVertical: spacing.sm }]} />
-
-              {/* Items */}
-              <View style={styles.ticketItems}>
-                <View style={styles.ticketItemHeader}>
-                  <Text style={[styles.ticketItemHeaderText, { fontSize: fs(11) }]}>ITEM</Text>
-                  <Text style={[styles.ticketItemHeaderText, { fontSize: fs(11) }]}>CANT</Text>
-                  <Text style={[styles.ticketItemHeaderText, { fontSize: fs(11) }]}>P.U</Text>
-                  <Text style={[styles.ticketItemHeaderText, { fontSize: fs(11) }]}>TOTAL</Text>
-                </View>
-                {selectedSale.items?.map((item, index) => (
-                  <View key={index} style={styles.ticketItemRow}>
-                    <Text style={[styles.ticketItemName, { fontSize: fs(12) }]}>{item.productName || item.description || 'Producto'}</Text>
-                    <Text style={[styles.ticketItemQty, { fontSize: fs(12) }]}>{item.quantity}</Text>
-                    <Text style={[styles.ticketItemPrice, { fontSize: fs(12) }]}>{item.price.toFixed(2)}</Text>
-                    <Text style={[styles.ticketItemSubtotal, { fontSize: fs(12) }]}>{(item.quantity * item.price).toFixed(2)}</Text>
-                  </View>
-                ))}
-              </View>
-
-              <View style={[styles.ticketDivider, isRoll && { marginVertical: spacing.sm }]} />
-
-              {/* Total */}
-              <View style={styles.ticketTotal}>
-                <Text style={[styles.ticketTotalLabel, { fontSize: fs(18) }]}>TOTAL:</Text>
-                <Text style={[styles.ticketTotalValue, { fontSize: fs(24) }]}>S/ {selectedSale.totalAmount.toFixed(2)}</Text>
-              </View>
-
-              <View style={[styles.ticketDivider, isRoll && { marginVertical: spacing.sm }]} />
-
-              <Text style={[styles.ticketFooter, { fontSize: fs(14) }]}>¡Gracias por su compra!</Text>
-              <Text style={[styles.ticketFooterSmall, { fontSize: fs(12) }]}>Conserve su ticket</Text>
-            </View>
-          </ScrollView>
-
-          <View style={styles.ticketActions}>
-            <TouchableOpacity
-              style={[styles.ticketActionButton, { backgroundColor: colors.success }]}
-              activeOpacity={0.85}
-              onPress={() => handleShareTicket(selectedSale, ticketSize)}
-            >
-              <MaterialCommunityIcons name="share-variant" size={20} color={colors.white} />
-              <Text style={styles.ticketActionText}>Compartir</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.ticketActionButton, { backgroundColor: colors.primary }]}
-              activeOpacity={0.85}
-              onPress={() => handlePrintPDF(selectedSale, ticketSize)}
-            >
-              <MaterialCommunityIcons name="file-pdf-box" size={20} color={colors.white} />
-              <Text style={styles.ticketActionText}>Descargar PDF</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-    );
-  };
-
-  const generateTicketHTML = (sale: Sale, size: TicketSize = '80') => {
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Recibo de Venta</title>
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
-            body { font-family: 'Roboto', Helvetica, Arial, sans-serif; padding: 40px; max-width: 500px; margin: 0 auto; background: #fff; color: #333; }
-
-            .header { text-align: center; margin-bottom: 30px; }
-            .logo-placeholder { width: 48px; height: 48px; background: #EFF4FF; border-radius: 50%; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; color: #1D4ED8; font-weight: bold; font-size: 24px; }
-            .company-name { font-size: 22px; font-weight: 900; color: #1D4ED8; text-transform: uppercase; margin-bottom: 5px; letter-spacing: -0.5px; }
-            .company-details { font-size: 10px; color: #98A2B3; line-height: 1.4; max-width: 80%; margin: 0 auto; }
-
-            .receipt-title { margin-top: 25px; text-align: center; }
-            .receipt-label { font-size: 18px; font-weight: 900; color: #101828; text-transform: uppercase; margin-bottom: 2px; }
-            .receipt-no { font-size: 16px; font-weight: 700; color: #1D4ED8; margin-bottom: 5px; }
-            .receipt-date { font-size: 10px; color: #98A2B3; text-transform: uppercase; font-weight: 500; }
-
-            .section-divider { border-top: 1px dotted #E4E7EC; margin: 20px 0; }
-
-            .info-block { margin-bottom: 15px; }
-            .info-label { font-size: 10px; font-weight: 700; color: #98A2B3; text-transform: uppercase; margin-bottom: 3px; }
-            .info-main { font-size: 13px; font-weight: 700; color: #101828; }
-            .info-sub { font-size: 11px; color: #98A2B3; font-style: italic; }
-
-            .table-title { font-size: 10px; font-weight: 700; color: #98A2B3; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; border-bottom: 2px solid #1D4ED8; padding-bottom: 5px; display: inline-block; }
-
-            .product-row { margin-bottom: 15px; }
-            .sku-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
-            .sku { font-size: 10px; font-weight: 700; color: #1D4ED8; }
-            .badge { background: #F4F3FF; color: #5925DC; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; }
-            .product-name { font-size: 13px; font-weight: 700; color: #101828; margin-bottom: 2px; }
-            .price-row { display: flex; justify-content: space-between; font-size: 12px; color: #475467; }
-            .price-total { font-weight: 700; color: #101828; }
-
-            .summary-section { margin-top: 20px; border-top: 1px solid #E4E7EC; padding-top: 15px; }
-            .summary-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12px; color: #475467; }
-            .total-row { display: flex; justify-content: space-between; margin-top: 10px; align-items: center; border-top: 2px solid #1D4ED8; padding-top: 10px; }
-            .total-label { font-size: 16px; font-weight: 900; color: #101828; text-transform: uppercase; }
-            .total-value { font-size: 28px; font-weight: 900; color: #1D4ED8; }
-
-            .warranty-box { margin-top: 30px; border: 1px dashed #E4E7EC; padding: 15px; border-radius: 8px; position: relative; }
-            .warranty-title { display: flex; align-items: center; font-size: 10px; font-weight: 900; color: #1D4ED8; text-transform: uppercase; margin-bottom: 5px; }
-            .warranty-text { font-size: 9px; color: #475467; line-height: 1.4; }
-
-            .signatures { margin-top: 50px; border-top: 1px solid #E4E7EC; padding-top: 10px; text-align: center; }
-            .sign-label { font-size: 9px; font-weight: 700; color: #98A2B3; text-transform: uppercase; letter-spacing: 0.5px; }
-
-            .footer-strip { margin-top: 30px; background: #1D4ED8; color: #fff; text-align: center; padding: 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; border-radius: 4px; }
-
-            /* Tamaño de papel seleccionado — adapta ancho y escala tipográfica */
-            ${ticketSizeCss(size)}
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div class="logo-placeholder">EP</div>
-            <div class="company-name">Electrónica Pimentel</div>
-            <div class="company-details">
-              Av. Principal 123, Lima<br>
-              Tel: +51 555-123-456 • contacto@pimentel.com
-            </div>
-          </div>
-
-          <div class="receipt-title">
-            <div class="receipt-label">Recibo de Venta</div>
-            <div class="receipt-no">No. ${sale.id.slice(0, 8).toUpperCase()}</div>
-            <div class="receipt-date">${new Date(sale.createdAt).toLocaleDateString()} - ${new Date(sale.createdAt).toLocaleTimeString()}</div>
-          </div>
-
-          <div class="section-divider"></div>
-
-          <div class="info-block">
-            <div class="info-label">Facturado a:</div>
-            <div class="info-main">${sale.customerFullName || sale.customerName || 'Cliente General'}</div>
-          </div>
-
-          <div class="info-block">
-            <div class="info-label">Vendedor:</div>
-            <div class="info-main">${sale.userName || 'Administrador'}</div>
-          </div>
-
-          <div class="section-divider"></div>
-
-          <div style="margin-bottom: 20px;">
-            <div class="table-title">Detalle de Productos</div>
-            ${sale.items?.map((item, i) => `
-              <div class="product-row">
-                <div class="sku-row">
-                  <span class="sku">SKU-${item.productId?.slice(0, 4).toUpperCase() || 'GEN'}</span>
-                  <span class="badge">REPUESTO</span>
-                </div>
-                <div class="product-name">${item.productName || item.description || 'Producto'}</div>
-                <div class="price-row">
-                  <span>${item.quantity} x S/ ${item.price.toFixed(2)}</span>
-                  <span class="price-total">S/ ${(item.quantity * item.price).toFixed(2)}</span>
-                </div>
-              </div>
-            `).join('') || ''}
-          </div>
-
-          <div class="summary-section">
-            <div class="summary-row">
-              <span>Subtotal</span>
-              <span>S/ ${sale.totalAmount.toFixed(2)}</span>
-            </div>
-            <div class="summary-row">
-              <span>Impuestos (0%)</span>
-              <span>S/ 0.00</span>
-            </div>
-            <div class="total-row">
-              <span class="total-label">TOTAL</span>
-              <span class="total-value">S/ ${sale.totalAmount.toFixed(2)}</span>
-            </div>
-          </div>
-
-          <div class="warranty-box">
-            <div class="warranty-title">
-              <span style="font-size: 14px; margin-right: 5px;">✓</span> GARANTÍA
-            </div>
-            <div class="warranty-text">
-              Componentes electrónicos: garantía por defectos de fábrica (30 días). No aplica en semiconductores con rastros de soldadura o mala manipulación.
-            </div>
-          </div>
-
-          <div class="signatures">
-            <div class="sign-label">FIRMA AUTORIZADA</div>
-          </div>
-
-          <div class="footer-strip">
-            Gracias por su compra. Expertos desde 2010.
-          </div>
-        </body>
-      </html>
-    `;
-  };
-
-  const handlePrintPDF = async (sale: Sale, size: TicketSize = '80') => {
-    try {
-      const html = generateTicketHTML(sale, size);
-
-      if (Platform.OS === 'web') {
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          printWindow.document.write(html);
-          printWindow.document.close();
-          const timer = setInterval(() => {
-            if (printWindow.document.readyState === 'complete') {
-              clearInterval(timer);
-              printWindow.focus();
-              printWindow.print();
-            }
-          }, 100);
-        } else {
-          Alert.alert('Error', 'Por favor permite las ventanas emergentes para imprimir el ticket.');
-        }
-        return;
-      }
-
-      // En ticketeras térmicas el ancho del PDF se fija en puntos (58 mm ≈ 164 pt, 80 mm ≈ 227 pt)
-      const widthPt = size === '58' ? 164 : size === '80' ? 227 : undefined;
-      const { uri } = await Print.printToFileAsync(widthPt ? { html, width: widthPt } : { html });
-      const isAvailable = await Sharing.isAvailableAsync();
-
-      if (isAvailable) {
-        await Sharing.shareAsync(uri, {
-          mimeType: 'application/pdf',
-          dialogTitle: 'Ticket de Venta',
-          UTI: 'com.adobe.pdf',
-        });
-      } else {
-        Alert.alert('PDF Generado', `El archivo se guardó en: ${uri}`);
-      }
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      Alert.alert('Error', 'No se pudo generar el PDF');
-    }
-  };
-
-  const handleShareTicket = async (sale: Sale, size: TicketSize = '80') => {
-    try {
-      const html = generateTicketHTML(sale, size);
-
-      if (Platform.OS === 'web') {
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          printWindow.document.write(html);
-          printWindow.document.close();
-          const timer = setInterval(() => {
-            if (printWindow.document.readyState === 'complete') {
-              clearInterval(timer);
-              printWindow.focus();
-              printWindow.print();
-            }
-          }, 100);
-        } else {
-          Alert.alert('Error', 'Por favor permite las ventanas emergentes para compartir el ticket.');
-        }
-        return;
-      }
-
-      // En ticketeras térmicas el ancho del PDF se fija en puntos (58 mm ≈ 164 pt, 80 mm ≈ 227 pt)
-      const widthPt = size === '58' ? 164 : size === '80' ? 227 : undefined;
-      const { uri } = await Print.printToFileAsync(widthPt ? { html, width: widthPt } : { html });
-
-      const isAvailable = await Sharing.isAvailableAsync();
-      if (isAvailable) {
-        await Sharing.shareAsync(uri, {
-          mimeType: 'application/pdf',
-          dialogTitle: 'Compartir Ticket de Venta',
-          UTI: 'com.adobe.pdf',
-        });
-      } else {
-        Alert.alert('No disponible', 'La función de compartir no está disponible en este dispositivo');
-      }
-    } catch (error) {
-      console.error('Error sharing ticket:', error);
-      Alert.alert('Error', 'No se pudo compartir el ticket');
-    }
   };
 
   if (loading) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Cargando ventas...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.centered}>
-        <MaterialCommunityIcons name="alert-circle" size={48} color={colors.danger} />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchSales} activeOpacity={0.85}>
-          <Text style={styles.retryButtonText}>Reintentar</Text>
-        </TouchableOpacity>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Ventas</Text>
-        <TouchableOpacity
-          style={styles.newSaleButton}
-          activeOpacity={0.85}
-          onPress={() => router.push('/sales/new' as never)}
-        >
-          <MaterialCommunityIcons name="plus" size={20} color={colors.white} />
-          <Text style={styles.newSaleButtonText}>Nueva Venta</Text>
-        </TouchableOpacity>
+      <View style={[styles.topHeader, { paddingTop: insets.top + spacing.xs }]}>
+        <Text style={styles.screenTitle}>Control de Ventas</Text>
       </View>
 
-      {renderMetrics()}
+      {/* Metrics Banner */}
+      <View style={styles.metricsWrapper}>
+        <MetricCard
+          label="INGRESOS EN EL PERÍODO"
+          value={`S/ ${metrics.total.toFixed(2)}`}
+          subtitle={`${metrics.count} tickets emitidos · Promedio S/ ${metrics.avg.toFixed(2)}`}
+          icon="cash-multiple"
+          variant="hero"
+        />
+      </View>
+
       {renderFilters()}
 
-      <FlashList
-        data={sales}
-        renderItem={renderSaleCard}
-        keyExtractor={item => item.id}
-        estimatedItemSize={90}
-        contentContainerStyle={styles.salesList}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
-        }
-        ListEmptyComponent={
-          <Card style={styles.emptyCard}>
-            <EmptyState
-              icon="cash-register"
-              title="No hay ventas"
-              description={
-                dateFilter === 'all'
-                  ? 'Las ventas que registres aparecerán aquí.'
-                  : 'No hay ventas en el período seleccionado.'
-              }
-              ctaLabel="Registrar venta"
-              onCta={() => router.push('/sales/new' as never)}
-            />
-          </Card>
-        }
-      />
+      {error && (
+        <View style={styles.errorBanner}>
+          <MaterialCommunityIcons name="alert-circle-outline" size={18} color={colors.danger} />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
 
-      {renderSaleDetails()}
-      {renderTicketModal()}
+      <View style={styles.listContainer}>
+        {sales.length === 0 ? (
+          <EmptyState
+            icon="cash-register"
+            title="No hay ventas registradas"
+            description="Empieza realizando una venta directa de repuestos o mano de obra."
+            ctaLabel="Nueva Venta"
+            onCta={() => router.push('/sales/new')}
+          />
+        ) : (
+          <FlashList
+            data={sales}
+            keyExtractor={(item) => item.id}
+            renderItem={renderSaleCard}
+            estimatedItemSize={140}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.primary}
+                colors={[colors.primary]}
+              />
+            }
+          />
+        )}
+      </View>
+
+      {/* Extended FAB for New Sale */}
+      <View style={[styles.fabWrapper, { bottom: insets.bottom + 80 }]}>
+        <M3Fab
+          label="Nueva Venta"
+          icon="cart-plus"
+          onPress={() => router.push('/sales/new')}
+        />
+      </View>
+
+      {/* Sale Details BottomSheet */}
+      {selectedSale && (
+        <BottomSheet
+          visible={showDetails}
+          title={`Ticket #${selectedSale.id.slice(0, 8).toUpperCase()}`}
+          subtitle={formatRelativeDate(selectedSale.createdAt)}
+          onClose={() => setShowDetails(false)}
+          footer={
+            <View style={styles.sheetFooterRow}>
+              <Pressable
+                style={styles.sheetBtnSecondary}
+                onPress={() => handleShare(selectedSale)}
+                android_ripple={{ color: 'rgba(0, 82, 255, 0.12)' }}
+              >
+                <MaterialCommunityIcons name="share-variant" size={20} color={colors.primary} />
+                <Text style={styles.sheetBtnSecondaryText}>Compartir</Text>
+              </Pressable>
+              <Pressable
+                style={styles.sheetBtnPrimary}
+                onPress={() => handlePrint(selectedSale)}
+                android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+              >
+                <MaterialCommunityIcons name="printer" size={20} color={colors.white} />
+                <Text style={styles.sheetBtnPrimaryText}>Imprimir Ticket</Text>
+              </Pressable>
+            </View>
+          }
+        >
+          <ScrollView style={styles.sheetBody}>
+            <View style={styles.sheetDetailRow}>
+              <Text style={styles.sheetLabel}>Cliente:</Text>
+              <Text style={styles.sheetValue}>
+                {selectedSale.customerFullName || selectedSale.customerName || 'Cliente General'}
+              </Text>
+            </View>
+            <View style={styles.sheetDetailRow}>
+              <Text style={styles.sheetLabel}>Método de Pago:</Text>
+              <StatusBadge
+                label={PAYMENT_METHOD[selectedSale.paymentMethod as PaymentMethod]?.label || selectedSale.paymentMethod}
+                color={PAYMENT_METHOD[selectedSale.paymentMethod as PaymentMethod]?.color || colors.primary}
+                soft={PAYMENT_METHOD[selectedSale.paymentMethod as PaymentMethod]?.soft || colors.primarySoft}
+                compact
+              />
+            </View>
+            <View style={styles.sheetDetailRow}>
+              <Text style={styles.sheetLabel}>Atendido por:</Text>
+              <Text style={styles.sheetValue}>{selectedSale.userName || 'Técnico'}</Text>
+            </View>
+
+            <Text style={styles.itemsHeader}>Productos / Repuestos:</Text>
+            {(selectedSale.items || []).map((it, idx) => (
+              <View key={idx} style={styles.itemRow}>
+                <View style={styles.itemInfo}>
+                  <Text style={styles.itemName}>{it.productName || it.description}</Text>
+                  <Text style={styles.itemQtyPrice}>
+                    {it.quantity} x S/ {it.price.toFixed(2)}
+                  </Text>
+                </View>
+                <Text style={styles.itemTotal}>
+                  S/ {(it.quantity * it.price).toFixed(2)}
+                </Text>
+              </View>
+            ))}
+
+            <View style={styles.totalDivider} />
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabelText}>TOTAL COBRADO:</Text>
+              <Text style={styles.totalAmountText}>
+                S/ {selectedSale.totalAmount.toFixed(2)}
+              </Text>
+            </View>
+          </ScrollView>
+        </BottomSheet>
+      )}
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -849,439 +440,233 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
     backgroundColor: colors.canvas,
   },
-  loadingText: {
-    ...typography.body,
-    marginTop: spacing.md,
-  },
-  errorText: {
-    ...typography.body,
-    marginTop: spacing.md,
-    color: colors.danger,
-    textAlign: 'center',
-  },
-  retryButton: {
-    marginTop: spacing.lg,
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    borderRadius: radii.button,
-  },
-  retryButtonText: {
-    color: colors.white,
-    fontWeight: '600',
-  },
-
-  // Header
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: spacing.lg,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  headerTitle: {
-    ...typography.title,
-    fontSize: 20,
-  },
-  newSaleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primary,
+  topHeader: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: 10,
-    borderRadius: radii.button,
+    paddingBottom: spacing.xs,
+  },
+  screenTitle: {
+    ...typography.headlineSmall,
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  metricsWrapper: {
+    paddingHorizontal: spacing.lg,
+    marginVertical: spacing.xs,
+  },
+  filterScroll: {
+    marginVertical: spacing.xs,
+  },
+  filterRow: {
+    paddingHorizontal: spacing.lg,
     gap: spacing.xs,
-    ...shadow,
   },
-  newSaleButtonText: {
-    color: colors.white,
+  filterChip: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 7,
+    borderRadius: radii.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: 'rgba(195, 199, 208, 0.4)',
+  },
+  filterChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filterChipText: {
+    ...typography.labelMedium,
+    color: colors.textSecondary,
     fontWeight: '600',
-    fontSize: 14,
   },
-
-  // KPIs jerarquizados
-  metricsGrid: {
-    padding: spacing.lg,
-    paddingBottom: 0,
+  filterChipTextActive: {
+    color: colors.white,
+    fontWeight: '700',
   },
-  metricsHero: {
-    marginBottom: spacing.md,
+  listContainer: {
+    flex: 1,
   },
-  metricsRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-
-  // Filtros
-  filterContainer: {
-    padding: spacing.lg,
-    paddingTop: spacing.md,
-  },
-
-  // Lista de ventas
-  salesList: {
-    padding: spacing.lg,
-    paddingTop: 0,
-    paddingBottom: 100,
+  listContent: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
+    paddingBottom: 110,
   },
   saleCard: {
+    padding: spacing.md,
     marginBottom: spacing.md,
   },
-  saleTopRow: {
+  cardTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
   },
   saleAmount: {
-    ...typography.display,
-    fontSize: 30,
-    color: colors.success,
-    letterSpacing: -0.5,
-    flexShrink: 1,
-    textAlign: 'right',
+    ...typography.titleLarge,
+    color: colors.primary,
+    fontWeight: '700',
   },
-  saleCustomerRow: {
+  customerRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  customerName: {
+    ...typography.bodyLarge,
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  productsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: 4,
+  },
+  productsSummary: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+  },
+  cardBottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+    paddingTop: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(195, 199, 208, 0.3)',
+  },
+  sellerName: {
+    ...typography.bodySmall,
+    color: colors.textMuted,
+  },
+  dateText: {
+    ...typography.bodySmall,
+    color: colors.textMuted,
+  },
+  fabWrapper: {
+    position: 'absolute',
+    right: spacing.lg,
+    zIndex: 99,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.dangerSoft,
+    padding: spacing.md,
+    marginHorizontal: spacing.lg,
+    borderRadius: radii.md,
     gap: spacing.sm,
     marginBottom: spacing.xs,
   },
-  saleCustomer: {
-    ...typography.bodyStrong,
-    fontSize: 18,
-    color: colors.textPrimary,
-    flexShrink: 1,
+  errorText: {
+    ...typography.bodyMedium,
+    color: colors.danger,
+    flex: 1,
   },
-  saleProductsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
+  sheetBody: {
+    maxHeight: 380,
+    paddingVertical: spacing.xs,
   },
-  saleProductsText: {
-    ...typography.body,
-    color: colors.textSecondary,
-    flexShrink: 1,
-  },
-  saleMetaRow: {
+  sheetDetailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
+    paddingVertical: spacing.xs,
   },
-  saleSellerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    flexShrink: 1,
-  },
-  saleSellerText: {
-    ...typography.caption,
+  sheetLabel: {
+    ...typography.bodyMedium,
     color: colors.textSecondary,
-    flexShrink: 1,
   },
-  saleDate: {
+  sheetValue: {
+    ...typography.bodyLarge,
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  itemsHeader: {
+    ...typography.labelMedium,
+    color: colors.textSecondary,
+    fontWeight: '700',
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  itemRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: spacing.xs,
-    flexShrink: 0,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(195, 199, 208, 0.2)',
   },
-  saleDateText: {
-    ...typography.caption,
+  itemInfo: {
+    flex: 1,
+  },
+  itemName: {
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  itemQtyPrice: {
+    ...typography.bodySmall,
     color: colors.textMuted,
-    flexShrink: 1,
+    marginTop: 2,
   },
-  actionButtons: {
+  itemTotal: {
+    ...typography.titleSmall,
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  totalDivider: {
+    height: 1,
+    backgroundColor: 'rgba(195, 199, 208, 0.4)',
+    marginVertical: spacing.md,
+  },
+  totalRow: {
     flexDirection: 'row',
-    gap: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing.md,
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  actionButton: {
+  totalLabelText: {
+    ...typography.titleMedium,
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  totalAmountText: {
+    ...typography.headlineSmall,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  sheetFooterRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  sheetBtnSecondary: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    height: 44,
-    paddingHorizontal: spacing.sm + 2,
-    borderRadius: radii.button,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceContainer,
+    borderRadius: radii.full,
+    minHeight: 48,
   },
-  actionButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  emptyCard: {
-    marginTop: spacing.lg,
-  },
-
-  // Modal detalle
-  modalContainer: {
-    flex: 1,
-    backgroundColor: colors.canvas,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: spacing.lg,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  modalTitle: {
-    ...typography.title,
-  },
-  modalContent: {
-    flex: 1,
-    padding: spacing.lg,
-  },
-  modalFooter: {
-    padding: spacing.lg,
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  footerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 14,
-    borderRadius: radii.button,
-    backgroundColor: colors.primary,
-    gap: spacing.sm,
-  },
-  footerButtonText: {
-    color: colors.white,
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  detailSection: {
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-    gap: spacing.md,
-  },
-  detailLabel: {
-    ...typography.caption,
-  },
-  detailValue: {
-    ...typography.bodyStrong,
-    fontSize: 14,
-    flexShrink: 1,
-    textAlign: 'right',
-  },
-  productItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  productInfo: {
-    flex: 1,
-    marginRight: spacing.md,
-  },
-  productName: {
-    ...typography.body,
-    color: colors.textPrimary,
-  },
-  productQty: {
-    ...typography.caption,
-  },
-  productTotal: {
-    ...typography.bodyStrong,
-    fontSize: 14,
-  },
-  totalBand: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: colors.successSoft,
-    padding: spacing.lg,
-    borderRadius: radii.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  totalBandLabel: {
-    ...typography.title,
-  },
-  totalBandValue: {
-    ...typography.display,
-    fontSize: 24,
-    color: colors.success,
-  },
-
-  // Ticket (estética de recibo conservada, tokens migrados)
-  ticketContainer: {
-    flex: 1,
-    backgroundColor: colors.canvas,
-  },
-  ticketContent: {
-    flex: 1,
-    padding: spacing.lg,
-  },
-  sizeSelectorWrap: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  sizeSelectorLabel: {
-    ...typography.micro,
-    marginBottom: spacing.xs,
-  },
-  ticket: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.card,
-    padding: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadow,
-  },
-  ticketBrand: {
-    alignItems: 'center',
-    paddingVertical: spacing.lg,
-  },
-  ticketBrandName: {
-    fontSize: 22,
-    fontWeight: 'bold',
+  sheetBtnSecondaryText: {
+    ...typography.labelLarge,
     color: colors.primary,
-    letterSpacing: 1,
+    fontWeight: '700',
   },
-  ticketBrandSubtitle: {
-    ...typography.caption,
-    marginTop: spacing.xs,
-    textAlign: 'center',
-  },
-  ticketDivider: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    borderStyle: 'dashed',
-    marginVertical: spacing.md,
-  },
-  ticketInfo: {
-    paddingVertical: spacing.sm,
-  },
-  ticketInfoText: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginBottom: 6,
-  },
-  ticketItems: {
-    paddingVertical: spacing.sm,
-  },
-  ticketItemHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingBottom: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  ticketItemHeaderText: {
-    ...typography.micro,
-    textTransform: 'none',
-    flex: 1,
-    textAlign: 'center',
-  },
-  ticketItemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  ticketItemName: {
+  sheetBtnPrimary: {
     flex: 2,
-    fontSize: 12,
-    color: colors.textPrimary,
-  },
-  ticketItemQty: {
-    flex: 1,
-    fontSize: 12,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  ticketItemPrice: {
-    flex: 1,
-    fontSize: 12,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  ticketItemSubtotal: {
-    flex: 1,
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    textAlign: 'right',
-  },
-  ticketTotal: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-  },
-  ticketTotalLabel: {
-    ...typography.title,
-  },
-  ticketTotalValue: {
-    ...typography.display,
-    fontSize: 24,
-    color: colors.success,
-  },
-  ticketFooter: {
-    textAlign: 'center',
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: spacing.sm,
-  },
-  ticketFooterSmall: {
-    ...typography.caption,
-    textAlign: 'center',
-    marginTop: spacing.xs,
-  },
-  ticketActions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    padding: spacing.lg,
-    paddingBottom: 32,
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  ticketActionButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: radii.button,
-    gap: spacing.sm,
+    gap: 6,
+    backgroundColor: colors.primary,
+    borderRadius: radii.full,
+    minHeight: 48,
   },
-  ticketActionText: {
+  sheetBtnPrimaryText: {
+    ...typography.labelLarge,
     color: colors.white,
-    fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });
-
-export default SalesScreen;

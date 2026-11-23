@@ -1,9 +1,9 @@
+// ponytail: M3 Modal Bottom Sheet with draggable handle, proper insets and backdrop
 import React from 'react';
 import {
   Modal,
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, radii, shadow, spacing, typography } from '../../theme';
+import { colors, radii, spacing, typography } from '../../theme';
 
 interface BottomSheetProps {
   visible: boolean;
@@ -19,14 +19,9 @@ interface BottomSheetProps {
   subtitle?: string;
   onClose: () => void;
   children: React.ReactNode;
-  /** Acción principal fija en el footer del sheet */
   footer?: React.ReactNode;
 }
 
-/**
- * Bottom sheet estilo Android: surface anclada al borde inferior, overlay
- * atenuado que cierra al tocar fuera, asa superior, título y footer fijo.
- */
 export default function BottomSheet({
   visible,
   title,
@@ -46,8 +41,12 @@ export default function BottomSheet({
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        {/* Backdrop: cierra al tocar fuera del sheet */}
-        <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Cerrar" />
+        <Pressable
+          style={styles.backdrop}
+          onPress={onClose}
+          accessibilityLabel="Cerrar ventana emergente"
+          accessibilityRole="button"
+        />
 
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -61,14 +60,15 @@ export default function BottomSheet({
                 <Text style={styles.title}>{title}</Text>
                 {!!subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
               </View>
-              <TouchableOpacity
+              <Pressable
                 onPress={onClose}
                 style={styles.closeButton}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                activeOpacity={0.7}
+                android_ripple={{ color: 'rgba(0,0,0,0.1)', borderless: true, radius: 20 }}
+                accessibilityLabel="Cerrar"
+                accessibilityRole="button"
               >
                 <MaterialCommunityIcons name="close" size={22} color={colors.textSecondary} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             <View style={styles.content}>{children}</View>
@@ -84,7 +84,7 @@ export default function BottomSheet({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(16, 24, 40, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
@@ -95,50 +95,54 @@ const styles = StyleSheet.create({
   },
   sheet: {
     backgroundColor: colors.surface,
-    borderTopLeftRadius: radii.sheet,
-    borderTopRightRadius: radii.sheet,
+    borderTopLeftRadius: radii.xxl,
+    borderTopRightRadius: radii.xxl,
     maxHeight: '92%',
-    paddingHorizontal: spacing.lg,
-    ...shadow,
-    elevation: 24,
+    paddingHorizontal: spacing.xl,
+    elevation: 16,
   },
   handle: {
     alignSelf: 'center',
-    width: 36,
+    width: 32,
     height: 4,
-    borderRadius: 2,
+    borderRadius: radii.full,
     backgroundColor: colors.borderStrong,
     marginTop: spacing.md,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing.md,
     paddingBottom: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: 'rgba(195, 199, 208, 0.3)',
   },
   headerText: {
     flex: 1,
   },
   title: {
-    ...typography.title,
+    ...typography.titleLarge,
+    color: colors.textPrimary,
   },
   subtitle: {
-    ...typography.caption,
+    ...typography.bodyMedium,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   closeButton: {
-    padding: 2,
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: radii.full,
   },
   content: {
-    paddingVertical: spacing.lg,
+    paddingVertical: spacing.md,
   },
   footer: {
     paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: 'rgba(195, 199, 208, 0.3)',
   },
 });

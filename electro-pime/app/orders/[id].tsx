@@ -1,14 +1,12 @@
+// ponytail: M3 Order Detail Screen with Hero Header, Progress Timeline and Collapsible Sections
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   ActivityIndicator,
-  Modal,
-  TextInput,
-  Alert,
   Linking,
   Share,
   Platform,
@@ -16,123 +14,39 @@ import {
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../services/api';
 import { RepairOrder, RepairOrderStatus, Quote, QuoteStatus, PaymentMethod } from '../types/api';
-import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { colors, radii, shadow, spacing, typography, ORDER_STATUS, quoteStatusStyle, PAYMENT_METHOD } from '../theme';
+import {
+  colors,
+  radii,
+  spacing,
+  typography,
+  tonalElevation,
+  ORDER_STATUS,
+  quoteStatusStyle,
+  PAYMENT_METHOD,
+  getDeviceIcon,
+} from '../theme';
 import StatusBadge from '../components/ui/StatusBadge';
+import Card from '../components/ui/Card';
+import BottomSheet from '../components/ui/BottomSheet';
 import Toast from '../components/ui/Toast';
+import M3TextField from '../components/ui/M3TextField';
 import ReceiptPreview from '../components/ReceiptPreview';
 import { NO_PHONE_MESSAGE, buildTelUrl, buildWhatsAppUrl } from '../utils/phone';
 import { buildQrPayload, printQrLabel } from '../utils/qr';
 import QRCode from 'react-native-qrcode-svg';
 
-/** Estados que suman al total de la orden (Σ APPROVED + PAID + INVOICED). */
 const BILLABLE_QUOTE_STATUSES: QuoteStatus[] = ['APPROVED', 'PAID', 'INVOICED'];
 
-const statusIcons: Record<RepairOrderStatus, keyof typeof MaterialCommunityIcons.glyphMap> = {
-  RECEIVED: 'clock-outline',
-  DIAGNOSED: 'clipboard-text-search-outline',
-  IN_PROGRESS: 'wrench-outline',
-  WAITING_FOR_PARTS: 'package-variant-closed',
-  COMPLETED: 'check-circle-outline',
-  DELIVERED: 'package-variant',
-  CANCELLED: 'close-circle-outline',
-};
-
-const deviceIcon = (deviceType: string): keyof typeof MaterialCommunityIcons.glyphMap => {
-  const t = (deviceType || '').toLowerCase();
-  if (t.includes('tv') || t.includes('televisor') || t.includes('television')) return 'television';
-  if (t.includes('lavadora')) return 'washing-machine';
-  if (t.includes('refri') || t.includes('nevera')) return 'fridge';
-  if (t.includes('micro')) return 'microwave';
-  if (t.includes('laptop') || t.includes('comput')) return 'laptop';
-  if (t.includes('celular') || t.includes('fono') || t.includes('movil')) return 'cellphone';
-  if (t.includes('audio') || t.includes('bocina')) return 'speaker';
-  return 'devices';
-};
-
-const getInitials = (name: string) =>
-  name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((word) => word.charAt(0).toUpperCase())
-    .join('');
-
-type PillTone = { label: string; color: string; soft: string };
-
-function Pill({ label, color, soft }: PillTone) {
-  return (
-    <View style={[styles.pill, { backgroundColor: soft }]}>
-      <Text style={[styles.pillText, { color }]}>{label}</Text>
-    </View>
-  );
-}
-
-function SectionCard({
-  icon,
-  title,
-  pill,
-  headerRight,
-  onHeaderPress,
-  children,
-}: {
-  icon: keyof typeof MaterialCommunityIcons.glyphMap;
-  title: string;
-  pill?: PillTone;
-  headerRight?: React.ReactNode;
-  onHeaderPress?: () => void;
-  children: React.ReactNode;
-}) {
-  const header = (
-    <View style={styles.sectionHeader}>
-      <View style={styles.sectionTitleRow}>
-        <MaterialCommunityIcons name={icon} size={16} color={colors.primary} />
-        <Text style={styles.sectionLabel}>{title}</Text>
-      </View>
-      {headerRight ?? (pill ? <Pill {...pill} /> : null)}
-    </View>
-  );
-  return (
-    <View style={styles.sectionCard}>
-      {onHeaderPress ? (
-        <TouchableOpacity activeOpacity={0.7} onPress={onHeaderPress}>
-          {header}
-        </TouchableOpacity>
-      ) : (
-        header
-      )}
-      <View style={styles.sectionBody}>{children}</View>
-    </View>
-  );
-}
-
-function Callout({
-  tone,
-  icon,
-  title,
-  children,
-}: {
-  tone: 'danger' | 'success';
-  icon: keyof typeof MaterialCommunityIcons.glyphMap;
-  title: string;
-  children: React.ReactNode;
-}) {
-  const palette =
-    tone === 'danger'
-      ? { color: colors.danger, soft: colors.dangerSoft }
-      : { color: colors.success, soft: colors.successSoft };
-  return (
-    <View style={[styles.callout, { backgroundColor: palette.soft }]}>
-      <View style={styles.calloutHeader}>
-        <MaterialCommunityIcons name={icon} size={18} color={palette.color} />
-        <Text style={[styles.calloutTitle, { color: palette.color }]}>{title}</Text>
-      </View>
-      <Text style={styles.calloutText}>{children}</Text>
-    </View>
-  );
-}
+const TIMELINE_STEPS: RepairOrderStatus[] = [
+  'RECEIVED',
+  'DIAGNOSED',
+  'IN_PROGRESS',
+  'WAITING_FOR_PARTS',
+  'COMPLETED',
+  'DELIVERED',
+];
 
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -141,7 +55,7 @@ export default function OrderDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
-  const [showStatusActions, setShowStatusActions] = useState(false);
+  const [showStatusSheet, setShowStatusSheet] = useState(false);
   const [reviewPayVisible, setReviewPayVisible] = useState(false);
   const [reviewPayMethod, setReviewPayMethod] = useState<PaymentMethod>('YAPE');
   const [reviewPayCode, setReviewPayCode] = useState('');
@@ -165,6 +79,7 @@ export default function OrderDetailScreen() {
     try {
       const orderData = await api.getRepairOrderById(id);
       setOrder(orderData);
+
       if (orderData.billing && orderData.billing.salesCount > 0) {
         try {
           const sales = await api.getSalesByRepairOrder(id);
@@ -173,17 +88,12 @@ export default function OrderDetailScreen() {
               new Date(a.createdAt) > new Date(b.createdAt) ? a : b
             );
             setLastPaymentAt(latest.createdAt);
-          } else {
-            setLastPaymentAt(null);
           }
         } catch {
           setLastPaymentAt(null);
         }
-      } else {
-        setLastPaymentAt(null);
       }
 
-      // Presupuestos de la orden (badge de bloqueo por presupuesto pagado)
       try {
         const quotes = await api.getQuotesByRepairOrder(id);
         setOrderQuotes(quotes);
@@ -191,9 +101,9 @@ export default function OrderDetailScreen() {
         console.error('Error loading order quotes:', quoteErr);
         setOrderQuotes([]);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error loading order:', err);
-      setLoadError(err instanceof Error ? err.message : 'No se pudo cargar la orden');
+      setLoadError(err.message || 'No se pudo cargar la orden');
     } finally {
       setLoading(false);
     }
@@ -203,83 +113,61 @@ export default function OrderDetailScreen() {
     loadOrder();
   }, [loadOrder]);
 
-  useEffect(() => {
-    return () => {
-      if (toastTimer.current) clearTimeout(toastTimer.current);
-    };
-  }, []);
-
   const handleStatusUpdate = async (newStatus: RepairOrderStatus) => {
     if (!order) return;
-
     try {
       setUpdating(true);
       const updatedOrder = await api.updateRepairOrderStatus(order.id, newStatus);
       setOrder(updatedOrder);
-      setShowStatusActions(false);
+      setShowStatusSheet(false);
       showToast(`Estado actualizado a: ${ORDER_STATUS[newStatus].label}`);
     } catch (err) {
       console.error('Error updating status:', err);
-      showToast('No se pudo actualizar el estado de la orden', 'error');
+      showToast('No se pudo actualizar el estado', 'error');
     } finally {
       setUpdating(false);
     }
   };
 
-  /** Abre la vista previa del ticket (mismo HTML que se imprime). */
-  const handlePrint = () => {
+  const handlePayReview = async () => {
     if (!order) return;
-    setReceiptOrder(order);
+    try {
+      setReviewPaySaving(true);
+      const updated = await api.updateRepairOrder(order.id, {
+        reviewPaid: true,
+        reviewPaymentMethod: reviewPayMethod,
+        reviewPaymentCode: reviewPayCode.trim() || undefined,
+        reviewPaidAt: new Date().toISOString(),
+      });
+      setOrder(updated);
+      setReviewPayVisible(false);
+      showToast('Revisión inicial marcada como pagada');
+    } catch (err: any) {
+      console.error('Error paying review:', err);
+      showToast(err.message || 'No se pudo registrar el pago', 'error');
+    } finally {
+      setReviewPaySaving(false);
+    }
   };
 
   const handleShare = async () => {
     if (!order) return;
     const first = order.items?.[0];
-    const lines = [
-      `Orden #${order.id.slice(0, 8)} · ${ORDER_STATUS[order.status].label}`,
+    const text = [
+      `Orden #${order.id.slice(0, 8).toUpperCase()} · ${ORDER_STATUS[order.status].label}`,
       `Cliente: ${order.customer?.name || order.customerName || 'Cliente General'}`,
       first ? `Equipo: ${first.brand} ${first.model} (${first.deviceType})` : '',
       `Total: ${order.totalCost != null ? `S/ ${order.totalCost.toFixed(2)}` : 'Por definir'}`,
-      `Creada: ${format(new Date(order.createdAt), "d 'de' MMMM, yyyy HH:mm", { locale: es })}`,
-    ].filter(Boolean);
-    const text = lines.join('\n');
+      `Fecha: ${format(new Date(order.createdAt), 'dd/MM/yyyy HH:mm')}`,
+    ]
+      .filter(Boolean)
+      .join('\n');
 
     try {
-      if (Platform.OS === 'web') {
-        const nav = navigator as Navigator & { share?: (data: ShareData) => Promise<void> };
-        if (typeof nav.share === 'function') {
-          await nav.share({ title: `Orden #${order.id.slice(0, 8)}`, text });
-          return;
-        }
-        if (nav.clipboard) {
-          await nav.clipboard.writeText(text);
-          showToast('Resumen copiado al portapapeles');
-          return;
-        }
-        showToast('No se pudo compartir en este navegador', 'error');
-        return;
-      }
       await Share.share({ message: text });
-    } catch (err) {
-      console.error('Error sharing order:', err);
+    } catch {
       showToast('No se pudo compartir la orden', 'error');
     }
-  };
-
-  const renderStatusAction = (status: RepairOrderStatus, label: string) => {
-    if (order?.status === status) return null;
-    const info = ORDER_STATUS[status];
-    return (
-      <TouchableOpacity
-        key={status}
-        style={[styles.statusAction, { borderColor: info.color }]}
-        onPress={() => handleStatusUpdate(status)}
-        disabled={updating}
-        activeOpacity={0.7}
-      >
-        <Text style={[styles.statusActionText, { color: info.color }]}>{label}</Text>
-      </TouchableOpacity>
-    );
   };
 
   if (loading && !order) {
@@ -290,1130 +178,939 @@ export default function OrderDetailScreen() {
     );
   }
 
-  if (loadError) {
+  if (loadError || !order) {
     return (
       <View style={styles.centered}>
-        <MaterialIcons name="error-outline" size={48} color={colors.danger} />
-        <Text style={styles.errorText}>{loadError}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={loadOrder}>
-          <Text style={styles.retryButtonText}>Reintentar</Text>
-        </TouchableOpacity>
+        <MaterialCommunityIcons name="alert-circle-outline" size={48} color={colors.danger} />
+        <Text style={styles.errorText}>{loadError || 'Orden no encontrada'}</Text>
+        <Pressable style={styles.retryBtn} onPress={loadOrder}>
+          <Text style={styles.retryBtnText}>Reintentar</Text>
+        </Pressable>
       </View>
     );
   }
 
-  if (!order) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
-
-  const status = ORDER_STATUS[order.status];
+  const status = ORDER_STATUS[order.status] ?? ORDER_STATUS.RECEIVED;
   const paidQuote = orderQuotes.find((q) => q.status === 'PAID');
-  const invoicedQuote = orderQuotes.find((q) => q.status === 'INVOICED');
   const items = order.items || [];
-  const totalUnits = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
   const firstItem = items[0];
-  const fallaText = firstItem?.problemDescription || order.description || 'Sin falla registrada.';
   const customerName = order.customer?.name || order.customerName || 'Cliente General';
   const customerPhone = order.customer?.phone;
-  const technicianName = order.technician
-    ? `${order.technician.firstName} ${order.technician.lastName}`.trim()
-    : order.technicianName;
-  const customerCode = `CL-${(order.customer?.id || order.customerId || '------').slice(0, 4).toUpperCase()}`;
-
-  /** Abre el marcador con prefijo internacional: tel:+51<numero> */
-  const openPhone = (phone: string) => {
-    const url = buildTelUrl(phone);
-    if (!url) {
-      showToast(NO_PHONE_MESSAGE, 'error');
-      return;
-    }
-    Linking.openURL(url).catch(() => showToast('No se pudo abrir el teléfono', 'error'));
-  };
-
-  /** Abre WhatsApp en wa.me/51<numero> */
-  const openWhatsApp = (phone: string, name?: string) => {
-    const message = name ? `Hola, ${name}, te escribe Electrónica Pimentel por tu equipo en reparación.` : null;
-    const url = buildWhatsAppUrl(phone, message);
-    if (!url) {
-      showToast(NO_PHONE_MESSAGE, 'error');
-      return;
-    }
-    Linking.openURL(url).catch(() => showToast('No se pudo abrir WhatsApp', 'error'));
-  };
+  const cost = order.totalCost ?? order.initialReviewCost;
+  const currentIndex = TIMELINE_STEPS.indexOf(order.status);
 
   return (
-    <View style={styles.root}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <Stack.Screen
+    <View style={styles.container}>
+      <Stack.Screen
         options={{
-          title: `Orden #${order.id.slice(0, 8)}`,
+          title: `ORD-${order.id.slice(0, 8).toUpperCase()}`,
           headerShown: true,
+          headerRight: () => (
+            <View style={styles.headerRightActions}>
+              <Pressable
+                onPress={() => setReceiptOrder(order)}
+                style={styles.headerActionBtn}
+                hitSlop={8}
+                android_ripple={{ color: 'rgba(0, 82, 255, 0.15)', borderless: true, radius: 20 }}
+              >
+                <MaterialCommunityIcons name="printer" size={22} color={colors.primary} />
+              </Pressable>
+              <Pressable
+                onPress={handleShare}
+                style={styles.headerActionBtn}
+                hitSlop={8}
+                android_ripple={{ color: 'rgba(0, 82, 255, 0.15)', borderless: true, radius: 20 }}
+              >
+                <MaterialCommunityIcons name="share-variant" size={22} color={colors.primary} />
+              </Pressable>
+            </View>
+          ),
         }}
       />
 
-      {/* Hero: orden + estado */}
-      <View style={styles.hero}>
-        <View style={styles.heroInfo}>
-          <Text style={styles.heroLabel}>ORDEN DE SERVICIO</Text>
-          <Text style={styles.heroId}>#{order.id.slice(0, 8)}</Text>
-        </View>
-        <StatusBadge label={status.label} color={status.color} soft={status.soft} />
-      </View>
-
-      {/* Reflejo del ciclo quote-to-cash sobre la orden */}
-      {paidQuote && (
-        <Callout tone="success" icon="cash-multiple" title="Presupuesto pagado">
-          {`Total fijado en S/ ${paidQuote.totalAmount.toFixed(2)}. Los equipos y el costo de revisión quedan bloqueados.`}
-        </Callout>
-      )}
-      {!paidQuote && invoicedQuote && (
-        <Callout tone="success" icon="receipt" title="Presupuesto facturado">
-          {`Venta ya generada por S/ ${invoicedQuote.totalAmount.toFixed(2)}.`}
-        </Callout>
-      )}
-
-      {/* Dispositivo en servicio */}
-      <SectionCard
-        icon="clipboard-text"
-        title="DISPOSITIVO EN SERVICIO"
-        pill={{
-          label: `${totalUnits} ${totalUnits === 1 ? 'Unidad' : 'Unidades'}`,
-          color: colors.primary,
-          soft: colors.primarySoft,
-        }}
-      >
-        {items.length === 0 ? (
-          <Text style={styles.emptyText}>Sin equipos registrados</Text>
-        ) : (
-          items.map((item, index) => (
-            <View
-              key={item.id || index}
-              style={[styles.deviceRow, index > 0 && styles.deviceRowBorder]}
-            >
-              <View style={styles.deviceIcon}>
-                <MaterialCommunityIcons
-                  name={deviceIcon(item.deviceType)}
-                  size={24}
-                  color={colors.white}
-                />
-              </View>
-              <View style={styles.deviceInfo}>
-                <Text style={styles.deviceName} numberOfLines={1}>
-                  {item.brand} {item.model}
-                </Text>
-                {item.serialNumber ? (
-                  <Text style={styles.deviceMeta}>
-                    S/N: <Text style={styles.deviceMetaUpper}>{item.serialNumber}</Text>
-                  </Text>
-                ) : (
-                  <Text style={styles.deviceMeta}>Sin número de serie</Text>
-                )}
-                {item.accessories && item.accessories.length > 0 && (
-                  <View style={styles.accessoryRow}>
-                    {item.accessories.map((acc, accIndex) => (
-                      <View key={accIndex} style={styles.accessoryChip}>
-                        <Text style={styles.accessoryText}>{acc}</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </View>
-              <Pill
-                label={item.deviceType || 'Equipo'}
-                color={colors.primary}
-                soft={colors.primarySoft}
-              />
-            </View>
-          ))
-        )}
-      </SectionCard>
-
-      {/* Falla inicial */}
-      <Callout tone="danger" icon="alert-circle" title="Falla inicial reportada">
-        {fallaText}
-      </Callout>
-
-      {/* Diagnóstico & solución */}
-      <Callout tone="success" icon="stethoscope" title="Diagnóstico & Solución técnica">
-        {order.notes || 'Pendiente de diagnóstico y solución técnica.'}
-      </Callout>
-
-      {/* Propietario / Cliente */}
-      <SectionCard
-        icon="account-outline"
-        title="PROPIETARIO / CLIENTE"
-        pill={{
-          label: customerCode,
-          color: colors.violet,
-          soft: colors.violetSoft,
-        }}
-      >
-        <View style={styles.personRow}>
-          <View style={[styles.avatar, styles.avatarDark]}>
-            <Text style={styles.avatarTextLight}>{getInitials(customerName)}</Text>
-          </View>
-          <View style={styles.personInfo}>
-            <Text style={styles.personName} numberOfLines={1}>
-              {customerName}
-            </Text>
-            <View style={styles.personMetaRow}>
-              <Text style={styles.personMeta} numberOfLines={1}>
-                {order.customer ? 'Cliente registrado' : 'Cliente particular'}
-                {customerPhone ? ` · ${customerPhone}` : ''}
-              </Text>
-              {order.customer && (
-                <MaterialCommunityIcons
-                  name="check-decagram"
-                  size={14}
-                  color={colors.success}
-                  style={styles.verifiedIcon}
-                />
-              )}
-            </View>
-          </View>
-          {customerPhone && (
-            <View style={styles.contactActions}>
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={() => openPhone(customerPhone)}
-                activeOpacity={0.7}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              >
-                <MaterialCommunityIcons name="phone" size={18} color={colors.primary} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.iconButton, styles.whatsappButton]}
-                onPress={() => openWhatsApp(customerPhone, customerName)}
-                activeOpacity={0.7}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              >
-                <MaterialCommunityIcons name="whatsapp" size={18} color={colors.success} />
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      </SectionCard>
-
-      {/* Etiqueta QR del artefacto: escanear para ver la orden asociada */}
-      <SectionCard icon="qrcode" title="ETIQUETA QR DEL ARTEFACTO">
-        {(() => {
-          const first = order.items?.[0];
-          const serial = first?.serialNumber || null;
-          const device = first ? `${first.brand} ${first.model}`.trim() : null;
-          const payload = buildQrPayload(serial, order.id);
-          return (
-            <View style={styles.qrBlock}>
-              <QRCode value={payload} size={150} backgroundColor={colors.surface} color={colors.textPrimary} />
-              <Text style={styles.qrHint}>
-                {serial
-                  ? `Serial: ${serial}`
-                  : 'Sin serial detectado: el QR apunta a esta orden.'}
-              </Text>
-              {device ? <Text style={styles.qrHint}>{device}</Text> : null}
-              <TouchableOpacity
-                style={styles.qrPrintButton}
-                onPress={async () => {
-                  try {
-                    await printQrLabel({
-                      payload,
-                      title: 'Electrónica Pimentel',
-                      subtitle: `Orden #${order.id.slice(0, 8)}`,
-                      serial,
-                      customer: customerName,
-                      device,
-                    });
-                  } catch {
-                    showToast('No se pudo imprimir la etiqueta', 'error');
-                  }
-                }}
-                activeOpacity={0.7}
-              >
-                <MaterialCommunityIcons name="printer" size={18} color={colors.white} />
-                <Text style={styles.qrPrintButtonText}>Imprimir etiqueta</Text>
-              </TouchableOpacity>
-            </View>
-          );
-        })()}
-      </SectionCard>
-
-      {/* Técnico certificado */}
-      <SectionCard
-        icon="certificate-outline"
-        title="TÉCNICO CERTIFICADO"
-        pill={
-          technicianName
-            ? {
-                label: order.technician?.role === 'ADMIN' ? 'Administrador' : 'Técnico Certificado',
-                color: colors.success,
-                soft: colors.successSoft,
-              }
-            : { label: 'Sin asignar', color: colors.danger, soft: colors.dangerSoft }
-        }
-      >
-        {technicianName ? (
-          <View style={styles.personRow}>
-            <View style={[styles.avatar, styles.avatarSoft]}>
-              <Text style={styles.avatarTextPrimary}>{getInitials(technicianName)}</Text>
-            </View>
-            <View style={styles.personInfo}>
-              <Text style={styles.personName} numberOfLines={1}>
-                {technicianName}
-              </Text>
-              <Text style={styles.personMeta} numberOfLines={1}>
-                {order.technician?.email || 'Especialista en reparación'}
-              </Text>
-            </View>
-          </View>
-        ) : (
-          <Text style={styles.emptyText}>Sin técnico asignado a esta orden</Text>
-        )}
-      </SectionCard>
-
-      {/* Descripción */}
-      <SectionCard icon="format-text" title="DESCRIPCIÓN">
-        <Text style={styles.bodyText}>{order.description || 'No especificado'}</Text>
-      </SectionCard>
-
-      {/* Costos */}
-      <SectionCard icon="cash-multiple" title="COSTOS">
-        <View style={styles.costRow}>
-          <Text style={styles.costLabel}>Revisión inicial</Text>
-          <Text style={styles.costValue}>
-            {order.initialReviewCost != null ? `S/ ${order.initialReviewCost.toFixed(2)}` : '—'}
-          </Text>
-        </View>
-
-        <View style={styles.costRow}>
-          <Text style={styles.costLabel}>Pago de revisión</Text>
-          {order.reviewPaid ? (
-            <View style={styles.reviewPaidRow}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Hero Header Card */}
+        <Card style={styles.heroCard}>
+          <View style={styles.heroTop}>
+            <View style={[styles.heroIconCircle, { backgroundColor: status.soft }]}>
               <MaterialCommunityIcons
-                name={
-                  order.reviewPaymentMethod === 'YAPE'
-                    ? 'qrcode'
-                    : order.reviewPaymentMethod === 'PLIN'
-                      ? 'cellphone'
-                      : 'cash'
-                }
-                size={16}
-                color={order.reviewPaymentMethod ? PAYMENT_METHOD[order.reviewPaymentMethod].color : colors.success}
+                name={getDeviceIcon(firstItem?.deviceType) as any}
+                size={28}
+                color={status.color}
               />
-              <Text style={[styles.reviewPaidText, { color: order.reviewPaymentMethod ? PAYMENT_METHOD[order.reviewPaymentMethod].color : colors.success }]}>
-                {order.reviewPaymentMethod === 'YAPE'
-                  ? 'Yape'
-                  : order.reviewPaymentMethod === 'PLIN'
-                    ? 'Plin'
-                    : 'Efectivo'}
-                {order.reviewPaymentCode ? ` · ${order.reviewPaymentCode}` : ''}
+            </View>
+            <View style={styles.heroTitles}>
+              <Text style={styles.heroCode}>ORD-{order.id.slice(0, 8).toUpperCase()}</Text>
+              <Text style={styles.heroCustomer} numberOfLines={1}>
+                {customerName}
               </Text>
-              {order.reviewPaidAt && (
-                <Text style={styles.reviewPaidDate}>
-                  {new Date(order.reviewPaidAt).toLocaleDateString('es-ES')}
-                </Text>
-              )}
             </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.markPaidButton}
-              onPress={() => {
-                setReviewPayMethod('YAPE');
-                setReviewPayCode('');
-                setReviewPayVisible(true);
-              }}
-              activeOpacity={0.7}
-            >
-              <MaterialCommunityIcons name="cash-check" size={16} color={colors.primary} />
-              <Text style={styles.markPaidButtonText}>Marcar como pagada</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        <View style={styles.costDivider} />
-        <View style={styles.costRow}>
-          <View>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalCaption}>Incluye IGV</Text>
+            <StatusBadge
+              label={status.label}
+              color={status.color}
+              soft={status.soft}
+              icon={status.icon}
+            />
           </View>
-          <Text style={styles.totalValue}>
-            {order.totalCost != null ? `S/ ${order.totalCost.toFixed(2)}` : '—'}
-          </Text>
-        </View>
-        {order.billing && (
-          <>
-            <View style={styles.costDivider} />
-            <View style={styles.costRow}>
-              <Text style={styles.costLabel}>Cobrado</Text>
-              <Text style={styles.costValue}>S/ {order.billing.billedTotal.toFixed(2)}</Text>
-            </View>
-            <View style={styles.costRow}>
-              <Text style={styles.costLabel}>Ventas vinculadas</Text>
-              <Text style={styles.costValue}>{order.billing.salesCount}</Text>
-            </View>
-            {lastPaymentAt && (
-              <View style={styles.costRow}>
-                <Text style={styles.costLabel}>Último cobro</Text>
-                <Text style={styles.costValue}>{format(new Date(lastPaymentAt), 'd/M/yyyy')}</Text>
-              </View>
-            )}
-            <View style={styles.costRow}>
-              <Text style={styles.costLabel}>Presupuestos vigentes</Text>
-              <Text style={styles.costValue}>{order.billing.billableQuotes}</Text>
-            </View>
-            <View style={styles.costRow}>
-              <Text style={styles.costLabel}>Presupuestos pendientes</Text>
-              <Text style={styles.costValue}>{order.billing.pendingQuotes}</Text>
-            </View>
-          </>
-        )}
-      </SectionCard>
 
-      {/* Presupuestos de la orden (ciclo quote-to-cash) */}
-      <SectionCard
-        icon="file-document-outline"
-        title="PRESUPUESTOS"
-        pill={
-          orderQuotes.length > 0
-            ? {
-                label: `${orderQuotes.length} ${orderQuotes.length === 1 ? 'emitido' : 'emitidos'}`,
-                color: colors.primary,
-                soft: colors.primarySoft,
-              }
-            : undefined
-        }
-      >
-        {orderQuotes.length === 0 ? (
-          <Text style={styles.emptyText}>Sin presupuestos para esta orden</Text>
-        ) : (
-          orderQuotes.map((quote, index) => {
-            const quoteStyle = quoteStatusStyle(quote.status);
-            const billable = BILLABLE_QUOTE_STATUSES.includes(quote.status);
-            return (
-              <React.Fragment key={quote.id}>
-                {index > 0 && <View style={styles.costDivider} />}
-                <View style={styles.quoteRow}>
-                  <StatusBadge
-                    label={quoteStyle.label}
-                    color={quoteStyle.color}
-                    soft={quoteStyle.soft}
-                  />
-                  <View style={styles.quoteMeta}>
-                    <Text style={styles.quoteRef}>#{quote.id.slice(0, 8).toUpperCase()}</Text>
-                    <Text style={styles.quoteDate}>
-                      {format(new Date(quote.createdAt), 'd/M/yyyy')}
-                    </Text>
+          {/* Interactive Progress Timeline */}
+          <Text style={styles.timelineLabel}>Flujo de Reparación:</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.timelineScroll}>
+            {TIMELINE_STEPS.map((st, idx) => {
+              const stepInfo = ORDER_STATUS[st];
+              const isPast = currentIndex > idx;
+              const isCurrent = currentIndex === idx;
+
+              return (
+                <Pressable
+                  key={st}
+                  style={styles.timelineItem}
+                  onPress={() => handleStatusUpdate(st)}
+                  disabled={updating}
+                >
+                  <View
+                    style={[
+                      styles.timelineCircle,
+                      isPast && styles.timelineCirclePast,
+                      isCurrent && [styles.timelineCircleCurrent, { backgroundColor: stepInfo.color }],
+                    ]}
+                  >
+                    {isPast ? (
+                      <MaterialCommunityIcons name="check" size={14} color={colors.white} />
+                    ) : (
+                      <MaterialCommunityIcons
+                        name={(stepInfo.icon || 'circle') as any}
+                        size={14}
+                        color={isCurrent ? colors.white : colors.textMuted}
+                      />
+                    )}
                   </View>
                   <Text
                     style={[
-                      styles.quoteTotal,
-                      quote.status === 'PAID' && styles.quoteTotalPaid,
+                      styles.timelineItemText,
+                      isCurrent && [styles.timelineItemTextCurrent, { color: stepInfo.color }],
                     ]}
                   >
-                    {billable ? '' : '≈ '}
-                    S/ {quote.totalAmount?.toFixed(2) || '0.00'}
+                    {stepInfo.label}
                   </Text>
-                </View>
-              </React.Fragment>
-            );
-          })
-        )}
-      </SectionCard>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </Card>
 
-      {/* Fechas */}
-      <SectionCard icon="calendar-clock" title="FECHAS">
-        <View style={styles.dateRow}>
-          <MaterialCommunityIcons name="calendar-outline" size={16} color={colors.textMuted} />
-          <Text style={styles.dateLabel}>Creada</Text>
-          <Text style={styles.dateValue}>
-            {format(new Date(order.createdAt), 'd/M/yyyy')}
-          </Text>
-        </View>
-        <View style={styles.dateRow}>
-          <MaterialCommunityIcons name="clock-outline" size={16} color={colors.textMuted} />
-          <Text style={styles.dateLabel}>Actualizada</Text>
-          <Text style={styles.dateValue}>
-            {format(new Date(order.updatedAt), 'd/M/yyyy')}
-          </Text>
-        </View>
-      </SectionCard>
-
-      {/* Acciones de estado */}
-      <SectionCard
-        icon="swap-horizontal"
-        title="ACTUALIZAR ESTADO"
-        headerRight={
-          <MaterialCommunityIcons
-            name={showStatusActions ? 'chevron-up' : 'chevron-down'}
-            size={22}
-            color={colors.textSecondary}
-          />
-        }
-        onHeaderPress={() => setShowStatusActions(!showStatusActions)}
-      >
-        {showStatusActions ? (
-          <View style={styles.statusActions}>
-            {renderStatusAction('RECEIVED', 'Marcar como Recibido')}
-            {renderStatusAction('DIAGNOSED', 'Marcar como Diagnosticado')}
-            {renderStatusAction('IN_PROGRESS', 'Comenzar Reparación')}
-            {renderStatusAction('WAITING_FOR_PARTS', 'Esperando Repuestos')}
-            {renderStatusAction('COMPLETED', 'Marcar como Completado')}
-            {renderStatusAction('DELIVERED', 'Marcar como Entregado')}
-            {renderStatusAction('CANCELLED', 'Cancelar Orden')}
+        {/* Lock notice if paid */}
+        {paidQuote && (
+          <View style={styles.noticeBanner}>
+            <MaterialCommunityIcons name="shield-check" size={20} color={colors.success} />
+            <Text style={styles.noticeText}>
+              Presupuesto Pagado (S/ {paidQuote.totalAmount.toFixed(2)}): Equipos y costo congelados.
+            </Text>
           </View>
-        ) : (
-          <Text style={styles.emptyText}>Estado actual: {status.label}</Text>
         )}
-      </SectionCard>
 
-      {/* Acciones principales */}
-      <TouchableOpacity
-        style={styles.primaryButton}
-        onPress={() => router.push(`/orders/${order.id}/edit` as never)}
-        activeOpacity={0.85}
-      >
-        <MaterialIcons name="edit" size={18} color={colors.white} />
-        <Text style={styles.primaryButtonText}>Editar</Text>
-      </TouchableOpacity>
+        {/* Cliente */}
+        <Card style={styles.sectionCard}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={styles.sectionTitleRow}>
+              <MaterialCommunityIcons name="account-outline" size={20} color={colors.primary} />
+              <Text style={styles.sectionTitle}>Cliente Titular</Text>
+            </View>
+          </View>
 
-      <View style={styles.secondaryRow}>
-        <TouchableOpacity style={styles.secondaryButton} onPress={handlePrint} activeOpacity={0.85}>
-          <MaterialCommunityIcons name="printer" size={18} color={colors.textSecondary} />
-          <Text style={styles.secondaryButtonText}>Imprimir Ticket</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.secondaryButton} onPress={handleShare} activeOpacity={0.85}>
-          <MaterialCommunityIcons name="share-variant" size={18} color={colors.textSecondary} />
-          <Text style={styles.secondaryButtonText}>Compartir</Text>
-        </TouchableOpacity>
+          <View style={styles.customerRow}>
+            <View style={styles.customerAvatar}>
+              <Text style={styles.customerAvatarText}>
+                {customerName.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+            <View style={styles.customerInfo}>
+              <Text style={styles.customerNameTitle}>{customerName}</Text>
+              <Text style={styles.customerPhoneText}>
+                {customerPhone || 'Sin teléfono registrado'}
+              </Text>
+            </View>
+
+            {customerPhone && (
+              <View style={styles.customerActions}>
+                <Pressable
+                  style={styles.contactBtn}
+                  onPress={() => {
+                    const u = buildTelUrl(customerPhone);
+                    if (u) Linking.openURL(u);
+                  }}
+                  android_ripple={{ color: 'rgba(0, 82, 255, 0.15)', borderless: true, radius: 20 }}
+                >
+                  <MaterialCommunityIcons name="phone" size={20} color={colors.primary} />
+                </Pressable>
+                <Pressable
+                  style={[styles.contactBtn, styles.whatsappBtn]}
+                  onPress={() => {
+                    const u = buildWhatsAppUrl(customerPhone, `Hola ${customerName}, te escribimos de Electro-Pime.`);
+                    if (u) Linking.openURL(u);
+                  }}
+                  android_ripple={{ color: 'rgba(0, 109, 68, 0.15)', borderless: true, radius: 20 }}
+                >
+                  <MaterialCommunityIcons name="whatsapp" size={20} color={colors.success} />
+                </Pressable>
+              </View>
+            )}
+          </View>
+        </Card>
+
+        {/* Equipos */}
+        <Card style={styles.sectionCard}>
+          <View style={styles.sectionTitleRow}>
+            <MaterialCommunityIcons name="tools" size={20} color={colors.primary} />
+            <Text style={styles.sectionTitle}>Equipos en Reparación ({items.length})</Text>
+          </View>
+
+          {items.map((it, idx) => (
+            <View key={idx} style={[styles.deviceItem, idx > 0 && styles.deviceDivider]}>
+              <View style={styles.deviceItemHeader}>
+                <MaterialCommunityIcons
+                  name={getDeviceIcon(it.deviceType) as any}
+                  size={24}
+                  color={colors.primary}
+                />
+                <View style={styles.deviceItemTextCol}>
+                  <Text style={styles.deviceBrandModel}>
+                    {it.brand} {it.model}
+                  </Text>
+                  <Text style={styles.deviceCategory}>{it.deviceType}</Text>
+                </View>
+              </View>
+
+              {it.serialNumber ? (
+                <Text style={styles.deviceSerial}>S/N: {it.serialNumber}</Text>
+              ) : null}
+
+              <Text style={styles.problemLabel}>Falla reportada:</Text>
+              <Text style={styles.problemDesc}>{it.problemDescription || 'Sin detalle de falla'}</Text>
+
+              {it.accessories && it.accessories.length > 0 && (
+                <View style={styles.accessoriesWrapper}>
+                  <Text style={styles.problemLabel}>Accesorios dejados:</Text>
+                  <View style={styles.accessoriesChipsRow}>
+                    {it.accessories.map((acc, aIdx) => (
+                      <View key={aIdx} style={styles.accChip}>
+                        <Text style={styles.accChipText}>{acc}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+            </View>
+          ))}
+        </Card>
+
+        {/* Costos y Revisión */}
+        <Card style={styles.sectionCard}>
+          <View style={styles.sectionTitleRow}>
+            <MaterialCommunityIcons name="cash-multiple" size={20} color={colors.primary} />
+            <Text style={styles.sectionTitle}>Costos y Facturación</Text>
+          </View>
+
+          <View style={styles.costRow}>
+            <Text style={styles.costLabel}>Revisión inicial:</Text>
+            <Text style={styles.costValue}>
+              {order.initialReviewCost != null ? `S/ ${order.initialReviewCost.toFixed(2)}` : 'S/ 0.00'}
+            </Text>
+          </View>
+
+          <View style={styles.costRow}>
+            <Text style={styles.costLabel}>Estado de revisión:</Text>
+            {order.reviewPaid ? (
+              <View style={styles.paidBadge}>
+                <MaterialCommunityIcons name="check-circle" size={16} color={colors.success} />
+                <Text style={styles.paidBadgeText}>
+                  Pagado ({order.reviewPaymentMethod || 'Efectivo'})
+                </Text>
+              </View>
+            ) : (
+              <Pressable
+                style={styles.payReviewBtn}
+                onPress={() => setReviewPayVisible(true)}
+              >
+                <Text style={styles.payReviewBtnText}>Marcar Pagado</Text>
+              </Pressable>
+            )}
+          </View>
+
+          <View style={styles.costDivider} />
+
+          <View style={styles.costRow}>
+            <Text style={styles.totalLabel}>Monto Total de Orden:</Text>
+            <Text style={styles.totalValue}>
+              {cost != null ? `S/ ${cost.toFixed(2)}` : 'Por determinar'}
+            </Text>
+          </View>
+        </Card>
+
+        {/* Presupuestos vinculados */}
+        {orderQuotes.length > 0 && (
+          <Card style={styles.sectionCard}>
+            <View style={styles.sectionTitleRow}>
+              <MaterialCommunityIcons name="file-document-outline" size={20} color={colors.primary} />
+              <Text style={styles.sectionTitle}>Presupuestos Emitidos ({orderQuotes.length})</Text>
+            </View>
+
+            {orderQuotes.map((q) => {
+              const qStyle = quoteStatusStyle(q.status);
+              return (
+                <View key={q.id} style={styles.quoteItemRow}>
+                  <View style={styles.quoteInfo}>
+                    <Text style={styles.quoteCode}>COT-{q.id.slice(0, 6).toUpperCase()}</Text>
+                    <StatusBadge
+                      label={qStyle.label}
+                      color={qStyle.color}
+                      soft={qStyle.soft}
+                      icon={qStyle.icon}
+                      compact
+                    />
+                  </View>
+                  <Text style={styles.quoteAmount}>S/ {q.totalAmount.toFixed(2)}</Text>
+                </View>
+              );
+            })}
+          </Card>
+        )}
+
+        {/* Etiqueta QR del taller */}
+        <Card style={styles.sectionCard}>
+          <View style={styles.sectionTitleRow}>
+            <MaterialCommunityIcons name="qrcode" size={20} color={colors.primary} />
+            <Text style={styles.sectionTitle}>Etiqueta de Trazabilidad QR</Text>
+          </View>
+
+          <View style={styles.qrContainer}>
+            <QRCode
+              value={buildQrPayload(firstItem?.serialNumber || null, order.id)}
+              size={130}
+              backgroundColor={colors.surface}
+              color={colors.textPrimary}
+            />
+            <Pressable
+              style={styles.printQrBtn}
+              onPress={async () => {
+                try {
+                  await printQrLabel({
+                    payload: buildQrPayload(firstItem?.serialNumber || null, order.id),
+                    title: 'Electro-Pime Taller',
+                    subtitle: `ORD-${order.id.slice(0, 8).toUpperCase()}`,
+                    serial: firstItem?.serialNumber || null,
+                    customer: customerName,
+                    device: firstItem ? `${firstItem.brand} ${firstItem.model}` : null,
+                  });
+                } catch {
+                  showToast('No se pudo imprimir la etiqueta QR', 'error');
+                }
+              }}
+              android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+            >
+              <MaterialCommunityIcons name="printer" size={18} color={colors.white} />
+              <Text style={styles.printQrBtnText}>Imprimir Etiqueta</Text>
+            </Pressable>
+          </View>
+        </Card>
+      </ScrollView>
+
+      {/* Floating Bottom Actions Bar */}
+      <View style={styles.bottomBar}>
+        <Pressable
+          style={styles.bottomActionSecondary}
+          onPress={() => router.push(`/orders/${order.id}/edit` as any)}
+          android_ripple={{ color: 'rgba(0, 82, 255, 0.12)' }}
+        >
+          <MaterialCommunityIcons name="pencil-outline" size={20} color={colors.primary} />
+          <Text style={styles.bottomSecondaryText}>Editar</Text>
+        </Pressable>
+
+        <Pressable
+          style={styles.bottomActionPrimary}
+          onPress={() => setShowStatusSheet(true)}
+          android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+        >
+          <MaterialCommunityIcons name="swap-horizontal" size={20} color={colors.white} />
+          <Text style={styles.bottomPrimaryText}>Cambiar Estado</Text>
+        </Pressable>
       </View>
 
-      </ScrollView>
-      {toast && <Toast message={toast.message} type={toast.type} />}
+      {/* Status Picker BottomSheet */}
+      {showStatusSheet && (
+        <BottomSheet
+          visible={showStatusSheet}
+          title="Actualizar Estado de la Orden"
+          onClose={() => setShowStatusSheet(false)}
+        >
+          <ScrollView style={styles.statusSheetScroll}>
+            {(Object.keys(ORDER_STATUS) as RepairOrderStatus[]).map((st) => {
+              const info = ORDER_STATUS[st];
+              const isSelected = order.status === st;
 
-      <Modal
-        visible={reviewPayVisible}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setReviewPayVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Marcar revisión como pagada</Text>
-            <TouchableOpacity activeOpacity={0.7} onPress={() => setReviewPayVisible(false)}>
-              <MaterialCommunityIcons name="close" size={24} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-          <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalContentInner}>
-            <Text style={styles.label}>Método de pago</Text>
-            <View style={styles.paymentMethods}>
-              {(['YAPE', 'PLIN', 'CASH'] as PaymentMethod[]).map((m) => {
-                const pm = PAYMENT_METHOD[m];
-                const active = reviewPayMethod === m;
-                const icon = m === 'YAPE' ? 'qrcode' : m === 'PLIN' ? 'cellphone' : 'cash';
+              return (
+                <Pressable
+                  key={st}
+                  style={[styles.statusSheetRow, isSelected && styles.statusSheetRowActive]}
+                  onPress={() => handleStatusUpdate(st)}
+                  android_ripple={{ color: 'rgba(0, 82, 255, 0.12)' }}
+                >
+                  <View style={[styles.statusSheetIcon, { backgroundColor: info.soft }]}>
+                    <MaterialCommunityIcons name={(info.icon || 'tag') as any} size={20} color={info.color} />
+                  </View>
+                  <Text style={[styles.statusSheetText, isSelected && styles.statusSheetTextActive]}>
+                    {info.label}
+                  </Text>
+                  {isSelected && <MaterialCommunityIcons name="check" size={20} color={colors.primary} />}
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </BottomSheet>
+      )}
+
+      {/* Pay Review BottomSheet */}
+      {reviewPayVisible && (
+        <BottomSheet
+          visible={reviewPayVisible}
+          title="Registrar Pago de Revisión"
+          onClose={() => setReviewPayVisible(false)}
+          footer={
+            <Pressable
+              style={styles.savePaymentBtn}
+              onPress={handlePayReview}
+              disabled={reviewPaySaving}
+              android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+            >
+              {reviewPaySaving ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <Text style={styles.savePaymentText}>Confirmar Pago</Text>
+              )}
+            </Pressable>
+          }
+        >
+          <View style={styles.paySheetBody}>
+            <Text style={styles.paySheetLabel}>Selecciona Medio de Pago:</Text>
+            <View style={styles.payMethodsRow}>
+              {(['YAPE', 'PLIN', 'CASH', 'CREDIT_CARD'] as PaymentMethod[]).map((pm) => {
+                const isSelected = reviewPayMethod === pm;
+                const info = PAYMENT_METHOD[pm];
                 return (
-                  <TouchableOpacity
-                    key={m}
-                    style={[styles.paymentChip, active && { backgroundColor: pm.color, borderColor: pm.color }]}
-                    onPress={() => setReviewPayMethod(m)}
-                    activeOpacity={0.7}
+                  <Pressable
+                    key={pm}
+                    style={[styles.payMethodChip, isSelected && styles.payMethodChipSelected]}
+                    onPress={() => setReviewPayMethod(pm)}
                   >
                     <MaterialCommunityIcons
-                      name={icon}
-                      size={16}
-                      color={active ? colors.white : colors.textSecondary}
+                      name={(info.icon || 'cash') as any}
+                      size={18}
+                      color={isSelected ? colors.white : colors.textPrimary}
                     />
-                    <Text style={[styles.paymentChipText, active && { color: colors.white }]}>
-                      {pm.label}
+                    <Text style={[styles.payMethodText, isSelected && styles.payMethodTextSelected]}>
+                      {info.label}
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 );
               })}
             </View>
 
             {reviewPayMethod === 'YAPE' && (
-              <>
-                <Text style={styles.label}>Código de operación (opcional)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={reviewPayCode}
-                  onChangeText={setReviewPayCode}
-                  placeholder="Ej. 123456"
-                  placeholderTextColor={colors.textMuted}
-                  autoCapitalize="none"
-                />
-              </>
+              <M3TextField
+                label="Código de Aprobación Yape (opcional)"
+                placeholder="Ej: 891230"
+                value={reviewPayCode}
+                onChangeText={setReviewPayCode}
+                leadingIcon="numeric"
+              />
             )}
+          </View>
+        </BottomSheet>
+      )}
 
-            <TouchableOpacity
-              style={[styles.saveBtn, reviewPaySaving && styles.saveBtnDisabled]}
-              onPress={async () => {
-                if (!order) return;
-                setReviewPaySaving(true);
-                try {
-                  const updated = await api.updateRepairOrder(order.id, {
-                    reviewPaid: true,
-                    reviewPaymentMethod: reviewPayMethod,
-                    reviewPaymentCode: reviewPayCode.trim() || undefined,
-                    reviewPaidAt: new Date().toISOString(),
-                  });
-                  setOrder(updated);
-                  setReviewPayVisible(false);
-                } catch (err: any) {
-                  Alert.alert('Error', err?.message || 'No se pudo registrar el pago');
-                } finally {
-                  setReviewPaySaving(false);
-                }
-              }}
-              disabled={reviewPaySaving}
-              activeOpacity={0.7}
-            >
-              {reviewPaySaving ? (
-                <ActivityIndicator color={colors.white} />
-              ) : (
-                <Text style={styles.saveBtnText}>Confirmar pago</Text>
-              )}
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-      </Modal>
+      {/* Ticket Preview Modal */}
+      {receiptOrder && (
+        <ReceiptPreview
+          order={receiptOrder}
+          visible={Boolean(receiptOrder)}
+          onClose={() => setReceiptOrder(null)}
+        />
+      )}
 
-      <ReceiptPreview
-        visible={receiptOrder !== null}
-        order={receiptOrder}
-        onClose={() => setReceiptOrder(null)}
-      />
+      {toast && <Toast message={toast.message} type={toast.type} />}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.canvas,
-  },
   container: {
     flex: 1,
     backgroundColor: colors.canvas,
-  },
-  content: {
-    padding: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: 120,
-    gap: spacing.md,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.xxl,
     backgroundColor: colors.canvas,
+    padding: spacing.xl,
   },
-  hero: {
+  headerRightActions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radii.card,
-    borderWidth: 1,
-    borderColor: colors.border,
+    gap: spacing.xs,
+  },
+  headerActionBtn: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: radii.full,
+  },
+  scrollContent: {
     padding: spacing.lg,
-    ...shadow,
+    paddingBottom: 110,
+    gap: spacing.md,
   },
-  heroInfo: {
+  heroCard: {
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
+  },
+  heroTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  heroIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: radii.full,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  heroTitles: {
     flex: 1,
-    marginRight: spacing.md,
   },
-  heroLabel: {
-    ...typography.micro,
-    color: colors.textMuted,
-  },
-  heroId: {
-    fontSize: 22,
+  heroCode: {
+    ...typography.labelSmall,
+    color: colors.primary,
     fontWeight: '700',
+  },
+  heroCustomer: {
+    ...typography.titleMedium,
     color: colors.textPrimary,
-    marginTop: 2,
+    fontWeight: '700',
+  },
+  timelineLabel: {
+    ...typography.labelSmall,
+    color: colors.textSecondary,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+    fontWeight: '600',
+  },
+  timelineScroll: {
+    paddingVertical: spacing.xs,
+  },
+  timelineItem: {
+    alignItems: 'center',
+    marginRight: spacing.md,
+    width: 72,
+  },
+  timelineCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceContainer,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  timelineCirclePast: {
+    backgroundColor: colors.success,
+  },
+  timelineCircleCurrent: {
+    elevation: 2,
+  },
+  timelineItemText: {
+    ...typography.labelSmall,
+    fontSize: 10,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
+  timelineItemTextCurrent: {
+    fontWeight: '700',
+  },
+  noticeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.successSoft,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    gap: spacing.sm,
+  },
+  noticeText: {
+    ...typography.bodySmall,
+    color: colors.success,
+    flex: 1,
+    fontWeight: '600',
   },
   sectionCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-    ...shadow,
+    padding: spacing.lg,
   },
-  sectionHeader: {
+  sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.lg,
   },
   sectionTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    flexShrink: 1,
-    marginRight: spacing.sm,
-  },
-  sectionLabel: {
-    ...typography.micro,
-    color: colors.textSecondary,
-    flexShrink: 1,
-  },
-  sectionBody: {
-    padding: spacing.lg,
-  },
-  pill: {
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: 4,
-    borderRadius: radii.pill,
-    alignSelf: 'flex-start',
-  },
-  pillText: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-  },
-  deviceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  deviceRowBorder: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing.md,
-    marginTop: spacing.md,
-  },
-  deviceIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: radii.input,
-    backgroundColor: colors.textPrimary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  deviceInfo: {
-    flex: 1,
-  },
-  deviceName: {
-    ...typography.bodyStrong,
-    fontSize: 16,
-    color: colors.textPrimary,
-    textTransform: 'uppercase',
-  },
-  deviceMeta: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  deviceMetaUpper: {
-    textTransform: 'uppercase',
-  },
-  accessoryRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.xs,
-    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
   },
-  accessoryChip: {
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-  },
-  accessoryText: {
-    fontSize: 11,
-    color: colors.textSecondary,
-  },
-  callout: {
-    borderRadius: radii.card,
-    padding: spacing.lg,
-  },
-  calloutHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.xs,
-  },
-  calloutTitle: {
-    fontSize: 14,
+  sectionTitle: {
+    ...typography.titleMedium,
+    color: colors.textPrimary,
     fontWeight: '700',
   },
-  calloutText: {
-    ...typography.body,
-    color: colors.textPrimary,
-    lineHeight: 20,
-  },
-  personRow: {
+  customerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
+    paddingTop: spacing.xs,
   },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  customerAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.full,
+    backgroundColor: colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarDark: {
-    backgroundColor: colors.textPrimary,
-  },
-  avatarSoft: {
-    backgroundColor: colors.primarySoft,
-  },
-  avatarTextLight: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.white,
-  },
-  avatarTextPrimary: {
-    fontSize: 16,
-    fontWeight: '700',
+  customerAvatarText: {
+    ...typography.titleMedium,
     color: colors.primary,
+    fontWeight: '700',
   },
-  personInfo: {
+  customerInfo: {
     flex: 1,
   },
-  personName: {
-    ...typography.bodyStrong,
+  customerNameTitle: {
+    ...typography.bodyLarge,
     color: colors.textPrimary,
+    fontWeight: '700',
   },
-  personMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  customerPhoneText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
     marginTop: 2,
   },
-  personMeta: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    flexShrink: 1,
-  },
-  verifiedIcon: {
-    marginLeft: 2,
-  },
-  contactActions: {
+  customerActions: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
-  iconButton: {
+  contactBtn: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderRadius: radii.full,
+    backgroundColor: colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  whatsappButton: {
+  whatsappBtn: {
     backgroundColor: colors.successSoft,
-    borderColor: colors.successSoft,
   },
-  bodyText: {
-    ...typography.body,
+  deviceItem: {
+    paddingVertical: spacing.sm,
+  },
+  deviceDivider: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(195, 199, 208, 0.3)',
+    marginTop: spacing.sm,
+  },
+  deviceItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: 4,
+  },
+  deviceItemTextCol: {
+    flex: 1,
+  },
+  deviceBrandModel: {
+    ...typography.titleSmall,
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  deviceCategory: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+  },
+  deviceSerial: {
+    ...typography.bodySmall,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  problemLabel: {
+    ...typography.labelSmall,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+    fontWeight: '600',
+  },
+  problemDesc: {
+    ...typography.bodyMedium,
     color: colors.textPrimary,
     lineHeight: 20,
+    marginTop: 2,
   },
-  emptyText: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontStyle: 'italic',
+  accessoriesWrapper: {
+    marginTop: spacing.xs,
+  },
+  accessoriesChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
+  accChip: {
+    backgroundColor: colors.surfaceContainer,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+  },
+  accChipText: {
+    ...typography.labelSmall,
+    color: colors.textSecondary,
   },
   costRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: spacing.xs,
   },
   costLabel: {
-    ...typography.body,
+    ...typography.bodyMedium,
     color: colors.textSecondary,
   },
   costValue: {
-    ...typography.bodyStrong,
+    ...typography.bodyLarge,
     color: colors.textPrimary,
+    fontWeight: '600',
   },
   costDivider: {
     height: 1,
-    backgroundColor: colors.border,
-    borderStyle: 'dashed',
-    marginVertical: spacing.md,
-  },
-  quoteRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  quoteMeta: {
-    flex: 1,
-  },
-  quoteRef: {
-    ...typography.bodyStrong,
-    color: colors.textPrimary,
-  },
-  quoteDate: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  quoteTotal: {
-    ...typography.bodyStrong,
-    color: colors.textSecondary,
-  },
-  quoteTotalPaid: {
-    color: colors.success,
+    backgroundColor: 'rgba(195, 199, 208, 0.4)',
+    marginVertical: spacing.sm,
   },
   totalLabel: {
-    ...typography.bodyStrong,
-    fontSize: 16,
+    ...typography.titleMedium,
     color: colors.textPrimary,
-  },
-  totalCaption: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 2,
+    fontWeight: '700',
   },
   totalValue: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.success,
+    ...typography.headlineSmall,
+    color: colors.primary,
+    fontWeight: '700',
   },
-  dateRow: {
+  paidBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 4,
+    backgroundColor: colors.successSoft,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radii.full,
+  },
+  paidBadgeText: {
+    ...typography.labelSmall,
+    color: colors.success,
+    fontWeight: '600',
+  },
+  payReviewBtn: {
+    backgroundColor: colors.primarySoft,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: radii.full,
+  },
+  payReviewBtnText: {
+    ...typography.labelSmall,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  quoteItemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: spacing.xs,
   },
-  dateLabel: {
-    ...typography.body,
-    color: colors.textSecondary,
-    flex: 1,
+  quoteInfo: {
+    gap: 4,
   },
-  dateValue: {
-    ...typography.bodyStrong,
+  quoteCode: {
+    ...typography.labelMedium,
     color: colors.textPrimary,
-  },
-  statusActions: {
-    gap: spacing.sm,
-  },
-  statusAction: {
-    padding: spacing.sm + 2,
-    borderRadius: radii.button,
-    borderWidth: 1,
-  },
-  statusActionText: {
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  primaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.primary,
-    borderRadius: radii.button,
-    paddingVertical: 14,
-    marginTop: spacing.sm,
-  },
-  primaryButtonText: {
-    fontSize: 16,
     fontWeight: '700',
-    color: colors.white,
   },
-  secondaryRow: {
-    flexDirection: 'row',
+  quoteAmount: {
+    ...typography.titleSmall,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  qrContainer: {
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
     gap: spacing.md,
   },
-  secondaryButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    borderRadius: radii.button,
-    paddingVertical: 12,
-  },
-  secondaryButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  errorText: {
-    fontSize: 16,
-    color: colors.danger,
-    marginTop: spacing.lg,
-    marginBottom: spacing.lg,
-    textAlign: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  retryButton: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    borderRadius: radii.button,
-  },
-  retryButtonText: {
-    color: colors.white,
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  qrBlock: {
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-  },
-  qrHint: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  qrPrintButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm + 2,
-    borderRadius: radii.button,
-    borderCurve: 'continuous',
-    marginTop: spacing.sm,
-  },
-  qrPrintButtonText: {
-    ...typography.bodyStrong,
-    fontSize: 14,
-    color: colors.white,
-  },
-  reviewPaidRow: {
+  printQrBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-  },
-  reviewPaidText: {
-    ...typography.bodyStrong,
-    fontSize: 14,
-    color: colors.success,
-  },
-  reviewPaidDate: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginLeft: spacing.xs,
-  },
-  markPaidButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: radii.button,
-    borderCurve: 'continuous',
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  markPaidButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: colors.surface,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  modalContent: {
-    flex: 1,
-  },
-  modalContentInner: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  label: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 6,
-    fontWeight: '500',
-    marginTop: 8,
-  },
-  input: {
-    backgroundColor: colors.canvas,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.button,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    color: colors.textPrimary,
-    minHeight: 44,
-  },
-  paymentMethods: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  paymentChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  paymentChipActive: {
     backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radii.full,
   },
-  paymentChipText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.textSecondary,
-  },
-  paymentChipTextActive: {
+  printQrBtnText: {
+    ...typography.labelLarge,
     color: colors.white,
+    fontWeight: '600',
   },
-  saveBtn: {
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(195, 199, 208, 0.4)',
+    elevation: 8,
+  },
+  bottomActionSecondary: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
-    paddingVertical: 14,
-    borderRadius: radii.button,
-    borderCurve: 'continuous',
-    marginTop: 20,
+    gap: 6,
+    backgroundColor: colors.surfaceContainer,
+    borderRadius: radii.full,
     minHeight: 48,
   },
-  saveBtnDisabled: {
-    opacity: 0.6,
+  bottomSecondaryText: {
+    ...typography.labelLarge,
+    color: colors.primary,
+    fontWeight: '700',
   },
-  saveBtnText: {
+  bottomActionPrimary: {
+    flex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.primary,
+    borderRadius: radii.full,
+    minHeight: 48,
+  },
+  bottomPrimaryText: {
+    ...typography.labelLarge,
     color: colors.white,
-    fontSize: 16,
+    fontWeight: '700',
+  },
+  statusSheetScroll: {
+    maxHeight: 360,
+  },
+  statusSheetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.md,
+    gap: spacing.md,
+  },
+  statusSheetRowActive: {
+    backgroundColor: colors.primarySoft,
+  },
+  statusSheetIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.full,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statusSheetText: {
+    ...typography.bodyLarge,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  statusSheetTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  paySheetBody: {
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  paySheetLabel: {
+    ...typography.labelMedium,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  payMethodsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  payMethodChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceContainer,
+  },
+  payMethodChipSelected: {
+    backgroundColor: colors.primary,
+  },
+  payMethodText: {
+    ...typography.labelSmall,
+    color: colors.textPrimary,
+  },
+  payMethodTextSelected: {
+    color: colors.white,
+    fontWeight: '700',
+  },
+  savePaymentBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.full,
+    minHeight: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  savePaymentText: {
+    ...typography.labelLarge,
+    color: colors.white,
+    fontWeight: '700',
+  },
+  errorText: {
+    ...typography.bodyLarge,
+    color: colors.danger,
+    marginTop: spacing.md,
+    textAlign: 'center',
+  },
+  retryBtn: {
+    marginTop: spacing.md,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radii.full,
+  },
+  retryBtnText: {
+    ...typography.labelLarge,
+    color: colors.white,
     fontWeight: '600',
   },
 });

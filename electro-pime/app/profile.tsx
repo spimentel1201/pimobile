@@ -1,99 +1,169 @@
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, ScrollView } from 'react-native';
+// ponytail: M3 Profile Screen with tonal hero card, M3 List Items and ConfirmDialog
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Pressable, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from './contexts/AuthContext';
 import * as Haptics from 'expo-haptics';
-import { colors } from './theme';
+import { colors, radii, spacing, typography, tonalElevation } from './theme';
+import Card from './components/ui/Card';
+import StatusBadge from './components/ui/StatusBadge';
+import ConfirmDialog from './components/ui/ConfirmDialog';
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const performLogout = async () => {
+    setLoggingOut(true);
     try {
       await logout();
+      setShowLogoutDialog(false);
       router.replace('/login');
-    } catch (error) {
-      console.error('Error during logout:', error);
-      // Redirigir de todos modos
+    } catch {
+      setShowLogoutDialog(false);
       router.replace('/login');
+    } finally {
+      setLoggingOut(false);
     }
   };
 
-  const handleLogout = () => {
-    Platform.OS !== 'web' && Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (Platform.OS === 'web') {
-      if (window.confirm('¿Está seguro que desea cerrar sesión?')) {
-        performLogout();
-      }
-    } else {
-      Alert.alert(
-        'Cerrar Sesión',
-        '¿Está seguro que desea cerrar sesión?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Cerrar Sesión',
-            style: 'destructive',
-            onPress: performLogout,
-          },
-        ]
-      );
-    }
-  };
-
-  const menuItems = [
-    { icon: 'account-circle', label: 'Mi Perfil', onPress: () => { } },
-    { icon: 'cog', label: 'Configuración', onPress: () => { } },
-    { icon: 'shield-account', label: 'Privacidad', onPress: () => { } },
-    { icon: 'help-circle', label: 'Ayuda y Soporte', onPress: () => { } },
-    { icon: 'logout', label: 'Cerrar Sesión', onPress: handleLogout, isLogout: true },
+  const menuSections = [
+    {
+      title: 'Cuenta y Taller',
+      items: [
+        {
+          icon: 'account-outline',
+          label: 'Datos de la Cuenta',
+          subtitle: 'Nombre, correo y teléfono registrado',
+          onPress: () => {},
+        },
+        {
+          icon: 'wrench-clock',
+          label: 'Mis Reparaciones Asignadas',
+          subtitle: 'Historial de órdenes atendidas',
+          onPress: () => router.push('/orders'),
+        },
+      ],
+    },
+    {
+      title: 'Sistema y Ajustes',
+      items: [
+        {
+          icon: 'printer-pos-outline',
+          label: 'Configuración de Ticketera',
+          subtitle: 'Impresoras térmicas Bluetooth / USB (58mm, 80mm)',
+          onPress: () => {},
+        },
+        {
+          icon: 'shield-check-outline',
+          label: 'Seguridad y Permisos',
+          subtitle: `Rol actual: ${user?.role === 'ADMIN' ? 'Administrador' : 'Técnico Especialista'}`,
+          onPress: () => {},
+        },
+        {
+          icon: 'help-circle-outline',
+          label: 'Soporte y Asistencia',
+          subtitle: 'Manual de uso y contacto técnico',
+          onPress: () => {},
+        },
+      ],
+    },
   ];
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-      <View style={styles.header}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {user?.firstName?.charAt(0) || 'U'}{user?.lastName?.charAt(0) || ''}
-          </Text>
-        </View>
-        <Text style={styles.name}>
-          {user?.firstName} {user?.lastName}
-        </Text>
-        <Text style={styles.email}>{user?.email || 'usuario@ejemplo.com'}</Text>
-        <View style={styles.roleBadge}>
-          <Text style={styles.roleText}>{user?.role || 'Usuario'}</Text>
-        </View>
-      </View>
-
-      <View style={styles.menuContainer}>
-        {menuItems.map((item, index) => (
-          <TouchableOpacity
-            key={index}
-            style={[styles.menuItem, item.isLogout && styles.menuItemLogout]}
-            onPress={item.onPress}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.menuIcon, item.isLogout && styles.menuIconLogout]}>
-              <MaterialCommunityIcons
-                name={item.icon as any}
-                size={24}
-                color={item.isLogout ? colors.danger : colors.textSecondary}
-              />
-            </View>
-            <Text style={[styles.menuText, item.isLogout && styles.menuTextLogout]}>
-              {item.label}
+    <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + spacing.md, paddingBottom: 110 },
+        ]}
+      >
+        {/* User Hero Card */}
+        <Card style={styles.profileCard}>
+          <View style={styles.avatarCircle}>
+            <Text style={styles.avatarInitials}>
+              {user?.firstName?.charAt(0) || 'T'}
+              {user?.lastName?.charAt(0) || ''}
             </Text>
-            <MaterialCommunityIcons
-              name="chevron-right"
-              size={24}
-              color={item.isLogout ? colors.danger : colors.textMuted}
+          </View>
+
+          <Text style={styles.userName}>
+            {user?.firstName} {user?.lastName}
+          </Text>
+          <Text style={styles.userEmail}>{user?.email || 'tecnico@electropime.com'}</Text>
+
+          <View style={styles.badgeRow}>
+            <StatusBadge
+              label={user?.role === 'ADMIN' ? 'Administrador del Taller' : 'Técnico Certificado'}
+              color={user?.role === 'ADMIN' ? colors.violet : colors.primary}
+              soft={user?.role === 'ADMIN' ? colors.violetSoft : colors.primarySoft}
+              icon={user?.role === 'ADMIN' ? 'shield-crown' : 'account-wrench'}
             />
-          </TouchableOpacity>
+          </View>
+        </Card>
+
+        {/* Menu Sections */}
+        {menuSections.map((sec, sIdx) => (
+          <View key={sIdx} style={styles.sectionWrapper}>
+            <Text style={styles.sectionTitle}>{sec.title}</Text>
+            <Card style={styles.menuCard}>
+              {sec.items.map((item, iIdx) => (
+                <Pressable
+                  key={iIdx}
+                  style={[styles.menuItem, iIdx > 0 && styles.itemDivider]}
+                  onPress={item.onPress}
+                  android_ripple={{ color: 'rgba(0, 82, 255, 0.12)' }}
+                >
+                  <View style={styles.menuIconCircle}>
+                    <MaterialCommunityIcons name={item.icon as any} size={22} color={colors.primary} />
+                  </View>
+                  <View style={styles.menuTextCol}>
+                    <Text style={styles.menuItemTitle}>{item.label}</Text>
+                    {item.subtitle && <Text style={styles.menuItemSub}>{item.subtitle}</Text>}
+                  </View>
+                  <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />
+                </Pressable>
+              ))}
+            </Card>
+          </View>
         ))}
-      </View>
-    </ScrollView>
+
+        {/* Logout Button */}
+        <Pressable
+          style={styles.logoutBtn}
+          onPress={() => {
+            Platform.OS !== 'web' && Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            setShowLogoutDialog(true);
+          }}
+          android_ripple={{ color: 'rgba(186, 26, 26, 0.15)' }}
+        >
+          <MaterialCommunityIcons name="logout" size={20} color={colors.danger} />
+          <Text style={styles.logoutBtnText}>Cerrar Sesión</Text>
+        </Pressable>
+
+        <Text style={styles.versionText}>Electro-Pime v1.0.0 · Material You M3</Text>
+      </ScrollView>
+
+      {/* Logout Confirm Dialog */}
+      {showLogoutDialog && (
+        <ConfirmDialog
+          visible={showLogoutDialog}
+          title="Cerrar Sesión"
+          message="¿Está seguro que desea salir del sistema de taller?"
+          confirmLabel="Cerrar Sesión"
+          onConfirm={performLogout}
+          onCancel={() => setShowLogoutDialog(false)}
+          tone="danger"
+          busy={loggingOut}
+          icon="logout"
+        />
+      )}
+    </View>
   );
 }
 
@@ -103,87 +173,107 @@ const styles = StyleSheet.create({
     backgroundColor: colors.canvas,
   },
   scrollContent: {
-    paddingBottom: 120,
+    paddingHorizontal: spacing.lg,
   },
-  header: {
-    backgroundColor: colors.primary,
-    padding: 24,
+  profileCard: {
     alignItems: 'center',
-    paddingTop: 60,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    marginBottom: 20,
+    padding: spacing.xl,
+    backgroundColor: colors.surface,
+    marginBottom: spacing.lg,
   },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  avatarCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: radii.full,
+    backgroundColor: colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
-  avatarText: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: colors.surface,
+  avatarInitials: {
+    ...typography.headlineMedium,
+    color: colors.primary,
+    fontWeight: '700',
   },
-  name: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: colors.surface,
-    marginBottom: 4,
+  userName: {
+    ...typography.titleLarge,
+    color: colors.textPrimary,
+    fontWeight: '700',
   },
-  email: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginBottom: 12,
+  userEmail: {
+    ...typography.bodyMedium,
+    color: colors.textSecondary,
+    marginTop: 2,
+    marginBottom: spacing.sm,
   },
-  roleBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 16,
+  badgeRow: {
+    marginTop: spacing.xs,
   },
-  roleText: {
-    color: colors.surface,
-    fontSize: 14,
-    fontWeight: '500',
+  sectionWrapper: {
+    marginBottom: spacing.lg,
   },
-  menuContainer: {
-    padding: 16,
-    paddingBottom: 100,
+  sectionTitle: {
+    ...typography.labelLarge,
+    color: colors.textSecondary,
+    fontWeight: '700',
+    marginBottom: spacing.xs,
+    marginLeft: spacing.xs,
+  },
+  menuCard: {
+    padding: 0,
+    overflow: 'hidden',
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.md,
   },
-  menuItemLogout: {
-    borderBottomWidth: 0,
-    marginTop: 20,
+  itemDivider: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(195, 199, 208, 0.3)',
   },
-  menuIcon: {
+  menuIconCircle: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.canvas,
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceContainer,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
   },
-  menuIconLogout: {
-    backgroundColor: '#FEE2E2',
-  },
-  menuText: {
+  menuTextCol: {
     flex: 1,
-    fontSize: 16,
-    color: colors.textPrimary,
-    fontWeight: '500',
   },
-  menuTextLogout: {
+  menuItemTitle: {
+    ...typography.bodyLarge,
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  menuItemSub: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.dangerSoft,
+    paddingVertical: spacing.md,
+    borderRadius: radii.full,
+    marginVertical: spacing.md,
+  },
+  logoutBtnText: {
+    ...typography.labelLarge,
     color: colors.danger,
+    fontWeight: '700',
+  },
+  versionText: {
+    ...typography.bodySmall,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.xs,
   },
 });

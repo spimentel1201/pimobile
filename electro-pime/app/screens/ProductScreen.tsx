@@ -1,32 +1,45 @@
+// ponytail: M3 ProductScreen with stock badges, category chips, FlashList and BottomSheet editor
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
-  Modal,
+  Pressable,
   Switch,
   ScrollView,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   RefreshControl,
+  SafeAreaView,
 } from 'react-native';
-import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FlashList } from '@shopify/flash-list';
 import { api } from '../services/api';
 import { Product, CreateProductDto } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
 import StatusBadge from '../components/ui/StatusBadge';
 import BottomSheet from '../components/ui/BottomSheet';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
-import { FlashList } from '@shopify/flash-list';
-import { colors, radii, shadow, spacing, typography } from '../theme';
+import Card from '../components/ui/Card';
+import M3Fab from '../components/ui/M3Fab';
+import M3TextField from '../components/ui/M3TextField';
+import EmptyState from '../components/ui/EmptyState';
+import Toast from '../components/ui/Toast';
+import {
+  colors,
+  radii,
+  spacing,
+  typography,
+  tonalElevation,
+} from '../theme';
 
 type ProductFormErrors = Partial<
   Record<'name' | 'category' | 'cost' | 'price' | 'stock', string>
 >;
 
-const ProductsScreen = () => {
+export default function ProductsScreen() {
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
@@ -38,9 +51,10 @@ const ProductsScreen = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [saving, setSaving] = useState(false);
-  const [stockError, setStockError] = useState<string | null>(null);
+  const [toDelete, setToDelete] = useState<Product | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  // Form state
   const [formData, setFormData] = useState<CreateProductDto>({
     name: '',
     description: '',
@@ -49,19 +63,17 @@ const ProductsScreen = () => {
     stock: 0,
     category: '',
     isActive: true,
-    imageUrl: '',
   });
-  // Texto crudo de los campos numéricos para poder validar vacío / no numérico
+
   const [costText, setCostText] = useState('');
   const [priceText, setPriceText] = useState('');
   const [stockText, setStockText] = useState('0');
   const [formErrors, setFormErrors] = useState<ProductFormErrors>({});
-  const [successDialog, setSuccessDialog] = useState<{
-    title: string;
-    message: string;
-    details: { label: string; value: string }[];
-  } | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 2600);
+  };
 
   const fetchProducts = useCallback(async () => {
     if (!user) {
@@ -92,34 +104,29 @@ const ProductsScreen = () => {
     } else {
       setLoading(false);
     }
-  }, [user, fetchProducts]);
+  }, [fetchProducts, user]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchProducts();
   }, [fetchProducts]);
 
-  const handleSearch = async (query: string) => {
-    setSearchQuery(query);
-    if (query.length >= 2) {
-      try {
-        const results = await api.searchProducts(query);
-        setProducts(results);
-      } catch (err) {
-        console.error('Search error:', err);
-      }
-    } else if (query.length === 0) {
-      fetchProducts();
+  const filteredProducts = useMemo(() => {
+    let list = products;
+    if (selectedCategory !== 'all') {
+      list = list.filter((p) => p.category === selectedCategory);
     }
-  };
-
-  const filteredProducts = useMemo(
-    () =>
-      selectedCategory === 'all'
-        ? products
-        : products.filter(p => p.category === selectedCategory),
-    [products, selectedCategory]
-  );
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.category.toLowerCase().includes(q) ||
+          (p.description && p.description.toLowerCase().includes(q))
+      );
+    }
+    return list;
+  }, [products, selectedCategory, searchQuery]);
 
   const openNewProductModal = () => {
     setEditingProduct(null);
@@ -129,9 +136,8 @@ const ProductsScreen = () => {
       price: 0,
       cost: 0,
       stock: 0,
-      category: categories[0] || '',
+      category: '',
       isActive: true,
-      imageUrl: '',
     });
     setCostText('');
     setPriceText('');
@@ -150,994 +156,642 @@ const ProductsScreen = () => {
       stock: product.stock,
       category: product.category,
       isActive: product.isActive,
-      imageUrl: product.imageUrl || '',
     });
-    setCostText(product.cost ? String(product.cost) : '');
-    setPriceText(product.price ? String(product.price) : '');
-    setStockText(String(product.stock ?? 0));
+    setCostText(product.cost.toString());
+    setPriceText(product.price.toString());
+    setStockText(product.stock.toString());
     setFormErrors({});
     setShowModal(true);
   };
 
-  const closeSheet = () => {
-    if (saving) return;
-    setShowModal(false);
-    setFormErrors({});
-  };
-
-  /** Validación por campo: devuelve los errores y los muestra inline */
   const validateProductForm = (): ProductFormErrors => {
-    const errors: ProductFormErrors = {};
-    const name = (formData.name || '').trim();
-    const category = (formData.category || '').trim();
-
-    if (!name) {
-      errors.name = 'Ingresa el nombre del producto';
-    } else if (name.length < 3) {
-      errors.name = 'El nombre debe tener al menos 3 caracteres';
-    }
-
-    if (!category) {
-      errors.category = 'Ingresa o elige una categoría';
-    }
-
-    const costValue = parseFloat(costText.replace(',', '.'));
-    if (costText.trim() === '' || Number.isNaN(costValue)) {
-      errors.cost = 'Ingresa el costo';
-    } else if (costValue < 0) {
-      errors.cost = 'El costo no puede ser negativo';
-    }
-
-    const priceValue = parseFloat(priceText.replace(',', '.'));
-    if (priceText.trim() === '' || Number.isNaN(priceValue)) {
-      errors.price = 'Ingresa el precio de venta';
-    } else if (priceValue <= 0) {
-      errors.price = 'El precio debe ser mayor a 0';
-    } else if (!Number.isNaN(costValue) && priceValue < costValue) {
-      errors.price = 'El precio no puede ser menor al costo';
-    }
-
-    const stockValue = parseInt(stockText, 10);
-    if (stockText.trim() === '' || Number.isNaN(stockValue)) {
-      errors.stock = 'Ingresa el stock inicial';
-    } else if (stockValue < 0) {
-      errors.stock = 'El stock no puede ser negativo';
-    }
-
-    return errors;
+    const errs: ProductFormErrors = {};
+    if (!formData.name.trim()) errs.name = 'Ingrese el nombre del producto';
+    if (!formData.category.trim()) errs.category = 'Ingrese o elija una categoría';
+    const c = parseFloat(costText.replace(',', '.'));
+    const p = parseFloat(priceText.replace(',', '.'));
+    const s = parseInt(stockText, 10);
+    if (isNaN(c) || c < 0) errs.cost = 'Costo inválido';
+    if (isNaN(p) || p <= 0) errs.price = 'Precio inválido';
+    if (isNaN(s) || s < 0) errs.stock = 'Stock inválido';
+    return errs;
   };
 
   const handleSaveProduct = async () => {
-    const errors = validateProductForm();
-    setFormErrors(errors);
-    if (Object.keys(errors).length > 0) {
-      return;
-    }
-
-    const payload: CreateProductDto = {
-      ...formData,
-      name: (formData.name || '').trim(),
-      category: (formData.category || '').trim(),
-      cost: parseFloat(costText.replace(',', '.')) || 0,
-      price: parseFloat(priceText.replace(',', '.')) || 0,
-      stock: parseInt(stockText, 10) || 0,
-    };
+    const errs = validateProductForm();
+    setFormErrors(errs);
+    if (Object.keys(errs).length > 0) return;
 
     setSaving(true);
     try {
+      const payload: CreateProductDto = {
+        ...formData,
+        cost: parseFloat(costText.replace(',', '.')) || 0,
+        price: parseFloat(priceText.replace(',', '.')) || 0,
+        stock: parseInt(stockText, 10) || 0,
+      };
+
       if (editingProduct) {
         await api.updateProduct(editingProduct.id, payload);
+        showToast('Producto actualizado correctamente');
       } else {
         await api.createProduct(payload);
+        showToast('Producto agregado al inventario');
       }
       setShowModal(false);
-      setFormErrors({});
-      setSuccessDialog({
-        title: editingProduct ? 'Producto actualizado' : 'Producto registrado',
-        message: editingProduct
-          ? `Se actualizó “${payload.name}”.`
-          : `“${payload.name}” se agregó al catálogo.`,
-        details: [
-          { label: 'Categoría', value: payload.category },
-          { label: 'Costo', value: `S/ ${payload.cost?.toFixed(2)}` },
-          { label: 'Precio', value: `S/ ${payload.price?.toFixed(2)}` },
-          { label: 'Stock', value: `${payload.stock} unidades` },
-        ],
-      });
       fetchProducts();
     } catch (err: any) {
-      setSaveError(err.message || 'No se pudo guardar el producto');
+      showToast(err.message || 'No se pudo guardar el producto', 'error');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDeleteProduct = (product: Product) => {
-    Alert.alert(
-      'Confirmar eliminación',
-      `¿Está seguro que desea eliminar "${product.name}"?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.deleteProduct(product.id);
-              Alert.alert('Éxito', 'Producto eliminado correctamente');
-              fetchProducts();
-            } catch (err: any) {
-              Alert.alert('Error', err.message || 'No se pudo eliminar el producto');
-            }
-          },
-        },
-      ]
-    );
-  };
+  const handleUpdateStock = async (product: Product, delta: number) => {
+    const newStock = product.stock + delta;
+    if (newStock < 0) return;
 
-  const handleUpdateStock = async (product: Product, quantity: number) => {
-    const nextStock = product.stock + quantity;
-    if (nextStock < 0) {
-      setStockError('El stock no puede ser negativo');
-      setTimeout(() => setStockError(null), 2600);
-      return;
-    }
-
-    // Actualización optimista: la tarjeta refleja el nuevo saldo al instante
-    setProducts(prev =>
-      prev.map(p => (p.id === product.id ? { ...p, stock: nextStock } : p))
+    setProducts((prev) =>
+      prev.map((p) => (p.id === product.id ? { ...p, stock: newStock } : p))
     );
 
     try {
-      const updated = await api.updateProductStock(product.id, quantity);
-      // Sincroniza con el valor real devuelto por el servidor
-      setProducts(prev =>
-        prev.map(p => (p.id === product.id ? { ...p, stock: updated.stock } : p))
-      );
-    } catch (err: any) {
-      console.error('Error updating stock:', err);
-      // Revierte si el servidor no aceptó el cambio
-      setProducts(prev =>
-        prev.map(p => (p.id === product.id ? { ...p, stock: product.stock } : p))
-      );
-      setStockError(err.message || 'No se pudo actualizar el stock');
-      setTimeout(() => setStockError(null), 2600);
+      await api.updateProductStock(product.id, delta);
+    } catch {
+      fetchProducts();
     }
   };
 
-  const renderHeader = () => (
-    <View style={styles.header}>
-      <Text style={styles.headerTitle}>Productos</Text>
-      <TouchableOpacity activeOpacity={0.7} style={styles.addButton} onPress={openNewProductModal}>
-        <MaterialIcons name="add" size={20} color="white" />
-        <Text style={styles.addButtonText}>Nuevo</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderSearchAndFilters = () => (
-    <View style={styles.filtersSection}>
-      <View style={styles.searchContainer}>
-        <MaterialIcons name="search" size={20} color={colors.textMuted} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Buscar productos..."
-          placeholderTextColor={colors.textMuted}
-          value={searchQuery}
-          onChangeText={handleSearch}
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity activeOpacity={0.7} onPress={() => handleSearch('')}>
-            <MaterialIcons name="close" size={20} color={colors.textMuted} />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesContainer}>
-        <TouchableOpacity activeOpacity={0.7}
-          style={[styles.categoryChip, selectedCategory === 'all' && styles.categoryChipActive]}
-          onPress={() => setSelectedCategory('all')}
-        >
-          <Text style={[styles.categoryChipText, selectedCategory === 'all' && styles.categoryChipTextActive]}>
-            Todas
-          </Text>
-        </TouchableOpacity>
-        {categories.map((category) => (
-          <TouchableOpacity activeOpacity={0.7}
-            key={category}
-            style={[styles.categoryChip, selectedCategory === category && styles.categoryChipActive]}
-            onPress={() => setSelectedCategory(category)}
-          >
-            <Text style={[styles.categoryChipText, selectedCategory === category && styles.categoryChipTextActive]}>
-              {category}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
-  );
-
-  const renderProductCard = ({ item }: { item: Product }) => {
-    const profit = item.price - item.cost;
-    const profitMargin = item.cost > 0 ? ((profit / item.cost) * 100).toFixed(1) : '0';
-    const stockTone =
-      item.stock === 0
-        ? { color: colors.danger, soft: colors.dangerSoft, label: 'Sin stock' }
-        : item.stock <= 5
-          ? { color: colors.warning, soft: colors.warningSoft, label: 'Stock bajo' }
-          : { color: colors.success, soft: colors.successSoft, label: 'En stock' };
-
-    return (
-      <View style={[styles.productCard, !item.isActive && styles.productCardInactive]}>
-        {/* Barra de acento segun disponibilidad */}
-        <View style={[styles.cardAccent, { backgroundColor: stockTone.color }]} />
-
-        <View style={styles.productBody}>
-          <View style={styles.productHeader}>
-            <View style={styles.productInfo}>
-              <Text style={styles.productName} numberOfLines={1}>
-                {item.name}
-              </Text>
-              <Text style={styles.productCategory} numberOfLines={1}>
-                {item.category}
-              </Text>
-            </View>
-            <StatusBadge
-              label={item.isActive ? 'Activo' : 'Inactivo'}
-              color={item.isActive ? colors.success : colors.textSecondary}
-              soft={item.isActive ? colors.successSoft : colors.surfaceMuted}
-            />
-          </View>
-
-          {item.description && (
-            <Text style={styles.productDescription} numberOfLines={2}>
-              {item.description}
-            </Text>
-          )}
-
-          {/* Precio como dato heroe */}
-          <View style={styles.priceRow}>
-            <View style={styles.priceHero}>
-              <Text style={styles.priceHeroLabel}>Precio de venta</Text>
-              <Text style={styles.priceHeroValue}>S/ {item.price.toFixed(2)}</Text>
-            </View>
-            <View style={styles.priceMetaRow}>
-              <View style={styles.priceMetaItem}>
-                <Text style={styles.priceLabel}>Costo</Text>
-                <Text style={styles.priceValue}>S/ {item.cost.toFixed(2)}</Text>
-              </View>
-              <View style={styles.priceMetaItem}>
-                <Text style={styles.priceLabel}>Margen</Text>
-                <Text style={[styles.priceValue, { color: profit > 0 ? colors.success : colors.danger }]}>
-                  {profitMargin}%
-                </Text>
-              </View>
-              <StatusBadge
-                label={stockTone.label}
-                color={stockTone.color}
-                soft={stockTone.soft}
-              />
-            </View>
-          </View>
-
-          <View style={styles.stockRow}>
-            <View style={styles.stockInfo}>
-              <MaterialCommunityIcons name="package-variant" size={18} color={colors.textSecondary} />
-              <Text style={styles.stockText}>
-                <Text style={styles.stockCount}>{item.stock}</Text> unidades en stock
-              </Text>
-            </View>
-            <View style={styles.stockActions}>
-              <TouchableOpacity activeOpacity={0.7}
-                style={styles.stockButton}
-                onPress={() => handleUpdateStock(item, 1)}
-                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-              >
-                <MaterialIcons name="add" size={20} color={colors.primary} />
-              </TouchableOpacity>
-              <TouchableOpacity activeOpacity={0.7}
-                style={[styles.stockButton, item.stock <= 0 && styles.stockButtonDisabled]}
-                onPress={() => handleUpdateStock(item, -1)}
-                disabled={item.stock <= 0}
-                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-              >
-                <MaterialIcons name="remove" size={20} color={colors.danger} />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.productActions}>
-            <TouchableOpacity activeOpacity={0.7}
-              style={[styles.actionButton, { backgroundColor: colors.primary }]}
-              onPress={() => openEditProductModal(item)}
-            >
-              <MaterialIcons name="edit" size={18} color="white" />
-            </TouchableOpacity>
-            <TouchableOpacity activeOpacity={0.7}
-              style={[styles.actionButton, { backgroundColor: colors.danger }]}
-              onPress={() => handleDeleteProduct(item)}
-            >
-              <MaterialIcons name="delete" size={18} color="white" />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    );
+  const handleDeleteProduct = async () => {
+    if (!toDelete) return;
+    setDeleting(true);
+    try {
+      await api.deleteProduct(toDelete.id);
+      setToDelete(null);
+      showToast('Producto eliminado');
+      fetchProducts();
+    } catch (err: any) {
+      showToast(err.message || 'No se pudo eliminar el producto', 'error');
+    } finally {
+      setDeleting(false);
+    }
   };
 
-  const renderFieldError = (field: keyof ProductFormErrors) =>
-    formErrors[field] ? <Text style={styles.fieldError}>{formErrors[field]}</Text> : null;
+  const renderProductCard = ({ item }: { item: Product }) => {
+    const isLowStock = item.stock <= 3;
 
-  const renderModal = () => (
-    <BottomSheet
-      visible={showModal}
-      title={editingProduct ? 'Editar producto' : 'Nuevo producto'}
-      subtitle="Los campos con * son obligatorios"
-      onClose={closeSheet}
-      footer={
-        <View style={styles.sheetActions}>
-          <TouchableOpacity
-            style={[styles.footerButton, styles.cancelButton]}
-            onPress={closeSheet}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.footerButton, styles.saveButton, saving && styles.buttonDisabled]}
-            onPress={handleSaveProduct}
-            disabled={saving}
-            activeOpacity={0.7}
-          >
-            {saving ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text style={styles.saveButtonText}>
-                {editingProduct ? 'Actualizar' : 'Guardar producto'}
+    return (
+      <Card style={styles.productCard}>
+        <View style={styles.cardTopRow}>
+          <View style={styles.categoryChip}>
+            <Text style={styles.categoryChipText}>{item.category || 'General'}</Text>
+          </View>
+
+          <StatusBadge
+            label={item.isActive ? 'Activo' : 'Inactivo'}
+            color={item.isActive ? colors.success : colors.textMuted}
+            soft={item.isActive ? colors.successSoft : colors.surfaceMuted}
+            compact
+          />
+        </View>
+
+        <Text style={styles.productName} numberOfLines={2}>
+          {item.name}
+        </Text>
+
+        {item.description ? (
+          <Text style={styles.productDesc} numberOfLines={1}>
+            {item.description}
+          </Text>
+        ) : null}
+
+        <View style={styles.pricesRow}>
+          <View>
+            <Text style={styles.priceLabel}>Precio de Venta</Text>
+            <Text style={styles.priceValue}>S/ {item.price.toFixed(2)}</Text>
+          </View>
+          <View>
+            <Text style={styles.priceLabel}>Costo Taller</Text>
+            <Text style={styles.costValue}>S/ {item.cost.toFixed(2)}</Text>
+          </View>
+
+          {/* Stock Badge and Stepper */}
+          <View style={styles.stockCol}>
+            <View style={[styles.stockBadge, isLowStock && styles.stockBadgeLow]}>
+              <Text style={[styles.stockBadgeText, isLowStock && styles.stockBadgeTextLow]}>
+                {item.stock} en stock
               </Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      }
-    >
-      <ScrollView
-        style={styles.sheetScroll}
-        contentContainerStyle={styles.sheetScrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Nombre *</Text>
-          <TextInput
-            style={[styles.input, formErrors.name && styles.inputError]}
-            placeholder="Ej: Capacitor 220uF"
-            placeholderTextColor={colors.textMuted}
-            value={formData.name}
-            onChangeText={(text) => {
-              setFormData({ ...formData, name: text });
-              if (formErrors.name) setFormErrors({ ...formErrors, name: undefined });
-            }}
-          />
-          {renderFieldError('name')}
-        </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Descripción</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="Opcional: detalle del producto"
-            placeholderTextColor={colors.textMuted}
-            value={formData.description}
-            onChangeText={(text) => setFormData({ ...formData, description: text })}
-            multiline
-            numberOfLines={3}
-          />
-        </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Categoría *</Text>
-          <TextInput
-            style={[styles.input, formErrors.category && styles.inputError]}
-            placeholder="Ej: Repuestos, Accesorios..."
-            placeholderTextColor={colors.textMuted}
-            value={formData.category}
-            onChangeText={(text) => {
-              setFormData({ ...formData, category: text });
-              if (formErrors.category) setFormErrors({ ...formErrors, category: undefined });
-            }}
-          />
-          {renderFieldError('category')}
-          {categories.length > 0 && (
-            <View style={styles.categoryChips}>
-              {categories.slice(0, 5).map((category) => (
-                <TouchableOpacity activeOpacity={0.7}
-                  key={category}
-                  style={[
-                    styles.categoryChip,
-                    formData.category === category && styles.categoryChipActive,
-                  ]}
-                  onPress={() => {
-                    setFormData({ ...formData, category });
-                    setFormErrors({ ...formErrors, category: undefined });
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.categoryChipText,
-                      formData.category === category && styles.categoryChipTextActive,
-                    ]}
-                  >
-                    {category}
-                  </Text>
-                </TouchableOpacity>
-              ))}
             </View>
-          )}
-        </View>
 
-        <View style={styles.row}>
-          <View style={[styles.inputContainer, styles.halfWidth]}>
-            <Text style={styles.inputLabel}>Costo *</Text>
-            <View style={[styles.currencyInput, formErrors.cost && styles.inputError]}>
-              <Text style={styles.currencySymbol}>S/</Text>
-              <TextInput
-                style={styles.currencyField}
-                placeholder="0.00"
-                placeholderTextColor={colors.textMuted}
-                value={costText}
-                onChangeText={(text) => {
-                  setCostText(text);
-                  setFormData({ ...formData, cost: parseFloat(text.replace(',', '.')) || 0 });
-                  if (formErrors.cost) setFormErrors({ ...formErrors, cost: undefined });
-                }}
-                keyboardType="decimal-pad"
-              />
+            <View style={styles.stockControls}>
+              <Pressable
+                style={styles.stockBtn}
+                onPress={() => handleUpdateStock(item, -1)}
+                disabled={item.stock <= 0}
+              >
+                <MaterialCommunityIcons name="minus" size={16} color={colors.primary} />
+              </Pressable>
+              <Pressable
+                style={styles.stockBtn}
+                onPress={() => handleUpdateStock(item, 1)}
+              >
+                <MaterialCommunityIcons name="plus" size={16} color={colors.primary} />
+              </Pressable>
             </View>
-            {renderFieldError('cost')}
-          </View>
-          <View style={[styles.inputContainer, styles.halfWidth]}>
-            <Text style={styles.inputLabel}>Precio *</Text>
-            <View style={[styles.currencyInput, formErrors.price && styles.inputError]}>
-              <Text style={styles.currencySymbol}>S/</Text>
-              <TextInput
-                style={styles.currencyField}
-                placeholder="0.00"
-                placeholderTextColor={colors.textMuted}
-                value={priceText}
-                onChangeText={(text) => {
-                  setPriceText(text);
-                  setFormData({ ...formData, price: parseFloat(text.replace(',', '.')) || 0 });
-                  if (formErrors.price) setFormErrors({ ...formErrors, price: undefined });
-                }}
-                keyboardType="decimal-pad"
-              />
-            </View>
-            {renderFieldError('price')}
           </View>
         </View>
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Stock inicial *</Text>
-          <TextInput
-            style={[styles.input, formErrors.stock && styles.inputError]}
-            placeholder="0"
-            placeholderTextColor={colors.textMuted}
-            value={stockText}
-            onChangeText={(text) => {
-              setStockText(text.replace(/[^0-9]/g, ''));
-              setFormData({ ...formData, stock: parseInt(text, 10) || 0 });
-              if (formErrors.stock) setFormErrors({ ...formErrors, stock: undefined });
-            }}
-            keyboardType="number-pad"
-          />
-          {renderFieldError('stock')}
+        {/* Card Actions */}
+        <View style={styles.cardActionsRow}>
+          <View style={styles.spacer} />
+          <Pressable
+            style={styles.actionBtn}
+            onPress={() => openEditProductModal(item)}
+            hitSlop={8}
+            android_ripple={{ color: 'rgba(0, 82, 255, 0.15)', borderless: true, radius: 20 }}
+          >
+            <MaterialCommunityIcons name="pencil-outline" size={20} color={colors.primary} />
+          </Pressable>
+          <Pressable
+            style={styles.actionBtn}
+            onPress={() => setToDelete(item)}
+            hitSlop={8}
+            android_ripple={{ color: 'rgba(186, 26, 26, 0.15)', borderless: true, radius: 20 }}
+          >
+            <MaterialCommunityIcons name="trash-can-outline" size={20} color={colors.danger} />
+          </Pressable>
         </View>
-
-        <View style={styles.switchContainer}>
-          <Text style={styles.inputLabel}>Producto activo</Text>
-          <Switch
-            value={formData.isActive}
-            onValueChange={(value) => setFormData({ ...formData, isActive: value })}
-            trackColor={{ false: colors.border, true: '#93C5FD' }}
-            thumbColor={formData.isActive ? colors.primary : colors.textMuted}
-          />
-        </View>
-      </ScrollView>
-    </BottomSheet>
-  );
+      </Card>
+    );
+  };
 
   if (loading) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Cargando productos...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.centered}>
-        <MaterialIcons name="error" size={48} color={colors.danger} />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity activeOpacity={0.7} style={styles.retryButton} onPress={fetchProducts}>
-          <Text style={styles.retryButtonText}>Reintentar</Text>
-        </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {stockError && (
-        <View style={styles.stockBanner} pointerEvents="none">
-          <MaterialCommunityIcons name="alert-circle" size={18} color="white" />
-          <Text style={styles.stockBannerText}>{stockError}</Text>
+    <SafeAreaView style={styles.container}>
+      <View style={[styles.topHeader, { paddingTop: insets.top + spacing.xs }]}>
+        <Text style={styles.screenTitle}>Catálogo e Inventario</Text>
+      </View>
+
+      {/* Search Bar M3 */}
+      <View style={styles.searchBar}>
+        <MaterialCommunityIcons name="magnify" size={20} color={colors.textMuted} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Buscar por repuesto, código, categoría..."
+          placeholderTextColor={colors.textMuted}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery.length > 0 && (
+          <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+            <MaterialCommunityIcons name="close-circle" size={18} color={colors.textMuted} />
+          </Pressable>
+        )}
+      </View>
+
+      {/* Categories Filter Chips */}
+      <View style={styles.categoriesScrollWrapper}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesContent}>
+          <Pressable
+            style={[styles.filterChip, selectedCategory === 'all' && styles.filterChipActive]}
+            onPress={() => setSelectedCategory('all')}
+          >
+            <Text style={[styles.filterChipText, selectedCategory === 'all' && styles.filterChipTextActive]}>
+              Todas
+            </Text>
+          </Pressable>
+          {categories.map((cat) => {
+            const isSelected = selectedCategory === cat;
+            return (
+              <Pressable
+                key={cat}
+                style={[styles.filterChip, isSelected && styles.filterChipActive]}
+                onPress={() => setSelectedCategory(cat)}
+              >
+                <Text style={[styles.filterChipText, isSelected && styles.filterChipTextActive]}>
+                  {cat}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {error && (
+        <View style={styles.errorBanner}>
+          <MaterialCommunityIcons name="alert-circle-outline" size={18} color={colors.danger} />
+          <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
-      {renderHeader()}
-      {renderSearchAndFilters()}
-      <FlashList
-        data={filteredProducts}
-        renderItem={renderProductCard}
-        keyExtractor={item => item.id}
-        estimatedItemSize={100}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <MaterialCommunityIcons name="package-variant-closed" size={64} color={colors.border} />
-            <Text style={styles.emptyText}>No hay productos</Text>
-            <TouchableOpacity activeOpacity={0.7} style={styles.emptyButton} onPress={openNewProductModal}>
-              <Text style={styles.emptyButtonText}>Agregar primer producto</Text>
-            </TouchableOpacity>
-          </View>
-        }
-      />
-      {renderModal()}
 
-      {/* Confirmación al registrar / actualizar */}
-      <ConfirmDialog
-        visible={!!successDialog}
-        icon="check-circle-outline"
-        tone="success"
-        title={successDialog?.title || ''}
-        message={successDialog?.message}
-        details={successDialog?.details}
-        confirmLabel="Listo"
-        onConfirm={() => setSuccessDialog(null)}
-      />
+      <View style={styles.listContainer}>
+        {filteredProducts.length === 0 ? (
+          <EmptyState
+            icon="package-variant-closed"
+            title="No se encontraron repuestos"
+            description={
+              searchQuery
+                ? `No hay coincidencias para "${searchQuery}".`
+                : 'Añade repuestos o insumos al catálogo de taller.'
+            }
+            ctaLabel={searchQuery ? 'Limpiar búsqueda' : 'Nuevo Producto'}
+            onCta={searchQuery ? () => setSearchQuery('') : openNewProductModal}
+          />
+        ) : (
+          <FlashList
+            data={filteredProducts}
+            keyExtractor={(item) => item.id}
+            renderItem={renderProductCard}
+            estimatedItemSize={170}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.primary}
+                colors={[colors.primary]}
+              />
+            }
+          />
+        )}
+      </View>
 
-      {/* Error al guardar */}
-      <ConfirmDialog
-        visible={!!saveError}
-        icon="alert-circle-outline"
-        tone="danger"
-        title="No se pudo guardar"
-        message={saveError || undefined}
-        confirmLabel="Entendido"
-        onConfirm={() => setSaveError(null)}
-      />
-    </View>
+      {/* Extended FAB */}
+      <View style={[styles.fabWrapper, { bottom: insets.bottom + 80 }]}>
+        <M3Fab
+          label="Nuevo Repuesto"
+          icon="plus"
+          onPress={openNewProductModal}
+        />
+      </View>
+
+      {/* Create / Edit BottomSheet */}
+      {showModal && (
+        <BottomSheet
+          visible={showModal}
+          title={editingProduct ? 'Editar Producto / Repuesto' : 'Nuevo Producto / Repuesto'}
+          onClose={() => setShowModal(false)}
+          footer={
+            <Pressable
+              style={styles.saveBtn}
+              onPress={handleSaveProduct}
+              disabled={saving}
+              android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <Text style={styles.saveBtnText}>
+                  {editingProduct ? 'Guardar Cambios' : 'Registrar en Catálogo'}
+                </Text>
+              )}
+            </Pressable>
+          }
+        >
+          <ScrollView style={styles.formScroll} keyboardShouldPersistTaps="handled">
+            <M3TextField
+              label="Nombre del repuesto / producto *"
+              placeholder="Ej: Bomba de desagüe Lavadora LG"
+              value={formData.name}
+              onChangeText={(text) => setFormData((p) => ({ ...p, name: text }))}
+              error={formErrors.name}
+              leadingIcon="tag-outline"
+            />
+
+            <M3TextField
+              label="Categoría *"
+              placeholder="Ej: Lavadoras, Refrigeración, Audio..."
+              value={formData.category}
+              onChangeText={(text) => setFormData((p) => ({ ...p, category: text }))}
+              error={formErrors.category}
+              leadingIcon="shape-outline"
+            />
+
+            <View style={styles.inputRow}>
+              <M3TextField
+                containerStyle={styles.halfInput}
+                label="Precio de Venta (S/) *"
+                placeholder="0.00"
+                value={priceText}
+                onChangeText={setPriceText}
+                keyboardType="decimal-pad"
+                error={formErrors.price}
+                leadingIcon="cash"
+              />
+              <M3TextField
+                containerStyle={styles.halfInput}
+                label="Costo Taller (S/) *"
+                placeholder="0.00"
+                value={costText}
+                onChangeText={setCostText}
+                keyboardType="decimal-pad"
+                error={formErrors.cost}
+                leadingText="S/"
+              />
+            </View>
+
+            <M3TextField
+              label="Stock Inicial *"
+              placeholder="0"
+              value={stockText}
+              onChangeText={setStockText}
+              keyboardType="numeric"
+              error={formErrors.stock}
+              leadingIcon="numeric"
+            />
+
+            <M3TextField
+              label="Descripción / Compatibilidad (opcional)"
+              placeholder="Modelos compatibles, especificaciones..."
+              value={formData.description || ''}
+              onChangeText={(text) => setFormData((p) => ({ ...p, description: text }))}
+              multiline
+              numberOfLines={2}
+              leadingIcon="format-text"
+            />
+
+            <View style={styles.switchRow}>
+              <View style={styles.switchInfo}>
+                <Text style={styles.switchTitle}>Producto Activo en Catálogo</Text>
+                <Text style={styles.switchDesc}>Disponible para ventas y presupuestos.</Text>
+              </View>
+              <Switch
+                value={formData.isActive}
+                onValueChange={(val) => setFormData((p) => ({ ...p, isActive: val }))}
+                trackColor={{ false: colors.border, true: colors.primarySoft }}
+                thumbColor={formData.isActive ? colors.primary : colors.white}
+              />
+            </View>
+          </ScrollView>
+        </BottomSheet>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {toDelete && (
+        <ConfirmDialog
+          visible={Boolean(toDelete)}
+          title="Eliminar Repuesto"
+          message={`¿Confirma que desea eliminar "${toDelete.name}" del catálogo?`}
+          confirmLabel="Eliminar"
+          onConfirm={handleDeleteProduct}
+          onCancel={() => setToDelete(null)}
+          tone="danger"
+          busy={deleting}
+          icon="trash-can-outline"
+        />
+      )}
+
+      {toast && <Toast message={toast.message} type={toast.type} />}
+    </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,
   },
-  stockBanner: {
-    position: 'absolute',
-    top: 16,
-    left: 16,
-    right: 16,
-    zIndex: 50,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.danger,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 999,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  stockBannerText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '600',
-    flexShrink: 1,
-    textAlign: 'center',
-  },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  errorText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: colors.danger,
-    textAlign: 'center',
-  },
-  retryButton: {
-    marginTop: 16,
-    backgroundColor: colors.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: 'white',
-    fontWeight: '600',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  addButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  filtersSection: {
-    backgroundColor: 'white',
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: colors.canvas,
-    marginHorizontal: 16,
-    marginTop: 12,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+  },
+  topHeader: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xs,
+  },
+  screenTitle: {
+    ...typography.headlineSmall,
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceContainer,
+    borderRadius: radii.full,
+    paddingHorizontal: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginVertical: spacing.xs,
+    minHeight: 48,
+    gap: spacing.xs,
   },
   searchInput: {
     flex: 1,
-    height: 44,
-    fontSize: 16,
-    color: colors.textPrimary,
-    marginLeft: 8,
-  },
-  categoriesContainer: {
-    paddingHorizontal: 16,
-    marginTop: 12,
-  },
-  categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: colors.canvas,
-    marginRight: 8,
-  },
-  categoryChipActive: {
-    backgroundColor: colors.primary,
-  },
-  categoryChipText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  categoryChipTextActive: {
-    color: 'white',
-  },
-  listContent: {
-    padding: 16,
-  },
-  productCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.card,
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-    ...shadow,
-  },
-  productCardInactive: {
-    opacity: 0.6,
-  },
-  cardAccent: {
-    width: 4,
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    zIndex: 1,
-  },
-  productBody: {
-    padding: spacing.lg,
-  },
-  productHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  productInfo: {
-    flex: 1,
-  },
-  productName: {
-    ...typography.bodyStrong,
-    fontSize: 17,
+    ...typography.bodyMedium,
     color: colors.textPrimary,
   },
-  productCategory: {
-    ...typography.caption,
-    marginTop: 2,
+  categoriesScrollWrapper: {
+    marginVertical: spacing.xs,
   },
-  productDescription: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginBottom: spacing.md,
-  },
-  priceRow: {
-    marginBottom: spacing.md,
-    paddingVertical: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  priceHero: {
-    marginBottom: spacing.sm,
-  },
-  priceHeroLabel: {
-    ...typography.micro,
-    color: colors.textMuted,
-  },
-  priceHeroValue: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: colors.primary,
-    letterSpacing: -0.5,
-  },
-  priceMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  priceMetaItem: {
-    alignItems: 'flex-start',
-  },
-  priceLabel: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  priceValue: {
-    ...typography.bodyStrong,
-    color: colors.textPrimary,
-  },
-  priceItem: {
-    alignItems: 'center',
-  },
-  stockRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  stockInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  stockText: {
-    marginLeft: spacing.sm,
-    ...typography.body,
-    color: colors.textSecondary,
-  },
-  stockCount: {
-    ...typography.bodyStrong,
-    color: colors.textPrimary,
-  },
-  stockLow: {
-    color: colors.warning,
-  },
-  stockOut: {
-    color: colors.danger,
-  },
-  stockActions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  stockButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  stockButtonDisabled: {
-    opacity: 0.4,
-  },
-  productActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: spacing.sm,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  actionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 64,
-  },
-  emptyText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  emptyButton: {
-    marginTop: 16,
-    backgroundColor: colors.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  emptyButtonText: {
-    color: 'white',
-    fontWeight: '600',
-  },
-  // Bottom sheet styles
-  sheetScroll: {
-    maxHeight: 420,
-  },
-  sheetScrollContent: {
-    paddingBottom: spacing.sm,
-  },
-  sheetActions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  fieldError: {
-    ...typography.caption,
-    color: colors.danger,
-    marginTop: spacing.xs,
-  },
-  inputError: {
-    borderColor: colors.danger,
-    backgroundColor: colors.dangerSoft,
-  },
-  inputContainer: {
-    marginBottom: spacing.lg,
-  },
-  inputLabel: {
-    ...typography.body,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.input,
-    padding: spacing.md,
-    fontSize: 16,
-    color: colors.textPrimary,
-    minHeight: 48,
-  },
-  textArea: {
-    minHeight: 84,
-    textAlignVertical: 'top',
-  },
-  row: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  halfWidth: {
-    flex: 1,
-  },
-  currencyInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.input,
-    overflow: 'hidden',
-    minHeight: 48,
-  },
-  currencySymbol: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: 16,
-    color: colors.textSecondary,
-    backgroundColor: colors.surfaceMuted,
-  },
-  currencyField: {
-    flex: 1,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: 16,
-    color: colors.textPrimary,
-  },
-  categoryChips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  categoriesContent: {
+    paddingHorizontal: spacing.lg,
     gap: spacing.xs,
-    marginTop: spacing.sm,
+    paddingVertical: 4,
   },
-  switchContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  footerButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: radii.button,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 48,
-  },
-  cancelButton: {
-    backgroundColor: colors.surfaceMuted,
+  filterChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 7,
+    borderRadius: radii.full,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(195, 199, 208, 0.4)',
   },
-  cancelButtonText: {
+  filterChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filterChipText: {
+    ...typography.labelMedium,
     color: colors.textSecondary,
     fontWeight: '600',
   },
-  saveButton: {
-    backgroundColor: colors.primary,
-  },
-  saveButtonText: {
+  filterChipTextActive: {
     color: colors.white,
     fontWeight: '700',
-    fontSize: 15,
   },
-  buttonDisabled: {
-    opacity: 0.7,
+  listContainer: {
+    flex: 1,
+  },
+  listContent: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
+    paddingBottom: 110,
+  },
+  productCard: {
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  cardTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  categoryChip: {
+    backgroundColor: colors.surfaceContainer,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+  },
+  categoryChipText: {
+    ...typography.labelSmall,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  productName: {
+    ...typography.titleMedium,
+    color: colors.textPrimary,
+    fontWeight: '700',
+    marginTop: spacing.xs,
+  },
+  productDesc: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  pricesRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginTop: spacing.sm,
+    paddingTop: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(195, 199, 208, 0.3)',
+  },
+  priceLabel: {
+    ...typography.bodySmall,
+    color: colors.textMuted,
+    fontSize: 11,
+  },
+  priceValue: {
+    ...typography.titleLarge,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  costValue: {
+    ...typography.titleSmall,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  stockCol: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  stockBadge: {
+    backgroundColor: colors.surfaceContainer,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radii.full,
+  },
+  stockBadgeLow: {
+    backgroundColor: colors.dangerSoft,
+  },
+  stockBadgeText: {
+    ...typography.labelSmall,
+    color: colors.textSecondary,
+    fontWeight: '700',
+  },
+  stockBadgeTextLow: {
+    color: colors.danger,
+  },
+  stockControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  stockBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: radii.full,
+    backgroundColor: colors.primarySoft,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.xs,
+  },
+  spacer: {
+    flex: 1,
+  },
+  actionBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: radii.full,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fabWrapper: {
+    position: 'absolute',
+    right: spacing.lg,
+    zIndex: 99,
+  },
+  formScroll: {
+    maxHeight: 440,
+    paddingVertical: spacing.xs,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  halfInput: {
+    flex: 1,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(195, 199, 208, 0.3)',
+    marginTop: spacing.sm,
+  },
+  switchInfo: {
+    flex: 1,
+    paddingRight: spacing.md,
+  },
+  switchTitle: {
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  switchDesc: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+  },
+  saveBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.full,
+    minHeight: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  saveBtnText: {
+    ...typography.labelLarge,
+    color: colors.white,
+    fontWeight: '700',
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.dangerSoft,
+    padding: spacing.md,
+    marginHorizontal: spacing.lg,
+    borderRadius: radii.md,
+    gap: spacing.sm,
+  },
+  errorText: {
+    ...typography.bodyMedium,
+    color: colors.danger,
+    flex: 1,
   },
 });
-
-export default ProductsScreen;

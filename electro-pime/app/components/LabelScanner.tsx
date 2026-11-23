@@ -49,7 +49,7 @@ export default function LabelScanner({ visible, onApply, onClose }: LabelScanner
   const cameraRef = useRef<CameraView>(null);
 
   const [step, setStep] = useState<Step>('choose');
-  const [engine, setEngine] = useState<OcrEngine>('local');
+  const [engine, setEngine] = useState<OcrEngine>('cloud');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [fields, setFields] = useState<ScannedFields>(emptyFields());
   const [fellBack, setFellBack] = useState(false);
@@ -153,8 +153,9 @@ export default function LabelScanner({ visible, onApply, onClose }: LabelScanner
       setFellBack(res.fellBackToLocal);
       if (res.cloudError) setCloudError(res.cloudError);
       setStep('result');
-    } catch {
-      setError('No se pudo leer la imagen. Reintenta con mejor luz y encuadre.');
+    } catch (err: any) {
+      console.error('[LabelScanner error]:', err);
+      setError(err?.message || 'No se pudo leer la imagen. Reintenta con mejor luz y encuadre.');
     } finally {
       setScanning(false);
     }
@@ -166,38 +167,35 @@ export default function LabelScanner({ visible, onApply, onClose }: LabelScanner
     <View>
       <View style={styles.engineRow}>
         <TouchableOpacity
+          style={[styles.engineButton, engine === 'cloud' && styles.engineButtonActive]}
+          onPress={() => setEngine('cloud')}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons
+            name="cloud-check"
+            size={18}
+            color={engine === 'cloud' ? colors.white : colors.primary}
+          />
+          <Text style={[styles.engineText, engine === 'cloud' && styles.engineTextActive]}>
+            Nube (Gemini)
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           style={[styles.engineButton, engine === 'local' && styles.engineButtonActive]}
           onPress={() => setEngine('local')}
           activeOpacity={0.7}
         >
+          <MaterialCommunityIcons
+            name="cellphone"
+            size={18}
+            color={engine === 'local' ? colors.white : colors.textSecondary}
+          />
           <Text style={[styles.engineText, engine === 'local' && styles.engineTextActive]}>
-            Local
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.engineButton,
-            engine === 'cloud' && styles.engineButtonActive,
-            !cloudReady && styles.engineButtonDisabled,
-          ]}
-          onPress={() => cloudReady && setEngine('cloud')}
-          activeOpacity={0.7}
-        >
-          <Text
-            style={[
-              styles.engineText,
-              engine === 'cloud' && styles.engineTextActive,
-              !cloudReady && styles.engineTextDisabled,
-            ]}
-          >
-            Nube (Gemini)
+            Local (Offline)
           </Text>
         </TouchableOpacity>
       </View>
       <Text style={styles.helpText}>{ENGINE_HELP[engine]}</Text>
-      {!cloudReady && (
-        <Text style={styles.helpText}>Nube no configurada: falta EXPO_PUBLIC_LABEL_AI_URL.</Text>
-      )}
     </View>
   );
 
@@ -414,6 +412,9 @@ const styles = StyleSheet.create({
   },
   engineButton: {
     flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
     paddingVertical: spacing.sm,
     alignItems: 'center',
     backgroundColor: colors.surface,

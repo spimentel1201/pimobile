@@ -1,32 +1,42 @@
+// ponytail: M3 NewUserScreen with outlined floating fields, role selector chips, and native ripple submit.
 import React, { useState } from 'react';
 import {
   Platform,
   View,
   Text,
   StyleSheet,
-  TextInput,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   Alert,
   ActivityIndicator,
-  SafeAreaView,
 } from 'react-native';
-import { useRouter, Stack } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { api } from '../services/api';
 import * as Haptics from 'expo-haptics';
-import { colors } from '../theme';
+import { api } from '../services/api';
+import { theme, typography, spacing, radius } from '../theme';
+import { Card, M3TextField } from '../components/ui';
+import AppHeader from '../components/AppHeader';
 
-const ROLE_OPTIONS: { value: 'ADMIN' | 'TECHNICIAN'; label: string }[] = [
-  { value: 'TECHNICIAN', label: 'Técnico' },
-  { value: 'ADMIN', label: 'Administrador' },
+const ROLE_OPTIONS: { value: 'ADMIN' | 'TECHNICIAN'; label: string; icon: keyof typeof MaterialCommunityIcons.glyphMap; description: string }[] = [
+  {
+    value: 'TECHNICIAN',
+    label: 'Técnico',
+    icon: 'wrench',
+    description: 'Gestiona órdenes asignadas, diagnósticos y repuestos.',
+  },
+  {
+    value: 'ADMIN',
+    label: 'Administrador',
+    icon: 'shield-account',
+    description: 'Acceso total: métricas, usuarios, finanzas y configuración.',
+  },
 ];
 
 export default function NewUserScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showRolePicker, setShowRolePicker] = useState(false);
 
   // Form state
   const [firstName, setFirstName] = useState('');
@@ -34,30 +44,31 @@ export default function NewUserScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
-  const [role, setRole] = useState<'ADMIN' | 'TECHNICIAN' | null>(null);
+  const [role, setRole] = useState<'ADMIN' | 'TECHNICIAN' | null>('TECHNICIAN');
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validate = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
     if (!firstName.trim()) {
-      Alert.alert('Error', 'Ingrese el nombre');
-      return false;
+      newErrors.firstName = 'El nombre es obligatorio';
     }
     if (!lastName.trim()) {
-      Alert.alert('Error', 'Ingrese el apellido');
-      return false;
+      newErrors.lastName = 'El apellido es obligatorio';
     }
     if (!email.trim() || !email.includes('@')) {
-      Alert.alert('Error', 'Ingrese un correo electrónico válido');
-      return false;
+      newErrors.email = 'Ingrese un correo electrónico válido';
     }
     if (!password || password.length < 6) {
-      Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
-      return false;
+      newErrors.password = 'La contraseña debe tener al menos 6 caracteres';
     }
     if (!role) {
-      Alert.alert('Error', 'Seleccione un rol');
-      return false;
+      newErrors.role = 'Seleccione un rol para el usuario';
     }
-    return true;
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async () => {
@@ -77,8 +88,8 @@ export default function NewUserScreen() {
 
       Alert.alert(
         '¡Éxito!',
-        'Usuario creado correctamente',
-        [{ text: 'OK', onPress: () => router.replace('/users') }]
+        'Usuario creado correctamente en el sistema',
+        [{ text: 'Aceptar', onPress: () => router.replace('/users') }]
       );
     } catch (error: any) {
       console.error('Error creating user:', error);
@@ -89,298 +100,284 @@ export default function NewUserScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-        <Stack.Screen
-          options={{
-            title: 'Nuevo Usuario',
-            headerShown: true,
-          }}
-        />
+    <View style={styles.container}>
+      <AppHeader
+        title="Nuevo Usuario"
+        subtitle="Registro de técnicos o administradores"
+        showBack
+        onBackPress={() => router.back()}
+      />
 
-        <View style={styles.form}>
-          {/* First Name */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Nombre <Text style={styles.required}>*</Text></Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ingrese el nombre"
-              placeholderTextColor={colors.textMuted}
-              value={firstName}
-              onChangeText={setFirstName}
-              autoCapitalize="words"
-            />
-          </View>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Card variant="filled" style={styles.formCard}>
+          <Text style={styles.sectionHeader}>Datos Personales</Text>
 
-          {/* Last Name */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Apellido <Text style={styles.required}>*</Text></Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ingrese el apellido"
-              placeholderTextColor={colors.textMuted}
-              value={lastName}
-              onChangeText={setLastName}
-              autoCapitalize="words"
-            />
-          </View>
+          <M3TextField
+            label="Nombre"
+            placeholder="Ej. Carlos"
+            value={firstName}
+            onChangeText={(text) => {
+              setFirstName(text);
+              if (errors.firstName) setErrors((e) => ({ ...e, firstName: '' }));
+            }}
+            leadingIcon="account-outline"
+            errorText={errors.firstName}
+            autoCapitalize="words"
+          />
 
-          {/* Email */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Correo electrónico <Text style={styles.required}>*</Text></Text>
-            <TextInput
-              style={styles.input}
-              placeholder="correo@ejemplo.com"
-              placeholderTextColor={colors.textMuted}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-            />
-          </View>
+          <M3TextField
+            label="Apellido"
+            placeholder="Ej. González"
+            value={lastName}
+            onChangeText={(text) => {
+              setLastName(text);
+              if (errors.lastName) setErrors((e) => ({ ...e, lastName: '' }));
+            }}
+            leadingIcon="account"
+            errorText={errors.lastName}
+            autoCapitalize="words"
+          />
 
-          {/* Phone */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Teléfono</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="999 999 999"
-              placeholderTextColor={colors.textMuted}
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-            />
-          </View>
+          <M3TextField
+            label="Correo electrónico"
+            placeholder="usuario@ejemplo.com"
+            value={email}
+            onChangeText={(text) => {
+              setEmail(text);
+              if (errors.email) setErrors((e) => ({ ...e, email: '' }));
+            }}
+            leadingIcon="email-outline"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            errorText={errors.email}
+          />
 
-          {/* Password */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Contraseña <Text style={styles.required}>*</Text></Text>
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={[styles.input, styles.passwordInput]}
-                secureTextEntry={!showPassword}
-                placeholder="Mínimo 6 caracteres"
-                placeholderTextColor={colors.textMuted}
-                value={password}
-                onChangeText={setPassword}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity activeOpacity={0.7}
-                style={styles.passwordToggle}
-                onPress={() => setShowPassword(!showPassword)}
-              >
-                <MaterialCommunityIcons
-                  name={showPassword ? "eye-outline" : "eye-off-outline"}
-                  size={22}
-                  color={colors.textSecondary}
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
+          <M3TextField
+            label="Teléfono (opcional)"
+            placeholder="Ej. 987 654 321"
+            value={phone}
+            onChangeText={setPhone}
+            leadingIcon="phone-outline"
+            keyboardType="phone-pad"
+          />
 
-          {/* Role Selector */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Rol <Text style={styles.required}>*</Text></Text>
-            <TouchableOpacity activeOpacity={0.7}
-              style={styles.select}
-              onPress={() => setShowRolePicker(!showRolePicker)}
-            >
-              <Text style={role ? styles.selectText : styles.placeholderText}>
-                {role ? ROLE_OPTIONS.find(r => r.value === role)?.label : 'Seleccionar rol'}
-              </Text>
-              <MaterialCommunityIcons name="chevron-down" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
+          <M3TextField
+            label="Contraseña"
+            placeholder="Mínimo 6 caracteres"
+            value={password}
+            onChangeText={(text) => {
+              setPassword(text);
+              if (errors.password) setErrors((e) => ({ ...e, password: '' }));
+            }}
+            leadingIcon="lock-outline"
+            secureTextEntry={!showPassword}
+            trailingIcon={showPassword ? 'eye-off-outline' : 'eye-outline'}
+            onTrailingIconPress={() => setShowPassword(!showPassword)}
+            errorText={errors.password}
+          />
 
-            {showRolePicker && (
-              <View style={styles.pickerDropdown}>
-                {ROLE_OPTIONS.map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={styles.pickerItem}
-                    activeOpacity={0.7}
-                    onPress={() => {
-                      setRole(option.value);
-                      setShowRolePicker(false);
-                    }}
-                  >
-                    <View style={styles.pickerItemContent}>
+          {/* Role Selection */}
+          <Text style={[styles.sectionHeader, { marginTop: spacing.md }]}>Rol en el Taller</Text>
+          <View style={styles.rolesRow}>
+            {ROLE_OPTIONS.map((opt) => {
+              const isSelected = role === opt.value;
+              return (
+                <Pressable
+                  key={opt.value}
+                  style={[
+                    styles.roleCard,
+                    isSelected && styles.roleCardActive,
+                  ]}
+                  android_ripple={{ color: theme.colorRoles.primaryContainer }}
+                  onPress={() => {
+                    Platform.OS !== 'web' && Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setRole(opt.value);
+                  }}
+                >
+                  <View style={styles.roleCardHeader}>
+                    <View
+                      style={[
+                        styles.roleIconBadge,
+                        {
+                          backgroundColor: isSelected
+                            ? theme.colorRoles.primaryContainer
+                            : theme.colorRoles.surfaceContainerHighest,
+                        },
+                      ]}
+                    >
                       <MaterialCommunityIcons
-                        name={option.value === 'ADMIN' ? 'shield-account' : 'account-wrench'}
-                        size={20}
-                        color={option.value === 'ADMIN' ? colors.violet : colors.primary}
+                        name={opt.icon}
+                        size={22}
+                        color={isSelected ? theme.colorRoles.primary : theme.colorRoles.onSurfaceVariant}
                       />
-                      <Text style={styles.pickerItemText}>{option.label}</Text>
                     </View>
-                    {role === option.value && (
-                      <MaterialCommunityIcons name="check" size={20} color={colors.primary} />
+                    {isSelected && (
+                      <MaterialCommunityIcons
+                        name="check-circle"
+                        size={20}
+                        color={theme.colorRoles.primary}
+                      />
                     )}
-                  </TouchableOpacity>
-                ))}
-              </View>
+                  </View>
+
+                  <Text
+                    style={[
+                      styles.roleCardTitle,
+                      isSelected && { color: theme.colorRoles.primary, fontWeight: '700' },
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                  <Text style={styles.roleCardDesc}>{opt.description}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          {errors.role ? <Text style={styles.errorText}>{errors.role}</Text> : null}
+        </Card>
+
+        {/* Action Buttons */}
+        <View style={styles.buttonContainer}>
+          <Pressable
+            style={({ pressed }) => [styles.cancelBtn, pressed && { opacity: 0.7 }]}
+            android_ripple={{ color: theme.colorRoles.outlineVariant }}
+            onPress={() => router.back()}
+            disabled={loading}
+          >
+            <Text style={styles.cancelBtnText}>Cancelar</Text>
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.submitBtn,
+              pressed && { opacity: 0.8 },
+              loading && { opacity: 0.6 },
+            ]}
+            android_ripple={{ color: theme.colorRoles.primaryContainer }}
+            onPress={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color={theme.colorRoles.onPrimary} size="small" />
+            ) : (
+              <>
+                <MaterialCommunityIcons name="content-save-outline" size={20} color={theme.colorRoles.onPrimary} />
+                <Text style={styles.submitBtnText}>Guardar Usuario</Text>
+              </>
             )}
-          </View>
-
-          {/* Buttons */}
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity activeOpacity={0.7}
-              style={[styles.button, styles.cancelButton]}
-              onPress={() => router.back()}
-              disabled={loading}
-            >
-              <Text style={styles.cancelButtonText}>Cancelar</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.button, styles.saveButton, loading && styles.buttonDisabled]}
-              onPress={handleSubmit}
-              disabled={loading}
-              activeOpacity={0.7}
-            >
-              {loading ? (
-                <ActivityIndicator color={colors.surface} />
-              ) : (
-                <>
-                  <MaterialCommunityIcons name="content-save" size={20} color={colors.surface} />
-                  <Text style={styles.saveButtonText}>Guardar</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
+          </Pressable>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.canvas,
-  },
   container: {
+    flex: 1,
+    backgroundColor: theme.colorRoles.surface,
+  },
+  scroll: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 100,
+    padding: spacing.md,
+    paddingBottom: 48,
   },
-  form: {
-    padding: 16,
+  formCard: {
+    padding: spacing.lg,
+    borderRadius: radius.xl,
+    gap: spacing.sm,
   },
-  inputContainer: {
-    marginBottom: 20,
+  sectionHeader: {
+    ...typography.titleMedium,
+    color: theme.colorRoles.primary,
+    fontWeight: '700',
+    marginBottom: spacing.xs,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.textSecondary,
-    marginBottom: 8,
+  rolesRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
-  required: {
-    color: colors.danger,
+  roleCard: {
+    flex: 1,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: theme.colorRoles.surfaceContainerHigh,
+    borderWidth: 1.5,
+    borderColor: theme.colorRoles.outlineVariant,
   },
-  input: {
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    padding: 14,
-    fontSize: 16,
-    color: colors.textPrimary,
-    borderWidth: 1,
-    borderColor: colors.border,
+  roleCardActive: {
+    backgroundColor: theme.colorRoles.surfaceContainerHighest,
+    borderColor: theme.colorRoles.primary,
   },
-  passwordContainer: {
-    position: 'relative',
-  },
-  passwordInput: {
-    paddingRight: 50,
-  },
-  passwordToggle: {
-    position: 'absolute',
-    right: 14,
-    top: 14,
-  },
-  select: {
+  roleCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
+    marginBottom: spacing.xs,
   },
-  selectText: {
-    fontSize: 16,
-    color: colors.textPrimary,
-  },
-  placeholderText: {
-    fontSize: 16,
-    color: colors.textMuted,
-  },
-  pickerDropdown: {
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  pickerItem: {
-    flexDirection: 'row',
+  roleIconBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.sm,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.canvas,
+    justifyContent: 'center',
   },
-  pickerItemContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  roleCardTitle: {
+    ...typography.titleSmall,
+    color: theme.colorRoles.onSurface,
+    fontWeight: '600',
+    marginTop: 4,
   },
-  pickerItemText: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    marginLeft: 10,
+  roleCardDesc: {
+    ...typography.bodySmall,
+    color: theme.colorRoles.onSurfaceVariant,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  errorText: {
+    ...typography.labelSmall,
+    color: theme.colorRoles.error,
+    marginTop: 4,
   },
   buttonContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 24,
+    gap: spacing.md,
+    marginTop: spacing.lg,
   },
-  button: {
+  cancelBtn: {
     flex: 1,
+    height: 52,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: theme.colorRoles.outline,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colorRoles.surface,
+  },
+  cancelBtnText: {
+    ...typography.labelLarge,
+    color: theme.colorRoles.onSurface,
+    fontWeight: '600',
+  },
+  submitBtn: {
+    flex: 2,
+    height: 52,
+    borderRadius: radius.full,
+    backgroundColor: theme.colorRoles.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
-    borderRadius: 10,
+    gap: spacing.xs,
   },
-  cancelButton: {
-    backgroundColor: colors.canvas,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  saveButton: {
-    backgroundColor: colors.primary,
-    marginLeft: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  cancelButtonText: {
-    color: colors.textSecondary,
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  saveButtonText: {
-    color: colors.surface,
-    fontWeight: '600',
-    fontSize: 16,
-    marginLeft: 8,
+  submitBtnText: {
+    ...typography.labelLarge,
+    color: theme.colorRoles.onPrimary,
+    fontWeight: '700',
   },
 });

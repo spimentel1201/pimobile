@@ -1,22 +1,44 @@
+// ponytail: Material Design 3 Navigation Bar with active indicator pill and haptics
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Text } from 'react-native';
+import { View, StyleSheet, Text, Pressable, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useSegments } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ComponentProps } from 'react';
-import { colors, spacing } from '../theme';
+import * as Haptics from 'expo-haptics';
+import { colors, radii, spacing, typography } from '../theme';
 
 type TabItem = {
   name: string;
-  icon: string;
+  activeIcon: keyof typeof MaterialCommunityIcons.glyphMap;
+  inactiveIcon: keyof typeof MaterialCommunityIcons.glyphMap;
   route: string;
 };
 
 const tabs: TabItem[] = [
-  { name: 'Inicio', icon: 'view-dashboard', route: 'dashboard' },
-  { name: 'Órdenes', icon: 'clipboard-text', route: 'orders' },
-  { name: 'Ventas', icon: 'sale', route: 'sales' },
-  { name: 'Perfil', icon: 'account', route: 'profile' },
+  {
+    name: 'Inicio',
+    activeIcon: 'view-dashboard',
+    inactiveIcon: 'view-dashboard-outline',
+    route: 'dashboard',
+  },
+  {
+    name: 'Órdenes',
+    activeIcon: 'clipboard-text',
+    inactiveIcon: 'clipboard-text-outline',
+    route: 'orders',
+  },
+  {
+    name: 'Ventas',
+    activeIcon: 'sale',
+    inactiveIcon: 'sale',
+    route: 'sales',
+  },
+  {
+    name: 'Perfil',
+    activeIcon: 'account-circle',
+    inactiveIcon: 'account-circle-outline',
+    route: 'profile',
+  },
 ];
 
 export default function BottomTabBar() {
@@ -31,44 +53,61 @@ export default function BottomTabBar() {
   };
 
   const handleNavigation = (route: string) => {
-    // Mapeo de rutas permitidas
+    Platform.OS !== 'web' && Haptics.selectionAsync();
+
     const allowedRoutes = {
-      'dashboard': '/dashboard',
-      'orders': '/orders',
-      'sales': '/sales',
-      'profile': '/profile'
+      dashboard: '/dashboard',
+      orders: '/orders',
+      sales: '/sales',
+      profile: '/profile',
     } as const;
 
-    // Verificar si la ruta es válida
     const targetRoute = allowedRoutes[route as keyof typeof allowedRoutes];
     if (targetRoute) {
       router.push(targetRoute as any);
-    } else {
-      console.warn(`Ruta no válida: ${route}`);
     }
   };
 
   return (
-    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          paddingBottom: Math.max(insets.bottom, spacing.xs),
+          height: 72 + Math.max(insets.bottom, spacing.xs),
+        },
+      ]}
+    >
       <View style={styles.tabContainer}>
         {tabs.map((tab) => {
           const active = isActive(tab.route);
           return (
-            <TouchableOpacity
+            <Pressable
               key={tab.name}
               style={styles.tab}
               onPress={() => handleNavigation(tab.route)}
-              activeOpacity={0.6}
+              android_ripple={{ color: 'rgba(0, 82, 255, 0.12)', borderless: true, radius: 28 }}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={tab.name}
             >
-              <MaterialCommunityIcons
-                name={tab.icon as ComponentProps<typeof MaterialCommunityIcons>['name']}
-                size={22}
-                color={active ? colors.primary : colors.textSecondary}
-              />
-              <Text style={[styles.tabText, active && styles.tabTextActive]}>
+              <View style={[styles.indicator, active && styles.indicatorActive]}>
+                <MaterialCommunityIcons
+                  name={active ? tab.activeIcon : tab.inactiveIcon}
+                  size={24}
+                  color={active ? colors.primary : colors.textSecondary}
+                />
+              </View>
+              <Text
+                style={[
+                  styles.tabText,
+                  active ? styles.tabTextActive : styles.tabTextInactive,
+                ]}
+                numberOfLines={1}
+              >
                 {tab.name}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           );
         })}
       </View>
@@ -77,46 +116,51 @@ export default function BottomTabBar() {
 }
 
 const styles = StyleSheet.create({
-  // Barra estática: pegada al borde inferior, ancho completo (estilo app nativa)
   container: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     zIndex: 100,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceContainer,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing.sm,
-    shadowColor: colors.textPrimary,
-    shadowOffset: { width: 0, height: -1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
+    borderTopColor: 'rgba(195, 199, 208, 0.4)',
     elevation: 8,
   },
   tabContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
+    height: 72,
     paddingHorizontal: spacing.sm,
-    gap: 4,
   },
   tab: {
     flex: 1,
-    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
-    gap: 2,
-    minHeight: 48,
+    height: 64,
+  },
+  indicator: {
+    width: 60,
+    height: 32,
+    borderRadius: radii.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  indicatorActive: {
+    backgroundColor: colors.primarySoft,
   },
   tabText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: colors.textSecondary,
+    ...typography.labelSmall,
+    textAlign: 'center',
   },
   tabTextActive: {
     color: colors.primary,
     fontWeight: '700',
+  },
+  tabTextInactive: {
+    color: colors.textSecondary,
+    fontWeight: '500',
   },
 });

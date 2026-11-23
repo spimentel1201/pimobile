@@ -1,53 +1,43 @@
+// ponytail: M3 OrdersScreen with SearchBar, Filter Chips, OrderCard and Extended FAB
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Modal,
   ScrollView,
-  Alert,
   SafeAreaView,
   ActivityIndicator,
   RefreshControl,
   Linking,
+  TextInput,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FlashList } from '@shopify/flash-list';
 import { api } from '../services/api';
 import { RepairOrder, RepairOrderStatus } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
 import Toast from '../components/ui/Toast';
-import StatusBadge from '../components/ui/StatusBadge';
-import { NO_PHONE_MESSAGE, buildTelUrl, buildWhatsAppUrl } from '../utils/phone';
+import BottomSheet from '../components/ui/BottomSheet';
+import EmptyState from '../components/ui/EmptyState';
+import M3Fab from '../components/ui/M3Fab';
+import OrderCard from '../components/OrderCard';
 import ReceiptPreview from '../components/ReceiptPreview';
-import { FlashList } from '@shopify/flash-list';
-import { colors, typography, radii, shadow, spacing, ORDER_STATUS } from '../theme';
-
-const STATUS_COLORS: Record<RepairOrderStatus, string> = {
-  RECEIVED: colors.textMuted,
-  DIAGNOSED: colors.primary,
-  IN_PROGRESS: colors.warning,
-  WAITING_FOR_PARTS: colors.violet,
-  COMPLETED: colors.success,
-  DELIVERED: colors.success,
-  CANCELLED: colors.danger,
-};
-
-const STATUS_LABELS: Record<RepairOrderStatus, string> = {
-  RECEIVED: 'Recibido',
-  DIAGNOSED: 'Diagnosticado',
-  IN_PROGRESS: 'En Progreso',
-  WAITING_FOR_PARTS: 'Esperando Repuestos',
-  COMPLETED: 'Completado',
-  DELIVERED: 'Entregado',
-  CANCELLED: 'Cancelado',
-};
+import { NO_PHONE_MESSAGE, buildTelUrl, buildWhatsAppUrl } from '../utils/phone';
+import {
+  colors,
+  typography,
+  radii,
+  spacing,
+  ORDER_STATUS,
+} from '../theme';
 
 type FilterStatus = RepairOrderStatus | 'ALL';
 
-// Fecha relativa: "Hoy 12:40", "Ayer", "3 mar"
 function formatRelativeDate(iso: string): string {
   const date = new Date(iso);
   const now = new Date();
@@ -65,12 +55,14 @@ function formatRelativeDate(iso: string): string {
 
 const OrdersScreen = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { openOrderId } = useLocalSearchParams<{ openOrderId: string }>();
   const { user } = useAuth();
   const [orders, setOrders] = useState<RepairOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('ALL');
   const [scanVisible, setScanVisible] = useState(false);
   const [scanProcessed, setScanProcessed] = useState(false);
@@ -89,9 +81,8 @@ const OrdersScreen = () => {
     try {
       setError(null);
       const data = await api.getRepairOrders();
-      // Sort orders by createdAt descending (newest first)
-      const sortedData = data.sort((a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      const sortedData = data.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
       setOrders(sortedData);
     } catch (err: any) {
@@ -103,8 +94,6 @@ const OrdersScreen = () => {
     }
   }, [user]);
 
-  // Refresca la lista cada vez que la pantalla recupera el foco (p. ej. al
-  // volver de editar una orden) para que el estado mostrado siempre esté al día.
   useFocusEffect(
     useCallback(() => {
       if (user) {
@@ -115,7 +104,6 @@ const OrdersScreen = () => {
     }, [user, fetchOrders])
   );
 
-  // Handle deep linking / query param: navegar a la pantalla de detalle
   useEffect(() => {
     if (openOrderId) {
       router.push(`/orders/${openOrderId}` as never);
@@ -127,7 +115,12 @@ const OrdersScreen = () => {
     fetchOrders();
   }, [fetchOrders]);
 
-  /** Abre el marcador con prefijo internacional: tel:+51<numero> */
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ message, type });
+    toastTimer.current = setTimeout(() => setToast(null), 2600);
+  };
+
   const openPhone = (phone: string) => {
     const url = buildTelUrl(phone);
     if (!url) {
@@ -137,21 +130,16 @@ const OrdersScreen = () => {
     Linking.openURL(url).catch(() => showToast('No se pudo abrir el teléfono', 'error'));
   };
 
-  /** Abre WhatsApp en wa.me/51<numero> */
   const openWhatsApp = (phone: string, name?: string) => {
-    const message = name ? `Hola, ${name}, te escribe Electrónica Pimentel por tu equipo en reparación.` : null;
+    const message = name
+      ? `Hola, ${name}, te escribe Electrónica Pimentel sobre tu equipo en taller.`
+      : null;
     const url = buildWhatsAppUrl(phone, message);
     if (!url) {
       showToast(NO_PHONE_MESSAGE, 'error');
       return;
     }
     Linking.openURL(url).catch(() => showToast('No se pudo abrir WhatsApp', 'error'));
-  };
-
-  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    setToast({ message, type });
-    toastTimer.current = setTimeout(() => setToast(null), 2600);
   };
 
   const handleStatusUpdate = async (orderId: string, newStatus: RepairOrderStatus) => {
@@ -166,263 +154,150 @@ const OrdersScreen = () => {
     }
   };
 
-  const handleDeleteOrder = async (orderId: string) => {
-    Alert.alert(
-      'Confirmar eliminación',
-      '¿Está seguro que desea eliminar esta orden?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.deleteRepairOrder(orderId);
-              Alert.alert('Éxito', 'Orden eliminada correctamente');
-              fetchOrders();
-            } catch (err: any) {
-              Alert.alert('Error', err.message || 'No se pudo eliminar la orden');
+  const filteredOrders = useMemo(() => {
+    let result = orders;
+
+    if (filterStatus !== 'ALL') {
+      result = result.filter((o) => o.status === filterStatus);
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter((o) => {
+        const idMatch = o.id.toLowerCase().includes(q);
+        const customerMatch = (o.customer?.name || o.customerName || '').toLowerCase().includes(q);
+        const descMatch = (o.description || '').toLowerCase().includes(q);
+        const deviceMatch = o.items?.some(
+          (it) =>
+            it.brand.toLowerCase().includes(q) ||
+            it.model.toLowerCase().includes(q) ||
+            it.deviceType.toLowerCase().includes(q) ||
+            (it.serialNumber && it.serialNumber.toLowerCase().includes(q))
+        );
+        return idMatch || customerMatch || descMatch || deviceMatch;
+      });
+    }
+
+    return result;
+  }, [orders, filterStatus, searchQuery]);
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { ALL: orders.length };
+    orders.forEach((o) => {
+      counts[o.status] = (counts[o.status] || 0) + 1;
+    });
+    return counts;
+  }, [orders]);
+
+  const renderSearchBar = () => (
+    <View style={styles.searchBarContainer}>
+      <View style={styles.searchField}>
+        <MaterialCommunityIcons
+          name="magnify"
+          size={22}
+          color={colors.textSecondary}
+          style={styles.searchIcon}
+        />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Buscar por cliente, orden, equipo..."
+          placeholderTextColor={colors.textMuted}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          clearButtonMode="while-editing"
+        />
+        {searchQuery.length > 0 && (
+          <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+            <MaterialCommunityIcons name="close-circle" size={18} color={colors.textMuted} />
+          </Pressable>
+        )}
+      </View>
+
+      <Pressable
+        style={styles.scanBtn}
+        onPress={async () => {
+          if (!permission?.granted) {
+            const res = await requestPermission();
+            if (!res.granted) {
+              showToast('Se necesita permiso de cámara', 'error');
+              return;
             }
-          },
-        },
-      ]
-    );
-  };
-
-  const filteredOrders = useMemo(
-    () =>
-      filterStatus === 'ALL'
-        ? orders
-        : orders.filter(order => order.status === filterStatus),
-    [orders, filterStatus]
-  );
-
-  const renderHeader = () => (
-    <View style={styles.header}>
-      <View style={styles.headerContent}>
-        <Text style={styles.headerTitle}>Órdenes de Reparación</Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity activeOpacity={0.7}
-            style={styles.scanButton}
-            onPress={async () => {
-              if (!permission?.granted) {
-                const res = await requestPermission();
-                if (!res.granted) {
-                  showToast('Se necesita permiso de cámara para escanear', 'error');
-                  return;
-                }
-              }
-              setScanProcessed(false);
-              setScanVisible(true);
-            }}
-          >
-            <MaterialCommunityIcons name="qrcode-scan" size={20} color={colors.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.7}
-            style={styles.addButton}
-            onPress={() => router.push('/orders/new')}
-          >
-            <MaterialCommunityIcons name="plus" size={20} color="white" />
-            <Text style={styles.addButtonText}>Nueva Orden</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  );
-
-  const renderFilters = () => (
-    <View style={styles.filtersContainer}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        {(['ALL', ...Object.keys(STATUS_LABELS)] as FilterStatus[]).map((status) => (
-          <TouchableOpacity activeOpacity={0.7}
-            key={status}
-            style={[
-              styles.filterChip,
-              filterStatus === status && styles.filterChipActive
-            ]}
-            onPress={() => setFilterStatus(status)}
-          >
-            {status !== 'ALL' && (
-              <View style={[styles.statusDot, { backgroundColor: STATUS_COLORS[status as RepairOrderStatus] }]} />
-            )}
-            <Text style={[
-              styles.filterChipText,
-              filterStatus === status && styles.filterChipTextActive
-            ]}>
-              {status === 'ALL' ? 'Todas' : STATUS_LABELS[status as RepairOrderStatus]}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
-  );
-
-  /**
-   * Botón morado: abre la vista previa con el HTML formateado (misma
-   * generación que la impresión). Desde ahí se confirma "Imprimir".
-   */
-  const openReceiptPreview = (order: RepairOrder) => setReceiptOrder(order);
-
-  const renderOrderCard = ({ item }: { item: RepairOrder }) => {
-    const status = ORDER_STATUS[item.status];
-    const firstItem = item.items?.[0];
-    const customerPhone = item.customer?.phone;
-
-    return (
-      <View style={styles.orderCard}>
-        {/* Barra de estado 4px del color del estado */}
-        <View style={[styles.cardAccent, { backgroundColor: status.color }]} />
-
-        <TouchableOpacity activeOpacity={0.7}
-          onPress={() => router.push(`/orders/${item.id}` as never)}
-        >
-          <View style={styles.orderHeader}>
-            <StatusBadge label={status.label} color={status.color} soft={status.soft} />
-            <Text style={styles.orderId}>#{item.id.slice(0, 8).toUpperCase()}</Text>
-          </View>
-
-          <Text style={styles.orderCustomer} numberOfLines={1}>
-            {item.customer?.name || item.customerName || 'Sin cliente'}
-          </Text>
-
-          {firstItem && (
-            <View style={styles.deviceInfo}>
-              <MaterialCommunityIcons name="devices" size={16} color={colors.textSecondary} />
-              <Text style={styles.deviceText} numberOfLines={1}>
-                <Text style={styles.deviceTextUpper}>
-                  {firstItem.brand} {firstItem.model}
-                </Text>{' '}
-                · {firstItem.deviceType}
-              </Text>
-            </View>
-          )}
-
-          <Text style={styles.orderDescription} numberOfLines={2}>
-            {item.description}
-          </Text>
-
-          <View style={styles.orderFooter}>
-            <View style={styles.technicianInfo}>
-              {(item.technician?.firstName || item.technicianName) ? (
-                <>
-                  <MaterialCommunityIcons name="account-wrench" size={16} color={colors.primary} />
-                  <Text style={styles.technicianName} numberOfLines={1}>
-                    {item.technician
-                      ? `${item.technician.firstName} ${item.technician.lastName}`
-                      : item.technicianName}
-                  </Text>
-                </>
-              ) : (
-                <Text style={styles.noTechnician}>Sin técnico asignado</Text>
-              )}
-            </View>
-            <Text style={styles.orderDate}>{formatRelativeDate(item.createdAt)}</Text>
-          </View>
-        </TouchableOpacity>
-
-        <View style={styles.orderActions}>
-          {customerPhone && (
-            <>
-              <TouchableOpacity activeOpacity={0.7}
-                style={styles.contactButton}
-                onPress={() => openPhone(customerPhone)}
-                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-                accessibilityLabel="Llamar"
-              >
-                <MaterialCommunityIcons name="phone" size={18} color={colors.primary} />
-              </TouchableOpacity>
-              <TouchableOpacity activeOpacity={0.7}
-                style={[styles.contactButton, styles.contactButtonWhatsapp]}
-                onPress={() => openWhatsApp(customerPhone, item.customer?.name || item.customerName || undefined)}
-                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-                accessibilityLabel="WhatsApp"
-              >
-                <MaterialCommunityIcons name="whatsapp" size={18} color={colors.success} />
-              </TouchableOpacity>
-            </>
-          )}
-
-          <View style={styles.actionSpacer} />
-
-          <TouchableOpacity activeOpacity={0.7}
-            style={[styles.actionButton, { backgroundColor: colors.primary }]}
-            onPress={() => router.push(`/orders/${item.id}/edit`)}
-          >
-            <MaterialCommunityIcons name="pencil" size={18} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.7}
-            style={[styles.actionButton, { backgroundColor: colors.success }]}
-            onPress={() => setStatusPickerOrder(item)}
-          >
-            <MaterialCommunityIcons name="swap-horizontal" size={18} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.7}
-            style={[styles.actionButton, { backgroundColor: colors.violet }]}
-            onPress={() => openReceiptPreview(item)}
-            accessibilityLabel="Ver recibo e imprimir"
-          >
-            <MaterialCommunityIcons name="printer" size={18} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.7}
-            style={[styles.actionButton, { backgroundColor: colors.danger }]}
-            onPress={() => handleDeleteOrder(item.id)}
-          >
-            <MaterialCommunityIcons name="delete" size={18} color="white" />
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
-
-  const renderStatusPicker = () => {
-    if (!statusPickerOrder) return null;
-
-    return (
-      <Modal
-        visible
-        transparent
-        animationType="fade"
-        onRequestClose={() => setStatusPickerOrder(null)}
+          }
+          setScanProcessed(false);
+          setScanVisible(true);
+        }}
+        android_ripple={{ color: 'rgba(0, 82, 255, 0.15)', borderless: true, radius: 24 }}
+        accessibilityRole="button"
+        accessibilityLabel="Escanear QR de orden"
       >
-        <TouchableOpacity
-          style={styles.statusOverlay}
-          activeOpacity={0.7}
-          onPress={() => setStatusPickerOrder(null)}
+        <MaterialCommunityIcons name="qrcode-scan" size={22} color={colors.primary} />
+      </Pressable>
+    </View>
+  );
+
+  const renderFilterChips = () => {
+    const statuses: FilterStatus[] = ['ALL', ...(Object.keys(ORDER_STATUS) as RepairOrderStatus[])];
+
+    return (
+      <View style={styles.filtersScrollWrapper}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filtersContent}
         >
-          <TouchableOpacity
-            style={styles.statusSheet}
-            activeOpacity={0.7}
-            onPress={() => {}}
-          >
-            <Text style={styles.statusSheetTitle}>Cambiar estado</Text>
-            <Text style={styles.statusSheetSubtitle}>
-              Orden #{statusPickerOrder.id.slice(0, 8)} · Estado actual: {STATUS_LABELS[statusPickerOrder.status]}
-            </Text>
-            {(Object.entries(STATUS_LABELS) as [RepairOrderStatus, string][]).map(([status, label]) => {
-              const isActive = status === statusPickerOrder.status;
-              return (
-                <TouchableOpacity
-                  key={status}
-                  style={[styles.statusOption, isActive && styles.statusOptionActive]}
-                  activeOpacity={0.7}
-                  disabled={isActive}
-                  onPress={() => handleStatusUpdate(statusPickerOrder.id, status)}
+          {statuses.map((st) => {
+            const isSelected = filterStatus === st;
+            const styleObj = st === 'ALL' ? null : ORDER_STATUS[st];
+            const count = statusCounts[st] || 0;
+
+            return (
+              <Pressable
+                key={st}
+                style={[
+                  styles.filterChip,
+                  isSelected && styles.filterChipSelected,
+                ]}
+                onPress={() => setFilterStatus(st)}
+                android_ripple={{ color: 'rgba(0, 82, 255, 0.15)' }}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isSelected }}
+              >
+                {styleObj && (
+                  <MaterialCommunityIcons
+                    name={(styleObj.icon || 'circle') as any}
+                    size={15}
+                    color={isSelected ? colors.white : styleObj.color}
+                    style={styles.chipIcon}
+                  />
+                )}
+                <Text
+                  style={[
+                    styles.chipText,
+                    isSelected && styles.chipTextSelected,
+                  ]}
                 >
-                  <View style={[styles.statusDot, { backgroundColor: STATUS_COLORS[status] }]} />
+                  {st === 'ALL' ? 'Todas' : styleObj?.label}
+                </Text>
+                <View
+                  style={[
+                    styles.countBadge,
+                    isSelected ? styles.countBadgeSelected : styles.countBadgeUnselected,
+                  ]}
+                >
                   <Text
-                    style={[styles.statusOptionText, isActive && styles.statusOptionTextActive]}
+                    style={[
+                      styles.countText,
+                      isSelected && styles.countTextSelected,
+                    ]}
                   >
-                    {label}
+                    {count}
                   </Text>
-                  {isActive && (
-                    <MaterialCommunityIcons name="check-circle" size={20} color={colors.primary} />
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
+                </View>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
     );
   };
 
@@ -430,54 +305,124 @@ const OrdersScreen = () => {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Cargando órdenes...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.centered}>
-        <MaterialCommunityIcons name="alert-circle" size={48} color={colors.danger} />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity activeOpacity={0.7} style={styles.retryButton} onPress={fetchOrders}>
-          <Text style={styles.retryButtonText}>Reintentar</Text>
-        </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {toast && <Toast message={toast.message} type={toast.type} />}
-      <SafeAreaView style={styles.safeArea}>
-        {renderHeader()}
-        <View style={styles.contentContainer}>
-          {renderFilters()}
-          <FlashList
-            data={filteredOrders}
-            renderItem={renderOrderCard}
-            keyExtractor={item => item.id}
-            estimatedItemSize={120}
-            contentContainerStyle={styles.ordersList}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+    <SafeAreaView style={styles.container}>
+      <View style={[styles.topHeader, { paddingTop: insets.top + spacing.xs }]}>
+        <Text style={styles.screenTitle}>Órdenes de Servicio</Text>
+      </View>
+
+      {renderSearchBar()}
+      {renderFilterChips()}
+
+      {error && (
+        <View style={styles.errorBanner}>
+          <MaterialCommunityIcons name="alert-circle-outline" size={18} color={colors.danger} />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+
+      <View style={styles.listContainer}>
+        {filteredOrders.length === 0 ? (
+          <EmptyState
+            icon="clipboard-text-outline"
+            title="No se encontraron órdenes"
+            description={
+              searchQuery
+                ? `No hay coincidencias para "${searchQuery}".`
+                : 'No hay órdenes en esta categoría.'
             }
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <MaterialCommunityIcons name="clipboard-text-outline" size={64} color={colors.border} />
-                <Text style={styles.emptyText}>No hay órdenes</Text>
-                <TouchableOpacity activeOpacity={0.7}
-                  style={styles.emptyButton}
-                  onPress={() => router.push('/orders/new')}
-                >
-                  <Text style={styles.emptyButtonText}>Crear primera orden</Text>
-                </TouchableOpacity>
-              </View>
+            ctaLabel={searchQuery ? 'Limpiar búsqueda' : 'Nueva Orden'}
+            onCta={
+              searchQuery ? () => setSearchQuery('') : () => router.push('/orders/new')
             }
           />
-        </View>
-      </SafeAreaView>
+        ) : (
+          <FlashList
+            data={filteredOrders}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <OrderCard
+                order={item}
+                onCall={openPhone}
+                onWhatsApp={openWhatsApp}
+                onChangeStatus={(o) => setStatusPickerOrder(o)}
+                onPrintReceipt={(o) => setReceiptOrder(o)}
+                formatRelativeDate={formatRelativeDate}
+              />
+            )}
+            estimatedItemSize={200}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.primary}
+                colors={[colors.primary]}
+              />
+            }
+          />
+        )}
+      </View>
+
+      {/* Extended FAB for creating orders */}
+      <View style={[styles.fabWrapper, { bottom: insets.bottom + 80 }]}>
+        <M3Fab
+          label="Nueva Orden"
+          icon="wrench-outline"
+          onPress={() => router.push('/orders/new')}
+        />
+      </View>
+
+      {/* Change Status Modal BottomSheet */}
+      {statusPickerOrder && (
+        <BottomSheet
+          visible={Boolean(statusPickerOrder)}
+          title="Cambiar Estado de la Orden"
+          subtitle={`ORD-${statusPickerOrder.id.slice(0, 8).toUpperCase()}`}
+          onClose={() => setStatusPickerOrder(null)}
+        >
+          <ScrollView style={styles.statusOptionsList}>
+            {(Object.keys(ORDER_STATUS) as RepairOrderStatus[]).map((st) => {
+              const info = ORDER_STATUS[st];
+              const isCurrent = statusPickerOrder.status === st;
+
+              return (
+                <Pressable
+                  key={st}
+                  style={[styles.statusOptionRow, isCurrent && styles.statusOptionRowCurrent]}
+                  onPress={() => handleStatusUpdate(statusPickerOrder.id, st)}
+                  android_ripple={{ color: 'rgba(0, 82, 255, 0.12)' }}
+                >
+                  <View style={[styles.statusOptionIcon, { backgroundColor: info.soft }]}>
+                    <MaterialCommunityIcons name={(info.icon || 'tag') as any} size={20} color={info.color} />
+                  </View>
+                  <Text style={[styles.statusOptionText, isCurrent && styles.statusOptionTextCurrent]}>
+                    {info.label}
+                  </Text>
+                  {isCurrent && (
+                    <MaterialCommunityIcons name="check" size={20} color={colors.primary} />
+                  )}
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </BottomSheet>
+      )}
+
+      {/* Receipt Preview */}
+      {receiptOrder && (
+        <ReceiptPreview
+          order={receiptOrder}
+          visible={Boolean(receiptOrder)}
+          onClose={() => setReceiptOrder(null)}
+        />
+      )}
+
+      {/* QR Scanner */}
       {scanVisible && (
         <Modal visible transparent animationType="fade" onRequestClose={() => setScanVisible(false)}>
           <View style={styles.scanOverlay}>
@@ -491,13 +436,10 @@ const OrdersScreen = () => {
                 try {
                   let order: RepairOrder | null = null;
                   if (data.startsWith('serial:')) {
-                    const serial = data.slice('serial:'.length);
-                    order = await api.getRepairOrderBySerial(serial);
+                    order = await api.getRepairOrderBySerial(data.slice('serial:'.length));
                   } else if (data.startsWith('order:')) {
-                    const id = data.slice('order:'.length);
-                    order = await api.getRepairOrderById(id);
+                    order = await api.getRepairOrderById(data.slice('order:'.length));
                   } else {
-                    // Intentar como serial directo
                     try {
                       order = await api.getRepairOrderBySerial(data);
                     } catch {
@@ -505,31 +447,30 @@ const OrdersScreen = () => {
                     }
                   }
                   setScanVisible(false);
-                  if (order) router.push(`/orders/${order.id}` as never);
-                  else showToast('No se encontró la orden', 'error');
+                  if (order) router.push(`/orders/${order.id}` as any);
                 } catch {
-                  showToast('No se pudo resolver el código QR', 'error');
                   setScanVisible(false);
                 }
               }}
             />
-            <TouchableOpacity
-              style={styles.scanClose}
-              onPress={() => setScanVisible(false)}
-              activeOpacity={0.7}
-            >
-              <MaterialCommunityIcons name="close" size={24} color={colors.white} />
-            </TouchableOpacity>
-            <Text style={styles.scanHint}>Apunta al código QR de la etiqueta</Text>
+            <View style={styles.scanFrame}>
+              <View style={styles.scanBox} />
+              <Text style={styles.scanHint}>Apunta al código QR de la orden</Text>
+              <Pressable
+                style={styles.scanCloseBtn}
+                onPress={() => setScanVisible(false)}
+                android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+              >
+                <Text style={styles.scanCloseText}>Cerrar Cámara</Text>
+              </Pressable>
+            </View>
           </View>
         </Modal>
       )}
-      <ReceiptPreview
-        visible={receiptOrder !== null}
-        order={receiptOrder}
-        onClose={() => setReceiptOrder(null)}
-      />
-    </View>
+
+      {/* Toast Feedback */}
+      {toast && <Toast message={toast.message} type={toast.type} />}
+    </SafeAreaView>
   );
 };
 
@@ -538,344 +479,205 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.canvas,
   },
-  safeArea: {
-    flex: 1,
-  },
-  statusOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(16, 24, 40, 0.45)',
-    justifyContent: 'flex-end',
-  },
-  statusSheet: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 32,
-  },
-  statusSheetTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
-  },
-  statusSheetSubtitle: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 4,
-    marginBottom: 12,
-  },
-  statusOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    marginBottom: 6,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  statusOptionActive: {
-    backgroundColor: colors.primarySoft,
-    borderColor: colors.primary,
-  },
-  statusOptionText: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginLeft: 8,
-  },
-  statusOptionTextActive: {
-    color: colors.primary,
-  },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    backgroundColor: colors.canvas,
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: colors.textSecondary,
+  topHeader: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xs,
   },
-  errorText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: colors.danger,
-    textAlign: 'center',
-  },
-  retryButton: {
-    marginTop: 16,
-    backgroundColor: colors.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: 'white',
-    fontWeight: '600',
-  },
-  header: {
-    backgroundColor: 'white',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  screenTitle: {
+    ...typography.headlineSmall,
     color: colors.textPrimary,
+    fontWeight: '700',
   },
-  addButton: {
+  searchBarContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xs,
     gap: spacing.sm,
   },
-  scanButton: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.button,
-    borderCurve: 'continuous',
-    backgroundColor: colors.surfaceMuted,
+  searchField: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: colors.surfaceContainer,
+    borderRadius: radii.full,
+    paddingHorizontal: spacing.md,
+    minHeight: 48,
+  },
+  searchIcon: {
+    marginRight: spacing.xs,
+  },
+  searchInput: {
+    flex: 1,
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+    paddingVertical: spacing.xs,
+  },
+  scanBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceContainer,
     justifyContent: 'center',
-  },
-  scanOverlay: {
-    flex: 1,
-    backgroundColor: colors.textPrimary,
-  },
-  scanCamera: {
-    flex: 1,
-  },
-  scanClose: {
-    position: 'absolute',
-    top: 60,
-    right: 20,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  scanHint: {
-    position: 'absolute',
-    bottom: 80,
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '600',
+  filtersScrollWrapper: {
+    marginVertical: spacing.xs,
   },
-  addButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  contentContainer: {
-    flex: 1,
-  },
-  filtersContainer: {
-    backgroundColor: 'white',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+  filtersContent: {
+    paddingHorizontal: spacing.lg,
+    gap: spacing.xs,
+    paddingVertical: 4,
   },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: colors.canvas,
-    marginRight: 8,
-  },
-  filterChipActive: {
-    backgroundColor: colors.primary,
-  },
-  filterChipText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  filterChipTextActive: {
-    color: 'white',
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  ordersList: {
-    padding: 16,
-    paddingBottom: 100,
-  },
-  orderCard: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 7,
+    borderRadius: radii.full,
     backgroundColor: colors.surface,
-    borderRadius: radii.card,
-    marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-    ...shadow,
+    borderColor: 'rgba(195, 199, 208, 0.5)',
+    gap: 6,
   },
-  cardAccent: {
-    width: 4,
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    zIndex: 1,
+  filterChipSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
-  orderHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-    paddingLeft: spacing.md + 4,
-    paddingRight: spacing.lg,
-    paddingTop: spacing.lg,
+  chipIcon: {
+    marginRight: 2,
   },
-  orderId: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontVariant: ['tabular-nums'],
-  },
-  orderCustomer: {
-    ...typography.bodyStrong,
-    fontSize: 16,
-    color: colors.textPrimary,
-    paddingLeft: spacing.md + 4,
-    paddingRight: spacing.lg,
-  },
-  deviceInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: spacing.xs,
-    paddingLeft: spacing.md + 4,
-    paddingRight: spacing.lg,
-  },
-  deviceText: {
-    marginLeft: spacing.sm,
-    flex: 1,
-    ...typography.caption,
+  chipText: {
+    ...typography.labelMedium,
     color: colors.textSecondary,
-  },
-  deviceTextUpper: {
-    textTransform: 'uppercase',
-  },
-  orderDescription: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginTop: spacing.sm,
-    paddingLeft: spacing.md + 4,
-    paddingRight: spacing.lg,
-  },
-  orderFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: spacing.md,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    marginLeft: spacing.md + 4,
-    marginRight: spacing.lg,
-  },
-  technicianInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: spacing.sm,
-  },
-  technicianName: {
-    marginLeft: 6,
-    ...typography.caption,
-    color: colors.primary,
     fontWeight: '600',
-    flexShrink: 1,
   },
-  noTechnician: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontStyle: 'italic',
+  chipTextSelected: {
+    color: colors.white,
+    fontWeight: '700',
   },
-  orderDate: {
-    ...typography.caption,
-    color: colors.textMuted,
+  countBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: radii.full,
   },
-  orderActions: {
+  countBadgeUnselected: {
+    backgroundColor: colors.surfaceContainer,
+  },
+  countBadgeSelected: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  countText: {
+    ...typography.labelSmall,
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  countTextSelected: {
+    color: colors.white,
+  },
+  listContainer: {
+    flex: 1,
+  },
+  listContent: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
+    paddingBottom: 110,
+  },
+  fabWrapper: {
+    position: 'absolute',
+    right: spacing.lg,
+    zIndex: 99,
+  },
+  statusOptionsList: {
+    maxHeight: 380,
+  },
+  statusOptionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing.md,
-    paddingLeft: spacing.md + 4,
-    paddingRight: spacing.lg,
-    paddingBottom: spacing.lg,
-    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.md,
+    gap: spacing.md,
   },
-  contactButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 40,
-    height: 40,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.primarySoft,
+  statusOptionRowCurrent: {
     backgroundColor: colors.primarySoft,
   },
-  contactButtonWhatsapp: {
-    backgroundColor: colors.successSoft,
-    borderColor: colors.successSoft,
-  },
-  actionSpacer: {
-    flex: 1,
-  },
-  actionButton: {
+  statusOptionIcon: {
     width: 36,
     height: 36,
-    borderRadius: radii.button,
+    borderRadius: radii.full,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  emptyContainer: {
+  statusOptionText: {
+    ...typography.bodyLarge,
+    color: colors.textPrimary,
     flex: 1,
+  },
+  statusOptionTextCurrent: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.dangerSoft,
+    padding: spacing.md,
+    marginHorizontal: spacing.lg,
+    borderRadius: radii.md,
+    gap: spacing.sm,
+  },
+  errorText: {
+    ...typography.bodyMedium,
+    color: colors.danger,
+    flex: 1,
+  },
+  scanOverlay: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  scanCamera: {
+    flex: 1,
+  },
+  scanFrame: {
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 64,
   },
-  emptyText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: colors.textSecondary,
+  scanBox: {
+    width: 250,
+    height: 250,
+    borderWidth: 2,
+    borderColor: colors.white,
+    borderRadius: radii.lg,
+    backgroundColor: 'transparent',
   },
-  emptyButton: {
-    marginTop: 16,
+  scanHint: {
+    ...typography.bodyMedium,
+    color: colors.white,
+    marginTop: spacing.lg,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.full,
+  },
+  scanCloseBtn: {
+    marginTop: spacing.xl,
     backgroundColor: colors.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radii.full,
   },
-  emptyButtonText: {
-    color: 'white',
+  scanCloseText: {
+    ...typography.labelLarge,
+    color: colors.white,
     fontWeight: '600',
   },
 });

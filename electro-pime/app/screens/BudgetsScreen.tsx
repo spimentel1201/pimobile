@@ -1,18 +1,18 @@
+// ponytail: M3 BudgetsScreen with Quote-to-Cash transitions, M3 filter chips and conversion to sale
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   FlatList,
-  Modal,
   ScrollView,
   ActivityIndicator,
   RefreshControl,
   TextInput,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import type { ComponentProps } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, ApiError } from '../services/api';
 import { Quote, QuoteStatus, CreateQuoteDto, Customer, RepairOrder } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -22,62 +22,40 @@ import {
   typography,
   spacing,
   radii,
-  shadow,
+  tonalElevation,
   quoteStatusStyle,
   PAYMENT_METHOD,
   type PaymentMethod,
+  QUOTE_STATUS,
 } from '../theme';
 import Card from '../components/ui/Card';
 import StatusBadge from '../components/ui/StatusBadge';
-import SectionHeader from '../components/ui/SectionHeader';
 import EmptyState from '../components/ui/EmptyState';
-import SegmentedControl from '../components/ui/SegmentedControl';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Toast from '../components/ui/Toast';
-
-type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
+import BottomSheet from '../components/ui/BottomSheet';
+import M3TextField from '../components/ui/M3TextField';
+import M3Fab from '../components/ui/M3Fab';
 
 type StatusFilter = QuoteStatus | 'ALL';
 
-/** Estados que el backend congela (PATCH/DELETE responden 409). */
 const LOCKED_STATUSES: QuoteStatus[] = ['PAID', 'INVOICED'];
 
-/** Confirmación pendiente (una sola a la vez) para acciones destructivas. */
-interface ConfirmRequest {
-  title: string;
-  message?: string;
-  details?: { label: string; value: string }[];
-  icon?: IconName;
-  tone?: 'success' | 'danger' | 'primary';
-  confirmLabel?: string;
-  onConfirm: () => Promise<void>;
-}
-
-/**
- * Traduce un error de la API a un mensaje para el usuario:
- * 403 = endpoint solo-ADMIN, 409 = regla de negocio (mensaje del backend).
- */
 const toUserMessage = (err: unknown, fallback: string): string => {
   if (err instanceof ApiError && err.status === 403) {
-    return 'No tienes permisos: esta acción es solo para administradores.';
+    return 'No tienes permisos: acción solo para administradores.';
   }
   return (err as Error)?.message || fallback;
 };
 
-interface QuoteItem {
+interface FormQuoteItem {
   description: string;
   quantity: number;
   price: number;
 }
 
-// Fecha corta para listas: "10 mar"
-function formatShortDate(iso: string): string {
-  const date = new Date(iso);
-  const month = date.toLocaleDateString('es-ES', { month: 'short' }).replace('.', '');
-  return `${date.getDate()} ${month}`;
-}
-
-const BudgetsScreen = () => {
+export default function BudgetsScreen() {
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,7 +64,6 @@ const BudgetsScreen = () => {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('PENDING');
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const [showQuoteDetails, setShowQuoteDetails] = useState(false);
-  const [invoicedAt, setInvoicedAt] = useState<string | null>(null);
   const [showNewQuoteModal, setShowNewQuoteModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showBillModal, setShowBillModal] = useState(false);
@@ -94,38 +71,35 @@ const BudgetsScreen = () => {
   const [billMethod, setBillMethod] = useState<PaymentMethod>('YAPE');
   const [billing, setBilling] = useState(false);
 
-  // Confirmación genérica (pago / eliminar / revertir) y feedback rápido
-  const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
+  const [confirm, setConfirm] = useState<{
+    title: string;
+    message?: string;
+    tone?: 'success' | 'danger' | 'primary';
+    confirmLabel?: string;
+    onConfirm: () => Promise<void>;
+  } | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
+
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // El backend expone las mutaciones de quotes solo a ADMIN (@Roles)
-  const isAdmin = user?.role === 'ADMIN';
+  // New quote form state
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedRepairOrder, setSelectedRepairOrder] = useState<RepairOrder | null>(null);
+  const [quoteItems, setQuoteItems] = useState<FormQuoteItem[]>([]);
+  const [customerOrders, setCustomerOrders] = useState<RepairOrder[]>([]);
+
+  // Item input in form
+  const [itemDesc, setItemDesc] = useState('');
+  const [itemQty, setItemQty] = useState('1');
+  const [itemPrice, setItemPrice] = useState('');
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast({ message, type });
-    toastTimer.current = setTimeout(() => setToast(null), 3000);
+    toastTimer.current = setTimeout(() => setToast(null), 2800);
   };
 
-  // Form state for new quote
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [selectedRepairOrder, setSelectedRepairOrder] = useState<RepairOrder | null>(null);
-  const [quoteItems, setQuoteItems] = useState<QuoteItem[]>([]);
-  const [formErrors, setFormErrors] = useState<{
-    customer?: string;
-    order?: string;
-    items?: string;
-  }>({});
-
-  // New item state
-  const [newItemDescription, setNewItemDescription] = useState('');
-  const [newItemQuantity, setNewItemQuantity] = useState('1');
-  const [newItemPrice, setNewItemPrice] = useState('');
-  const [itemError, setItemError] = useState<string | null>(null);
-
-  /** Carga la lista y la devuelve, para que los handlers puedan re-sincronizar. */
   const fetchQuotes = useCallback(async (): Promise<Quote[]> => {
     if (!user) {
       setLoading(false);
@@ -150,10 +124,6 @@ const BudgetsScreen = () => {
     }
   }, [user]);
 
-  useEffect(() => () => {
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-  }, []);
-
   useEffect(() => {
     if (user) {
       fetchQuotes();
@@ -172,774 +142,176 @@ const BudgetsScreen = () => {
     return quotes.filter((q) => q.status === statusFilter);
   }, [quotes, statusFilter]);
 
-  const searchCustomers = async (query: string): Promise<Customer[]> => {
-    if (query.length < 2) {
-      return api.getCustomers();
-    }
-    return api.searchCustomers(query);
-  };
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { ALL: quotes.length };
+    quotes.forEach((q) => {
+      counts[q.status] = (counts[q.status] || 0) + 1;
+    });
+    return counts;
+  }, [quotes]);
 
-  const searchRepairOrders = async (query: string): Promise<RepairOrder[]> => {
-    try {
-      const orders = await api.getRepairOrders();
-      if (query.length < 2) return orders;
-      const q = query.toLowerCase();
-      return orders.filter(
-        (o) =>
-          o.id.toLowerCase().includes(q) ||
-          o.customerName?.toLowerCase().includes(q) ||
-          o.customer?.name?.toLowerCase().includes(q) ||
-          o.description?.toLowerCase().includes(q)
-      );
-    } catch {
-      return [];
-    }
-  };
-
-  const addItem = () => {
-    if (!newItemDescription.trim()) {
-      setItemError('Escribe una descripción para el item');
-      return;
-    }
-    if (!newItemPrice) {
-      setItemError('Indica el precio del item');
-      return;
-    }
-
-    const item: QuoteItem = {
-      description: newItemDescription.trim(),
-      quantity: parseInt(newItemQuantity) || 1,
-      price: parseFloat(newItemPrice) || 0,
-    };
-
-    setQuoteItems([...quoteItems, item]);
-    setNewItemDescription('');
-    setNewItemQuantity('1');
-    setNewItemPrice('');
-    setItemError(null);
-    setFormErrors((prev) => ({ ...prev, items: undefined }));
-  };
-
-  const removeItem = (index: number) => {
-    setQuoteItems(quoteItems.filter((_, i) => i !== index));
-  };
-
-  const calculateTotal = () => {
-    return quoteItems.reduce((sum, item) => sum + item.quantity * item.price, 0);
-  };
-
-  const resetForm = () => {
-    setSelectedCustomer(null);
+  const handleSelectCustomer = async (cust: Customer) => {
+    setSelectedCustomer(cust);
     setSelectedRepairOrder(null);
-    setQuoteItems([]);
-    setNewItemDescription('');
-    setNewItemQuantity('1');
-    setNewItemPrice('');
-    setFormErrors({});
-    setItemError(null);
+    try {
+      const orders = await api.getRepairOrdersByCustomer(cust.id);
+      setCustomerOrders(orders);
+      if (orders.length > 0) {
+        setSelectedRepairOrder(orders[0]);
+      }
+    } catch {
+      setCustomerOrders([]);
+    }
+  };
+
+  const addItemToQuote = () => {
+    if (!itemDesc.trim()) {
+      showToast('Ingresa la descripción del repuesto o servicio', 'error');
+      return;
+    }
+    const p = parseFloat(itemPrice);
+    const q = parseInt(itemQty, 10);
+    if (isNaN(p) || p <= 0) {
+      showToast('Ingresa un precio válido', 'error');
+      return;
+    }
+
+    setQuoteItems((prev) => [
+      ...prev,
+      {
+        description: itemDesc.trim(),
+        quantity: isNaN(q) || q < 1 ? 1 : q,
+        price: p,
+      },
+    ]);
+
+    setItemDesc('');
+    setItemQty('1');
+    setItemPrice('');
+  };
+
+  const removeQuoteItem = (idx: number) => {
+    setQuoteItems((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const calculateFormTotal = () => {
+    return quoteItems.reduce((sum, it) => sum + it.quantity * it.price, 0);
   };
 
   const handleCreateQuote = async () => {
-    // Validación inline (sin Alert.alert centralizado)
-    const errors: typeof formErrors = {};
-    if (!selectedCustomer) errors.customer = 'Selecciona un cliente';
-    if (!selectedRepairOrder) errors.order = 'Selecciona la orden de reparación';
-    if (quoteItems.length === 0) errors.items = 'Agrega al menos un item al presupuesto';
-    setFormErrors(errors);
-    if (Object.keys(errors).length > 0) return;
-
-    if (!user?.id) {
-      showToast('No se pudo identificar al técnico', 'error');
+    if (!selectedCustomer) {
+      showToast('Selecciona un cliente', 'error');
+      return;
+    }
+    if (!selectedRepairOrder) {
+      showToast('Selecciona una orden de trabajo asociada', 'error');
+      return;
+    }
+    if (quoteItems.length === 0) {
+      showToast('Agrega al menos un ítem al presupuesto', 'error');
       return;
     }
 
     setSaving(true);
     try {
-      const totalAmount = calculateTotal();
-
-      const quoteData: CreateQuoteDto = {
-        repairOrderId: selectedRepairOrder!.id,
-        customerId: selectedCustomer!.id,
-        technicianId: user.id,
-        totalAmount,
-        items: quoteItems.map((item) => ({
-          quantity: item.quantity,
-          price: item.price,
-          description: item.description || undefined,
+      const dto: CreateQuoteDto = {
+        repairOrderId: selectedRepairOrder.id,
+        customerId: selectedCustomer.id,
+        technicianId: user!.id,
+        totalAmount: calculateFormTotal(),
+        items: quoteItems.map((it) => ({
+          quantity: it.quantity,
+          price: it.price,
+          description: it.description,
         })),
       };
 
-      await api.createQuote(quoteData);
+      await api.createQuote(dto);
       setShowNewQuoteModal(false);
-      resetForm();
+      setSelectedCustomer(null);
+      setSelectedRepairOrder(null);
+      setQuoteItems([]);
       fetchQuotes();
-    } catch (err: unknown) {
+      showToast('Presupuesto creado exitosamente');
+    } catch (err) {
       showToast(toUserMessage(err, 'No se pudo crear el presupuesto'), 'error');
     } finally {
       setSaving(false);
     }
   };
 
-  /** Tras un error, re-sincroniza y mantiene el modal apuntando al quote vivo. */
-  const syncSelected = (fresh: Quote[], id: string) => {
-    const updated = fresh.find((q) => q.id === id);
-    if (updated) setSelectedQuote(updated);
-    else setShowQuoteDetails(false);
-  };
-
-  /**
-   * Transición de estado vía PATCH /quotes/:id/status (endpoint dedicado).
-   * Ante cualquier error re-sincroniza la lista: el backend es la fuente de
-   * verdad de la máquina de estados (409 = transición no permitida).
-   */
-  const applyTransition = async (
-    quote: Quote,
-    next: QuoteStatus,
-    successMessage: string,
-    errorMessage: string,
-  ) => {
+  const handleUpdateStatus = async (quote: Quote, next: QuoteStatus, successMsg: string) => {
     try {
       await api.updateQuoteStatus(quote.id, next);
       setShowQuoteDetails(false);
       await fetchQuotes();
-      showToast(successMessage);
+      showToast(successMsg);
     } catch (err) {
-      syncSelected(await fetchQuotes(), quote.id);
-      showToast(toUserMessage(err, errorMessage), 'error');
+      showToast(toUserMessage(err, 'No se pudo actualizar el estado'), 'error');
     }
   };
 
-  const handleApproveQuote = (quote: Quote) =>
-    applyTransition(quote, 'APPROVED', 'Presupuesto aprobado', 'No se pudo aprobar el presupuesto');
-
-  const handleRejectQuote = (quote: Quote) =>
-    applyTransition(quote, 'REJECTED', 'Presupuesto rechazado', 'No se pudo rechazar el presupuesto');
-
-  const handleExpireQuote = (quote: Quote) =>
-    applyTransition(quote, 'EXPIRED', 'Presupuesto expirado', 'No se pudo expirar el presupuesto');
-
-  const handleReopenQuote = (quote: Quote) =>
-    applyTransition(
-      quote,
-      'PENDING',
-      'Presupuesto reabierto — vuelve a pendiente',
-      'No se pudo reabrir el presupuesto',
-    );
-
-  /** Reversión ADMIN: deshacer una aprobación (APPROVED → PENDING). */
-  const handleRevertApproval = (quote: Quote) =>
-    applyTransition(
-      quote,
-      'PENDING',
-      'Aprobación revertida — presupuesto pendiente',
-      'No se pudo revertir la aprobación',
-    );
-
-  /** Reversión ADMIN: deshacer un pago (PAID → APPROVED). */
-  const handleRevertPayment = (quote: Quote) =>
-    applyTransition(
-      quote,
-      'APPROVED',
-      'Pago revertido — presupuesto aprobado',
-      'No se pudo revertir el pago',
-    );
-
-  /**
-   * APPROVED → PAID: además de cambiar el estado, el backend cierra la
-   * orden (COMPLETED + endDate) y fija totalCost al total del presupuesto.
-   * Se confirma antes porque es irreversible sin rol ADMIN.
-   */
-  const askMarkPaid = (quote: Quote) => {
-    const total = `S/ ${quote.totalAmount?.toFixed(2) || '0.00'}`;
-    const orderRef = quote.repairOrderId
-      ? `#${quote.repairOrderId.slice(0, 8).toUpperCase()}`
-      : '';
-    setConfirm({
-      title: 'Marcar como pagado',
-      message:
-        `Al marcar como pagado la orden quedará COMPLETADA y su total se fijará en ${total}. ` +
-        '¿Continuar?',
-      details: [
-        { label: 'Total', value: total },
-        ...(orderRef ? [{ label: 'Orden', value: orderRef }] : []),
-      ],
-      icon: 'cash-register',
-      tone: 'success',
-      confirmLabel: 'Marcar pagado',
-      onConfirm: async () => {
-        try {
-          await api.updateQuoteStatus(quote.id, 'PAID');
-          setShowQuoteDetails(false);
-          await fetchQuotes();
-          showToast(`Presupuesto pagado — la orden ${orderRef} quedó Completada`);
-        } catch (err) {
-          syncSelected(await fetchQuotes(), quote.id);
-          showToast(toUserMessage(err, 'No se pudo marcar como pagado'), 'error');
-        }
-      },
-    });
-  };
-
-  const handleBillQuote = (quote: Quote) => {
-    setBillQuote(quote);
-    setBillMethod('YAPE');
-    setShowBillModal(true);
-  };
-
-  /** APPROVED|PAID → INVOICED: crea la venta y cierra la orden. */
-  const confirmBillQuote = async () => {
-    if (!billQuote || billing) return;
+  const confirmConvertSale = async () => {
+    if (!billQuote) return;
     setBilling(true);
     try {
       await api.convertQuoteToSale(billQuote.id, billMethod);
       setShowBillModal(false);
       setShowQuoteDetails(false);
       await fetchQuotes();
-      showToast('Facturación registrada — presupuesto facturado');
+      showToast('¡Venta generada exitosamente!');
     } catch (err) {
-      setShowBillModal(false);
-      syncSelected(await fetchQuotes(), billQuote.id);
-      showToast(toUserMessage(err, 'No se pudo facturar'), 'error');
+      showToast(toUserMessage(err, 'No se pudo facturar el presupuesto'), 'error');
     } finally {
       setBilling(false);
     }
   };
 
-  /** Solo para estados no cobrados: PAID/INVOICED responden 409 (congelados). */
-  const askDeleteQuote = (quote: Quote) => {
-    if (LOCKED_STATUSES.includes(quote.status)) {
-      showToast('Este presupuesto está cobrado: no se puede eliminar', 'error');
-      return;
-    }
-    setConfirm({
-      title: 'Eliminar presupuesto',
-      message: '¿Está seguro que desea eliminar este presupuesto?',
-      icon: 'trash-can-outline',
-      tone: 'danger',
-      confirmLabel: 'Eliminar',
-      onConfirm: async () => {
-        try {
-          await api.deleteQuote(quote.id);
-          setShowQuoteDetails(false);
-          await fetchQuotes();
-          showToast('Presupuesto eliminado');
-        } catch (err) {
-          syncSelected(await fetchQuotes(), quote.id);
-          showToast(toUserMessage(err, 'No se pudo eliminar'), 'error');
-        }
-      },
-    });
-  };
-
-  /** Ejecuta la confirmación pendiente y cierra el diálogo. */
-  const runConfirm = async () => {
-    if (!confirm || confirmBusy) return;
-    setConfirmBusy(true);
-    try {
-      await confirm.onConfirm();
-    } finally {
-      setConfirmBusy(false);
-      setConfirm(null);
-    }
-  };
-
-  const openQuoteDetails = async (quote: Quote) => {
-    setSelectedQuote(quote);
-    setInvoicedAt(null);
-    setShowQuoteDetails(true);
-    if (quote.status === 'INVOICED') {
-      try {
-        const sales = await api.getSales({ quoteId: quote.id });
-        if (sales.length > 0) setInvoicedAt(sales[0].createdAt);
-      } catch {}
-    }
-  };
-
-  const renderQuoteCard = (item: Quote) => {
-    const status = quoteStatusStyle(item.status);
-    const itemCount = item.items?.length || 0;
-    const orderRef = item.repairOrderId ? ` · Orden #${item.repairOrderId.slice(0, 8).toUpperCase()}` : '';
+  const renderFilterChips = () => {
+    const list: StatusFilter[] = [
+      'PENDING',
+      'APPROVED',
+      'PAID',
+      'INVOICED',
+      'REJECTED',
+      'EXPIRED',
+      'ALL',
+    ];
 
     return (
-      <Card
-        key={item.id}
-        accentColor={status.color}
-        style={styles.quoteCard}
-        onPress={() => {
-          openQuoteDetails(item);
-        }}
-      >
-        <View style={styles.cardTopRow}>
-          <StatusBadge label={status.label} color={status.color} soft={status.soft} />
-          <Text style={styles.cardAmount} numberOfLines={1}>
-            S/ {item.totalAmount?.toFixed(2) || '0.00'}
-          </Text>
-        </View>
+      <View style={styles.filterScroll}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+          {list.map((st) => {
+            const isSelected = statusFilter === st;
+            const info = st === 'ALL' ? null : QUOTE_STATUS[st];
+            const count = statusCounts[st] || 0;
 
-        <Text style={styles.cardCustomer} numberOfLines={1}>
-          {item.customer?.name || item.customerName || 'Cliente'}{orderRef}
-        </Text>
-
-        <View style={styles.cardBottomRow}>
-          <View style={styles.cardBottomLeft}>
-            <Text style={styles.cardCaption}>{itemCount} item{itemCount === 1 ? '' : 's'}</Text>
-          </View>
-          <Text style={styles.cardDate}>{formatShortDate(item.createdAt)}</Text>
-        </View>
-      </Card>
-    );
-  };
-
-  const renderNewQuoteModal = () => (
-    <Modal
-      visible={showNewQuoteModal}
-      animationType="slide"
-      onRequestClose={() => setShowNewQuoteModal(false)}
-    >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>Nuevo Presupuesto</Text>
-          <TouchableOpacity
-            onPress={() => setShowNewQuoteModal(false)}
-            style={styles.closeButton}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <MaterialCommunityIcons name="close" size={24} color={colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={styles.modalContent} keyboardShouldPersistTaps="handled">
-          {/* 01 · Cliente */}
-          <View style={styles.formSection}>
-            <SectionHeader title="01 · Cliente" />
-            <SearchableSelector<Customer>
-              label="Seleccionar Cliente"
-              placeholder="Buscar cliente..."
-              value={selectedCustomer}
-              onSelect={(c) => {
-                setSelectedCustomer(c);
-                setFormErrors((prev) => ({ ...prev, customer: undefined }));
-              }}
-              searchFn={searchCustomers}
-              renderItem={(c) => c.name}
-              renderSubtitle={(c) => `Tel: ${c.phone}`}
-              keyExtractor={(c) => c.id}
-              required
-            />
-            {formErrors.customer && (
-              <Text style={styles.inlineError}>{formErrors.customer}</Text>
-            )}
-
-            <View style={styles.selectorSpacer}>
-              <SearchableSelector<RepairOrder>
-                label="Orden de Reparación"
-                placeholder="Buscar orden..."
-                value={selectedRepairOrder}
-                onSelect={(o) => {
-                  setSelectedRepairOrder(o);
-                  setFormErrors((prev) => ({ ...prev, order: undefined }));
-                }}
-                searchFn={searchRepairOrders}
-                renderItem={(o) => `#${o.id.slice(0, 8)} - ${o.description?.slice(0, 25) || 'Sin descripción'}...`}
-                renderSubtitle={(o) => o.customerName || o.customer?.name || 'Sin cliente'}
-                keyExtractor={(o) => o.id}
-                required
-              />
-            </View>
-            {formErrors.order && <Text style={styles.inlineError}>{formErrors.order}</Text>}
-          </View>
-
-          {/* 02 · Items */}
-          <View style={styles.formSection}>
-            <SectionHeader title="02 · Items / Repuestos" />
-
-            {quoteItems.map((item, index) => (
-              <View key={index} style={styles.itemCard}>
-                <View style={styles.itemCardInfo}>
-                  <Text style={styles.itemCardTitle} numberOfLines={1}>
-                    {item.description}
-                  </Text>
-                  <Text style={styles.itemCardMeta}>
-                    {item.quantity} x S/ {item.price.toFixed(2)}
-                  </Text>
-                </View>
-                <Text style={styles.itemCardSubtotal}>
-                  S/ {(item.quantity * item.price).toFixed(2)}
+            return (
+              <Pressable
+                key={st}
+                style={[styles.filterChip, isSelected && styles.filterChipActive]}
+                onPress={() => setStatusFilter(st)}
+              >
+                {info && (
+                  <MaterialCommunityIcons
+                    name={(info.icon || 'circle') as any}
+                    size={15}
+                    color={isSelected ? colors.white : info.color}
+                  />
+                )}
+                <Text style={[styles.filterChipText, isSelected && styles.filterChipTextActive]}>
+                  {st === 'ALL' ? 'Todos' : info?.label}
                 </Text>
-                <TouchableOpacity
-                  style={styles.itemDelete}
-                  onPress={() => removeItem(index)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <MaterialCommunityIcons name="trash-can-outline" size={20} color={colors.danger} />
-                </TouchableOpacity>
-              </View>
-            ))}
-
-            <View style={styles.addForm}>
-              <Text style={styles.fieldLabel}>DESCRIPCIÓN</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Descripción del item"
-                placeholderTextColor={colors.textMuted}
-                value={newItemDescription}
-                onChangeText={(v) => {
-                  setNewItemDescription(v);
-                  setItemError(null);
-                }}
-              />
-              <View style={styles.addRow}>
-                <View style={styles.qtyField}>
-                  <Text style={styles.fieldLabel}>CANT.</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="1"
-                    placeholderTextColor={colors.textMuted}
-                    value={newItemQuantity}
-                    onChangeText={setNewItemQuantity}
-                    keyboardType="numeric"
-                  />
+                <View style={[styles.countPill, isSelected && styles.countPillActive]}>
+                  <Text style={[styles.countText, isSelected && styles.countTextActive]}>
+                    {count}
+                  </Text>
                 </View>
-                <View style={styles.priceField}>
-                  <Text style={styles.fieldLabel}>PRECIO</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="0.00"
-                    placeholderTextColor={colors.textMuted}
-                    value={newItemPrice}
-                    onChangeText={(v) => {
-                      setNewItemPrice(v);
-                      setItemError(null);
-                    }}
-                    keyboardType="decimal-pad"
-                  />
-                </View>
-                <TouchableOpacity style={styles.addIconButton} onPress={addItem} activeOpacity={0.85}>
-                  <MaterialCommunityIcons name="plus" size={24} color={colors.white} />
-                </TouchableOpacity>
-              </View>
-              {itemError && <Text style={styles.inlineError}>{itemError}</Text>}
-            </View>
-            {formErrors.items && <Text style={styles.inlineError}>{formErrors.items}</Text>}
-          </View>
-
-          {/* 03 · Resumen */}
-          <View style={styles.formSection}>
-            <SectionHeader title="03 · Resumen" />
-
-            <View style={styles.breakdown}>
-              <View style={styles.breakdownRow}>
-                <Text style={styles.breakdownLabel}>Subtotal</Text>
-                <Text style={styles.breakdownValue}>S/ {calculateTotal().toFixed(2)}</Text>
-              </View>
-              <View style={styles.breakdownDivider} />
-              <View style={styles.breakdownRow}>
-                <Text style={styles.breakdownTotalLabel}>Total</Text>
-                <Text style={styles.breakdownTotalValue}>S/ {calculateTotal().toFixed(2)}</Text>
-              </View>
-            </View>
-          </View>
+              </Pressable>
+            );
+          })}
         </ScrollView>
-
-        {/* Sticky footer: total en vivo + guardar */}
-        <View style={styles.stickyFooter}>
-          <View>
-            <Text style={styles.footerTotalLabel}>TOTAL</Text>
-            <Text style={styles.footerTotalValue}>S/ {calculateTotal().toFixed(2)}</Text>
-          </View>
-          <TouchableOpacity
-            style={[styles.saveButton, saving && styles.buttonDisabled]}
-            onPress={handleCreateQuote}
-            disabled={saving}
-            activeOpacity={0.85}
-          >
-            {saving ? (
-              <ActivityIndicator color={colors.white} />
-            ) : (
-              <>
-                <MaterialCommunityIcons name="content-save-outline" size={20} color={colors.white} />
-                <Text style={styles.saveButtonText}>Guardar</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
       </View>
-    </Modal>
-  );
-
-  const renderBillContent = () => (
-    <View style={styles.billOverlay}>
-      <View style={styles.billContent}>
-        <Text style={styles.billTitle}>Facturar presupuesto</Text>
-        {billQuote && (
-          <Text style={styles.billTotal}>
-            Total S/ {billQuote.totalAmount?.toFixed(2) || '0.00'}
-          </Text>
-        )}
-        <Text style={styles.billLabel}>Método de pago</Text>
-        {(Object.keys(PAYMENT_METHOD) as PaymentMethod[]).map((m) => {
-          const selected = billMethod === m;
-          return (
-            <TouchableOpacity
-              key={m}
-              style={[styles.billOption, selected && styles.billOptionSelected]}
-              onPress={() => setBillMethod(m)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.billRadio, selected && styles.billRadioSelected]}>
-                {selected && <View style={styles.billRadioDot} />}
-              </View>
-              <Text style={[styles.billOptionText, selected && styles.billOptionTextSelected]}>
-                {PAYMENT_METHOD[m].label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-        <View style={styles.billActions}>
-          <TouchableOpacity
-            style={styles.billCancel}
-            onPress={() => setShowBillModal(false)}
-            disabled={billing}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.billCancelText}>Cancelar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.billConfirm, billing && styles.billConfirmDisabled]}
-            onPress={confirmBillQuote}
-            disabled={billing}
-            activeOpacity={0.85}
-          >
-            {billing ? (
-              <ActivityIndicator color={colors.white} />
-            ) : (
-              <Text style={styles.billConfirmText}>Facturar</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  );
-
-  /** Botón de acción del footer, reutilizado por todos los estados. */
-  const footerAction = (
-    label: string,
-    icon: IconName,
-    variant: 'primary' | 'success' | 'danger' | 'ghost',
-    onPress: () => void,
-  ) => (
-    <TouchableOpacity
-      key={label}
-      style={[
-        styles.footerAction,
-        variant === 'primary' && styles.footerActionPrimary,
-        variant === 'success' && styles.footerActionSuccess,
-        variant === 'danger' && styles.footerActionDanger,
-        variant === 'ghost' && styles.footerActionGhost,
-      ]}
-      onPress={onPress}
-      activeOpacity={0.85}
-    >
-      <MaterialCommunityIcons
-        name={icon}
-        size={18}
-        color={variant === 'ghost' ? colors.textSecondary : colors.white}
-      />
-      <Text
-        style={[
-          styles.footerActionText,
-          variant === 'ghost' && styles.footerActionGhostText,
-        ]}
-      >
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
-
-  const renderQuoteDetails = () => {
-    if (!selectedQuote) return null;
-    const status = quoteStatusStyle(selectedQuote.status);
-    const customerName = selectedQuote.customer?.name || selectedQuote.customerName || 'Cliente';
-
-    return (
-      <Modal
-        visible={showQuoteDetails}
-        animationType="slide"
-        onRequestClose={() => setShowQuoteDetails(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>
-              Presupuesto #{selectedQuote.id.slice(0, 8).toUpperCase()}
-            </Text>
-            <TouchableOpacity
-              onPress={() => setShowQuoteDetails(false)}
-              style={styles.closeButton}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <MaterialCommunityIcons name="close" size={24} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.modalContent}>
-            {/* Cabecera documento */}
-            <Card style={styles.docHeader}>
-              <View style={styles.docTopRow}>
-                <StatusBadge label={status.label} color={status.color} soft={status.soft} />
-                <Text style={styles.docDate}>
-                  {new Date(selectedQuote.createdAt).toLocaleDateString('es-ES', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                  })}
-                </Text>
-              </View>
-              <Text style={styles.docCustomer}>{customerName}</Text>
-              {selectedQuote.repairOrderId && (
-                <Text style={styles.docOrder}>
-                  Orden #{selectedQuote.repairOrderId.slice(0, 8).toUpperCase()}
-                </Text>
-              )}
-              <Text style={styles.docAmount}>
-                S/ {selectedQuote.totalAmount?.toFixed(2) || '0.00'}
-              </Text>
-              {selectedQuote.status === 'INVOICED' && invoicedAt && (
-                <Text style={styles.docInvoiced}>
-                  Facturado:{' '}
-                  {new Date(invoicedAt).toLocaleDateString('es-ES', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                  })}
-                </Text>
-              )}
-            </Card>
-
-            {/* Tabla de items */}
-            <Card style={styles.docSection}>
-              <SectionHeader title="Items" />
-              {selectedQuote.items && selectedQuote.items.length > 0 ? (
-                selectedQuote.items.map((item: any, index: number) => {
-                  const itemPrice = item.unitPrice ?? item.price ?? 0;
-                  return (
-                    <View key={index} style={styles.docItemRow}>
-                      <View style={styles.docItemInfo}>
-                        <Text style={styles.docItemName}>
-                          {item.description || item.productName || 'Item'}
-                        </Text>
-                        <Text style={styles.docItemMeta}>
-                          {item.quantity} x S/ {Number(itemPrice).toFixed(2)}
-                        </Text>
-                      </View>
-                      <Text style={styles.docItemSubtotal}>
-                        S/ {(item.quantity * itemPrice).toFixed(2)}
-                      </Text>
-                    </View>
-                  );
-                })
-              ) : (
-                <Text style={styles.docItemMeta}>Sin items registrados</Text>
-              )}
-            </Card>
-
-            {/* Total en banda */}
-            <View style={styles.totalBand}>
-              <Text style={styles.totalBandLabel}>Total</Text>
-              <Text style={styles.totalBandValue}>
-                S/ {selectedQuote.totalAmount?.toFixed(2) || '0.00'}
-              </Text>
-            </View>
-          </ScrollView>
-
-          {/* Footer fijo: máquina de transiciones. Las mutaciones de quotes
-              son solo-ADMIN en el backend (@Roles), se ocultan al resto. */}
-          <View style={styles.detailFooter}>
-            {!isAdmin && (
-              <Text style={styles.footerHint}>
-                Solo un administrador puede modificar presupuestos.
-              </Text>
-            )}
-
-            {isAdmin && selectedQuote.status === 'INVOICED' && (
-              <Text style={styles.footerHint}>
-                Documento facturado: solo lectura (la venta ya fue generada).
-              </Text>
-            )}
-
-            {isAdmin && selectedQuote.status === 'PAID' && (
-              <Text style={styles.footerHint}>
-                Documento pagado: no se puede editar ni eliminar; primero revierte el pago.
-              </Text>
-            )}
-
-            {isAdmin && selectedQuote.status === 'PENDING' && (
-              <>
-                {footerAction('Aprobar', 'check-circle-outline', 'success', () =>
-                  handleApproveQuote(selectedQuote),
-                )}
-                {footerAction('Rechazar', 'close-circle-outline', 'danger', () =>
-                  handleRejectQuote(selectedQuote),
-                )}
-                {footerAction('Expirar', 'timer-sand', 'ghost', () =>
-                  handleExpireQuote(selectedQuote),
-                )}
-                {footerAction('Eliminar', 'trash-can-outline', 'ghost', () =>
-                  askDeleteQuote(selectedQuote),
-                )}
-              </>
-            )}
-
-            {(selectedQuote.status === 'REJECTED' || selectedQuote.status === 'EXPIRED') &&
-              isAdmin && (
-                <>
-                  {footerAction('Reabrir', 'refresh', 'primary', () =>
-                    handleReopenQuote(selectedQuote),
-                  )}
-                  {footerAction('Eliminar', 'trash-can-outline', 'ghost', () =>
-                    askDeleteQuote(selectedQuote),
-                  )}
-                </>
-              )}
-
-            {isAdmin && selectedQuote.status === 'APPROVED' && (
-              <>
-                {footerAction('Marcar como Pagado', 'cash-register', 'primary', () =>
-                  askMarkPaid(selectedQuote),
-                )}
-                {footerAction('Facturar', 'receipt', 'success', () =>
-                  handleBillQuote(selectedQuote),
-                )}
-                {footerAction('Rechazar', 'close-circle-outline', 'danger', () =>
-                  handleRejectQuote(selectedQuote),
-                )}
-                {footerAction('Expirar', 'timer-sand', 'ghost', () =>
-                  handleExpireQuote(selectedQuote),
-                )}
-                {footerAction('Revertir a Pendiente', 'undo-variant', 'ghost', () =>
-                  handleRevertApproval(selectedQuote),
-                )}
-                {footerAction('Eliminar', 'trash-can-outline', 'ghost', () =>
-                  askDeleteQuote(selectedQuote),
-                )}
-              </>
-            )}
-
-            {isAdmin && selectedQuote.status === 'PAID' && (
-              <>
-                {footerAction('Facturar', 'receipt', 'success', () =>
-                  handleBillQuote(selectedQuote),
-                )}
-                {footerAction('Revertir a Aprobado', 'undo-variant', 'ghost', () =>
-                  handleRevertPayment(selectedQuote),
-                )}
-              </>
-            )}
-          </View>
-
-          {showBillModal && renderBillContent()}
-          {toast && <Toast message={toast.message} type={toast.type} />}
-        </View>
-      </Modal>
     );
   };
 
@@ -947,112 +319,411 @@ const BudgetsScreen = () => {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Cargando presupuestos...</Text>
       </View>
     );
   }
-
-  if (error) {
-    return (
-      <View style={styles.centered}>
-        <MaterialCommunityIcons name="alert-circle" size={48} color={colors.danger} />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchQuotes} activeOpacity={0.85}>
-          <Text style={styles.retryButtonText}>Reintentar</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  const filterLabel =
-    statusFilter === 'ALL' ? '' : `${quoteStatusStyle(statusFilter).label.toLowerCase()}s`;
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Presupuestos</Text>
-        {isAdmin && (
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => setShowNewQuoteModal(true)}
-            activeOpacity={0.85}
-          >
-            <MaterialCommunityIcons name="plus" size={20} color={colors.white} />
-            <Text style={styles.addButtonText}>Nuevo</Text>
-          </TouchableOpacity>
+      <View style={[styles.topHeader, { paddingTop: insets.top + spacing.xs }]}>
+        <Text style={styles.screenTitle}>Cotizaciones y Presupuestos</Text>
+      </View>
+
+      {renderFilterChips()}
+
+      {error && (
+        <View style={styles.errorBanner}>
+          <MaterialCommunityIcons name="alert-circle-outline" size={18} color={colors.danger} />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+
+      <View style={styles.listContainer}>
+        {filteredQuotes.length === 0 ? (
+          <EmptyState
+            icon="file-document-outline"
+            title="Sin presupuestos aquí"
+            description="No hay cotizaciones registradas bajo este estado."
+            ctaLabel="Nuevo Presupuesto"
+            onCta={() => setShowNewQuoteModal(true)}
+          />
+        ) : (
+          <FlatList
+            data={filteredQuotes}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.primary}
+                colors={[colors.primary]}
+              />
+            }
+            renderItem={({ item }) => {
+              const qStyle = quoteStatusStyle(item.status);
+              const customerName = item.customer?.name || item.customerName || 'Cliente General';
+              const itemsCount = item.items?.length || 0;
+
+              return (
+                <Card
+                  style={styles.quoteCard}
+                  onPress={() => {
+                    setSelectedQuote(item);
+                    setShowQuoteDetails(true);
+                  }}
+                >
+                  <View style={styles.quoteCardTop}>
+                    <View style={styles.quoteCardRefCol}>
+                      <Text style={styles.quoteRef}>COT-{item.id.slice(0, 8).toUpperCase()}</Text>
+                      <Text style={styles.customerName} numberOfLines={1}>
+                        {customerName}
+                      </Text>
+                    </View>
+                    <StatusBadge
+                      label={qStyle.label}
+                      color={qStyle.color}
+                      soft={qStyle.soft}
+                      icon={qStyle.icon}
+                      compact
+                    />
+                  </View>
+
+                  <View style={styles.quoteCardMeta}>
+                    <Text style={styles.orderRefText}>
+                      {item.repairOrderId ? `Orden: ORD-${item.repairOrderId.slice(0, 8).toUpperCase()}` : 'Venta directa'}
+                    </Text>
+                    <Text style={styles.itemsCountText}>{itemsCount} ítem(s)</Text>
+                  </View>
+
+                  <View style={styles.quoteCardBottom}>
+                    <Text style={styles.totalAmountText}>
+                      S/ {item.totalAmount ? item.totalAmount.toFixed(2) : '0.00'}
+                    </Text>
+
+                    {/* Quick Action Pills based on status */}
+                    <View style={styles.actionPillsRow}>
+                      {item.status === 'PENDING' && (
+                        <Pressable
+                          style={styles.pillActionBtn}
+                          onPress={() => handleUpdateStatus(item, 'APPROVED', 'Presupuesto Aprobado')}
+                        >
+                          <MaterialCommunityIcons name="thumb-up" size={16} color={colors.primary} />
+                          <Text style={styles.pillActionText}>Aprobar</Text>
+                        </Pressable>
+                      )}
+
+                      {item.status === 'APPROVED' && (
+                        <Pressable
+                          style={[styles.pillActionBtn, styles.pillActionSuccess]}
+                          onPress={() => {
+                            setBillQuote(item);
+                            setShowBillModal(true);
+                          }}
+                        >
+                          <MaterialCommunityIcons name="cash-register" size={16} color={colors.success} />
+                          <Text style={[styles.pillActionText, { color: colors.success }]}>
+                            Facturar
+                          </Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  </View>
+                </Card>
+              );
+            }}
+          />
         )}
       </View>
 
-      <View style={styles.filterContainer}>
-        <SegmentedControl<StatusFilter>
-          options={[
-            { value: 'PENDING', label: 'Pendientes' },
-            { value: 'APPROVED', label: 'Aprobados' },
-            { value: 'PAID', label: 'Pagados' },
-            { value: 'REJECTED', label: 'Rechazados' },
-            { value: 'EXPIRED', label: 'Expirados' },
-            { value: 'INVOICED', label: 'Facturados' },
-            { value: 'ALL', label: 'Todos' },
-          ]}
-          value={statusFilter}
-          onChange={setStatusFilter}
+      {/* Extended FAB */}
+      <View style={[styles.fabWrapper, { bottom: insets.bottom + 80 }]}>
+        <M3Fab
+          label="Nueva Cotización"
+          icon="file-document-outline"
+          onPress={() => setShowNewQuoteModal(true)}
         />
       </View>
 
-      <FlatList
-        data={filteredQuotes}
-        renderItem={({ item }) => renderQuoteCard(item)}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
-        }
-        ListEmptyComponent={
-          <Card style={styles.emptyCard}>
-            {quotes.length === 0 ? (
-              <EmptyState
-                icon="file-document-outline"
-                title="No hay presupuestos"
-                description="Los presupuestos que crees para tus clientes aparecerán aquí."
-                ctaLabel={isAdmin ? 'Crear primer presupuesto' : undefined}
-                onCta={isAdmin ? () => setShowNewQuoteModal(true) : undefined}
+      {/* Quote Details BottomSheet */}
+      {selectedQuote && (
+        <BottomSheet
+          visible={showQuoteDetails}
+          title={`Cotización COT-${selectedQuote.id.slice(0, 8).toUpperCase()}`}
+          onClose={() => setShowQuoteDetails(false)}
+          footer={
+            <View style={styles.sheetFooterActions}>
+              {selectedQuote.status === 'PENDING' && (
+                <Pressable
+                  style={styles.sheetPrimaryBtn}
+                  onPress={() => handleUpdateStatus(selectedQuote, 'APPROVED', 'Presupuesto Aprobado')}
+                >
+                  <MaterialCommunityIcons name="thumb-up-outline" size={20} color={colors.white} />
+                  <Text style={styles.sheetPrimaryBtnText}>Aprobar Presupuesto</Text>
+                </Pressable>
+              )}
+
+              {selectedQuote.status === 'APPROVED' && (
+                <Pressable
+                  style={[styles.sheetPrimaryBtn, { backgroundColor: colors.success }]}
+                  onPress={() => {
+                    setBillQuote(selectedQuote);
+                    setShowBillModal(true);
+                  }}
+                >
+                  <MaterialCommunityIcons name="cash-register" size={20} color={colors.white} />
+                  <Text style={styles.sheetPrimaryBtnText}>Convertir a Venta (Facturar)</Text>
+                </Pressable>
+              )}
+
+              {!LOCKED_STATUSES.includes(selectedQuote.status) && (
+                <Pressable
+                  style={styles.sheetDangerBtn}
+                  onPress={() => {
+                    setConfirm({
+                      title: 'Eliminar Presupuesto',
+                      message: '¿Está seguro de eliminar esta cotización?',
+                      tone: 'danger',
+                      confirmLabel: 'Eliminar',
+                      onConfirm: async () => {
+                        await api.deleteQuote(selectedQuote.id);
+                        setShowQuoteDetails(false);
+                        fetchQuotes();
+                        showToast('Presupuesto eliminado');
+                      },
+                    });
+                  }}
+                >
+                  <MaterialCommunityIcons name="trash-can-outline" size={20} color={colors.danger} />
+                  <Text style={styles.sheetDangerBtnText}>Eliminar</Text>
+                </Pressable>
+              )}
+            </View>
+          }
+        >
+          <ScrollView style={styles.sheetBodyScroll}>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Cliente:</Text>
+              <Text style={styles.detailValue}>
+                {selectedQuote.customer?.name || selectedQuote.customerName || 'General'}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Estado:</Text>
+              <StatusBadge
+                label={quoteStatusStyle(selectedQuote.status).label}
+                color={quoteStatusStyle(selectedQuote.status).color}
+                soft={quoteStatusStyle(selectedQuote.status).soft}
+                compact
               />
-            ) : (
-              <EmptyState
-                icon="file-document-outline"
-                title={`Sin presupuestos ${filterLabel}`}
-                description="No hay presupuestos con este estado."
-                ctaLabel="Ver todos"
-                onCta={() => setStatusFilter('ALL')}
-              />
+            </View>
+
+            <Text style={styles.itemsTitle}>Detalle de Repuestos y Mano de Obra:</Text>
+            {(selectedQuote.items || []).map((it, idx) => (
+              <View key={idx} style={styles.itemDetailRow}>
+                <View style={styles.itemDetailCol}>
+                  <Text style={styles.itemDescText}>{it.description || it.productName || 'Ítem'}</Text>
+                  <Text style={styles.itemQtyPriceText}>
+                    {it.quantity} x S/ {(it.price || it.unitPrice || 0).toFixed(2)}
+                  </Text>
+                </View>
+                <Text style={styles.itemSubtotalText}>
+                  S/ {((it.quantity || 1) * (it.price || it.unitPrice || 0)).toFixed(2)}
+                </Text>
+              </View>
+            ))}
+
+            <View style={styles.totalDivider} />
+            <View style={styles.detailTotalRow}>
+              <Text style={styles.totalBoldLabel}>TOTAL DEL PRESUPUESTO:</Text>
+              <Text style={styles.totalBoldAmount}>S/ {selectedQuote.totalAmount.toFixed(2)}</Text>
+            </View>
+          </ScrollView>
+        </BottomSheet>
+      )}
+
+      {/* Create New Quote BottomSheet */}
+      {showNewQuoteModal && (
+        <BottomSheet
+          visible={showNewQuoteModal}
+          title="Nueva Cotización"
+          onClose={() => setShowNewQuoteModal(false)}
+          footer={
+            <Pressable
+              style={[styles.saveQuoteBtn, saving && styles.saveQuoteBtnDisabled]}
+              onPress={handleCreateQuote}
+              disabled={saving}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <Text style={styles.saveQuoteBtnText}>Emitir Presupuesto</Text>
+              )}
+            </Pressable>
+          }
+        >
+          <ScrollView style={styles.newQuoteScroll} keyboardShouldPersistTaps="handled">
+            <SearchableSelector<Customer>
+              label="Cliente titular *"
+              placeholder="Buscar cliente..."
+              value={selectedCustomer}
+              searchFn={(q: string) => (q.length < 2 ? api.getCustomers() : api.searchCustomers(q))}
+              onSelect={(cust) => {
+                if (cust) handleSelectCustomer(cust);
+              }}
+              renderItem={(c) => c.name}
+              keyExtractor={(c) => c.id}
+            />
+
+            {customerOrders.length > 0 && (
+              <View style={styles.orderSelectWrapper}>
+                <Text style={styles.fieldLabel}>Orden de trabajo asociada *</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.orderChipsRow}>
+                  {customerOrders.map((o) => {
+                    const isSelected = selectedRepairOrder?.id === o.id;
+                    return (
+                      <Pressable
+                        key={o.id}
+                        style={[styles.orderChip, isSelected && styles.orderChipSelected]}
+                        onPress={() => setSelectedRepairOrder(o)}
+                      >
+                        <Text style={[styles.orderChipText, isSelected && styles.orderChipTextSelected]}>
+                          ORD-{o.id.slice(0, 6).toUpperCase()} · {o.items?.[0]?.deviceType || 'Equipo'}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </View>
             )}
-          </Card>
-        }
-      />
 
-      {renderNewQuoteModal()}
-      {renderQuoteDetails()}
+            {/* Add items section */}
+            <Card style={styles.addItemCard}>
+              <Text style={styles.addItemTitle}>Agregar Ítem / Repuesto</Text>
+              <M3TextField
+                label="Descripción del repuesto o servicio"
+                placeholder="Ej: Cambio de compresor 1/4 HP..."
+                value={itemDesc}
+                onChangeText={setItemDesc}
+              />
+              <View style={styles.itemInputsRow}>
+                <M3TextField
+                  containerStyle={styles.halfInput}
+                  label="Cantidad"
+                  placeholder="1"
+                  value={itemQty}
+                  onChangeText={setItemQty}
+                  keyboardType="numeric"
+                />
+                <M3TextField
+                  containerStyle={styles.halfInput}
+                  label="Precio Unit. (S/)"
+                  placeholder="0.00"
+                  value={itemPrice}
+                  onChangeText={setItemPrice}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+              <Pressable style={styles.addItemBtn} onPress={addItemToQuote}>
+                <MaterialCommunityIcons name="plus" size={18} color={colors.primary} />
+                <Text style={styles.addItemBtnText}>Añadir al Presupuesto</Text>
+              </Pressable>
+            </Card>
 
-      {toast && <Toast message={toast.message} type={toast.type} />}
+            {/* List of items added */}
+            {quoteItems.length > 0 && (
+              <View style={styles.addedItemsList}>
+                <Text style={styles.itemsTitle}>Ítems Añadidos ({quoteItems.length}):</Text>
+                {quoteItems.map((it, idx) => (
+                  <View key={idx} style={styles.addedItemRow}>
+                    <View style={styles.addedItemInfo}>
+                      <Text style={styles.itemDescText}>{it.description}</Text>
+                      <Text style={styles.itemQtyPriceText}>
+                        {it.quantity} x S/ {it.price.toFixed(2)} = S/ {(it.quantity * it.price).toFixed(2)}
+                      </Text>
+                    </View>
+                    <Pressable onPress={() => removeQuoteItem(idx)}>
+                      <MaterialCommunityIcons name="trash-can-outline" size={20} color={colors.danger} />
+                    </Pressable>
+                  </View>
+                ))}
+                <View style={styles.formTotalRow}>
+                  <Text style={styles.formTotalLabel}>Total:</Text>
+                  <Text style={styles.formTotalAmount}>S/ {calculateFormTotal().toFixed(2)}</Text>
+                </View>
+              </View>
+            )}
+          </ScrollView>
+        </BottomSheet>
+      )}
 
+      {/* Bill Quote Modal (Convert to Sale) */}
+      {showBillModal && billQuote && (
+        <BottomSheet
+          visible={showBillModal}
+          title="Convertir Presupuesto a Venta"
+          subtitle={`Total a cobrar: S/ ${billQuote.totalAmount.toFixed(2)}`}
+          onClose={() => setShowBillModal(false)}
+          footer={
+            <Pressable
+              style={styles.saveQuoteBtn}
+              onPress={confirmConvertSale}
+              disabled={billing}
+            >
+              {billing ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <Text style={styles.saveQuoteBtnText}>Confirmar y Generar Venta</Text>
+              )}
+            </Pressable>
+          }
+        >
+          <View style={styles.billSheetBody}>
+            <Text style={styles.fieldLabel}>Selecciona el medio de cobro:</Text>
+            <View style={styles.payMethodsGrid}>
+              {(['YAPE', 'PLIN', 'CASH', 'CREDIT_CARD', 'TRANSFER'] as PaymentMethod[]).map((pm) => {
+                const isSelected = billMethod === pm;
+                const info = PAYMENT_METHOD[pm];
+                return (
+                  <Pressable
+                    key={pm}
+                    style={[styles.payMethodChip, isSelected && styles.payMethodChipSelected]}
+                    onPress={() => setBillMethod(pm)}
+                  >
+                    <MaterialCommunityIcons
+                      name={(info.icon || 'cash') as any}
+                      size={18}
+                      color={isSelected ? colors.white : colors.textPrimary}
+                    />
+                    <Text style={[styles.payMethodText, isSelected && styles.payMethodTextSelected]}>
+                      {info.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        </BottomSheet>
+      )}
+
+      {/* Generic Confirmation Dialog */}
       {confirm && (
         <ConfirmDialog
-          visible
+          visible={Boolean(confirm)}
           title={confirm.title}
           message={confirm.message}
-          details={confirm.details}
-          icon={confirm.icon}
-          tone={confirm.tone}
           confirmLabel={confirm.confirmLabel}
-          cancelLabel="Cancelar"
-          busy={confirmBusy}
-          onConfirm={runConfirm}
+          onConfirm={confirm.onConfirm}
           onCancel={() => setConfirm(null)}
+          tone={confirm.tone}
+          busy={confirmBusy}
         />
       )}
+
+      {toast && <Toast message={toast.message} type={toast.type} />}
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -1063,555 +734,407 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
     backgroundColor: colors.canvas,
   },
-  loadingText: {
-    ...typography.body,
-    marginTop: spacing.md,
-  },
-  errorText: {
-    ...typography.body,
-    marginTop: spacing.md,
-    color: colors.danger,
-    textAlign: 'center',
-  },
-  retryButton: {
-    marginTop: spacing.lg,
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    borderRadius: radii.button,
-  },
-  retryButtonText: {
-    color: colors.white,
-    fontWeight: '600',
-  },
-
-  // Header
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: spacing.lg,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  headerTitle: {
-    ...typography.title,
-    fontSize: 20,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primary,
+  topHeader: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: 10,
-    borderRadius: radii.button,
+    paddingBottom: spacing.xs,
+    backgroundColor: colors.surface,
+  },
+  screenTitle: {
+    ...typography.headlineSmall,
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  filterScroll: {
+    marginVertical: spacing.xs,
+  },
+  filterRow: {
+    paddingHorizontal: spacing.lg,
     gap: spacing.xs,
-    ...shadow,
+    paddingVertical: 4,
   },
-  addButtonText: {
-    color: colors.white,
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 7,
+    borderRadius: radii.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: 'rgba(195, 199, 208, 0.4)',
+  },
+  filterChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filterChipText: {
+    ...typography.labelMedium,
+    color: colors.textSecondary,
     fontWeight: '600',
-    fontSize: 14,
   },
-
-  // Filtros
-  filterContainer: {
-    padding: spacing.lg,
-    paddingBottom: spacing.md,
+  filterChipTextActive: {
+    color: colors.white,
+    fontWeight: '700',
   },
-
-  // Lista
+  countPill: {
+    backgroundColor: colors.surfaceContainer,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: radii.full,
+  },
+  countPillActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  countText: {
+    ...typography.labelSmall,
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '700',
+  },
+  countTextActive: {
+    color: colors.white,
+  },
+  listContainer: {
+    flex: 1,
+  },
   listContent: {
-    padding: spacing.lg,
-    paddingTop: 0,
-    paddingBottom: 100,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
+    paddingBottom: 110,
   },
   quoteCard: {
+    padding: spacing.md,
     marginBottom: spacing.md,
   },
-  cardTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  cardAmount: {
-    ...typography.display,
-    fontSize: 20,
-    flexShrink: 0,
-    textAlign: 'right',
-  },
-  cardCustomer: {
-    ...typography.bodyStrong,
-    marginBottom: spacing.xs,
-  },
-  cardBottomRow: {
+  quoteCardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: spacing.sm,
   },
-  cardBottomLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
+  quoteCardRefCol: {
     flex: 1,
   },
-  cardCaption: {
-    ...typography.caption,
+  quoteRef: {
+    ...typography.labelSmall,
+    color: colors.primary,
+    fontWeight: '700',
   },
-  cardDate: {
-    ...typography.caption,
-    flexShrink: 0,
-  },
-  emptyCard: {
-    marginTop: spacing.lg,
-  },
-
-  // Modal base
-  modalContainer: {
-    flex: 1,
-    backgroundColor: colors.canvas,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: spacing.lg,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  modalTitle: {
-    ...typography.title,
-    flex: 1,
-    marginRight: spacing.md,
-  },
-  closeButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    flex: 1,
-    padding: spacing.lg,
-  },
-
-  // Formulario 3 pasos
-  formSection: {
-    marginBottom: spacing.xxl,
-  },
-  selectorSpacer: {
-    marginTop: spacing.md,
-  },
-  fieldLabel: {
-    ...typography.micro,
-    marginBottom: spacing.xs,
-  },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.input,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-    fontSize: 15,
+  customerName: {
+    ...typography.titleMedium,
     color: colors.textPrimary,
+    fontWeight: '700',
   },
-  inlineError: {
-    marginTop: spacing.sm,
-    backgroundColor: colors.dangerSoft,
-    color: colors.danger,
-    fontSize: 12,
-    fontWeight: '500',
-    borderRadius: radii.button,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    overflow: 'hidden',
-  },
-  addForm: {
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-    borderRadius: radii.card,
-    padding: spacing.md,
-    marginTop: spacing.md,
-  },
-  addRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-  },
-  qtyField: {
-    width: 64,
-  },
-  priceField: {
-    width: 88,
-  },
-  addIconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: radii.button,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...shadow,
-  },
-  itemCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.card,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    gap: spacing.sm,
-  },
-  itemCardInfo: {
-    flex: 1,
-  },
-  itemCardTitle: {
-    ...typography.bodyStrong,
-    fontSize: 14,
-  },
-  itemCardMeta: {
-    ...typography.caption,
-    marginTop: 2,
-  },
-  itemCardSubtotal: {
-    ...typography.bodyStrong,
-    color: colors.success,
-    flexShrink: 0,
-  },
-  itemDelete: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.dangerSoft,
-  },
-  breakdown: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.card,
-    padding: spacing.lg,
-    marginTop: spacing.md,
-  },
-  breakdownRow: {
+  quoteCardMeta: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-  },
-  breakdownDivider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: spacing.sm,
-  },
-  breakdownLabel: {
-    ...typography.body,
-  },
-  breakdownValue: {
-    ...typography.bodyStrong,
-  },
-  breakdownTotalLabel: {
-    ...typography.bodyStrong,
-  },
-  breakdownTotalValue: {
-    ...typography.title,
-    fontSize: 20,
-    color: colors.success,
-  },
-  stickyFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: spacing.lg,
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    gap: spacing.lg,
-    ...shadow,
-  },
-  footerTotalLabel: {
-    ...typography.micro,
-  },
-  footerTotalValue: {
-    ...typography.title,
-    fontSize: 22,
-    color: colors.success,
-  },
-  saveButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.xxl,
-    paddingVertical: 14,
-    borderRadius: radii.button,
-    gap: spacing.sm,
-    minHeight: 48,
-  },
-  saveButtonText: {
-    color: colors.white,
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-
-  // Detalle documento
-  docHeader: {
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  docTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  docDate: {
-    ...typography.caption,
-    flexShrink: 0,
-  },
-  docCustomer: {
-    ...typography.title,
-    marginBottom: 2,
-  },
-  docOrder: {
-    ...typography.caption,
-    marginBottom: spacing.md,
-  },
-  docAmount: {
-    ...typography.display,
-    fontSize: 32,
-    color: colors.success,
-  },
-  docInvoiced: {
-    ...typography.caption,
-    color: colors.textSecondary,
     marginTop: spacing.xs,
   },
-  docSection: {
-    padding: spacing.lg,
-    marginBottom: spacing.md,
+  orderRefText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
   },
-  docItemRow: {
+  itemsCountText: {
+    ...typography.bodySmall,
+    color: colors.textMuted,
+  },
+  quoteCardBottom: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    gap: spacing.sm,
-  },
-  docItemInfo: {
-    flex: 1,
-  },
-  docItemName: {
-    ...typography.body,
-    color: colors.textPrimary,
-  },
-  docItemMeta: {
-    ...typography.caption,
-    marginTop: 2,
-  },
-  docItemSubtotal: {
-    ...typography.bodyStrong,
-    flexShrink: 0,
-  },
-  totalBand: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: colors.successSoft,
-    borderRadius: radii.card,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  totalBandLabel: {
-    ...typography.bodyStrong,
-    color: colors.success,
-  },
-  totalBandValue: {
-    ...typography.title,
-    fontSize: 22,
-    color: colors.success,
-  },
-
-  // Footer fijo detalle (envuelve a varias acciones por estado)
-  detailFooter: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    padding: spacing.lg,
-    backgroundColor: colors.surface,
+    marginTop: spacing.sm,
+    paddingTop: spacing.xs,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: 'rgba(195, 199, 208, 0.3)',
+  },
+  totalAmountText: {
+    ...typography.titleLarge,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  actionPillsRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  pillActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.primarySoft,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: radii.full,
+  },
+  pillActionSuccess: {
+    backgroundColor: colors.successSoft,
+  },
+  pillActionText: {
+    ...typography.labelSmall,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  fabWrapper: {
+    position: 'absolute',
+    right: spacing.lg,
+    zIndex: 99,
+  },
+  sheetFooterActions: {
     gap: spacing.sm,
-    ...shadow,
   },
-  footerHint: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    width: '100%',
-    paddingVertical: spacing.sm,
-  },
-  footerAction: {
-    flexGrow: 1,
-    flexBasis: '47%',
+  sheetPrimaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.xs,
-    paddingVertical: 13,
-    borderRadius: radii.button,
-    minHeight: 46,
-  },
-  footerActionPrimary: {
+    gap: 8,
     backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    borderRadius: radii.full,
   },
-  footerActionSuccess: {
-    backgroundColor: colors.success,
-  },
-  footerActionDanger: {
-    backgroundColor: colors.danger,
-  },
-  footerActionGhost: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  footerActionText: {
+  sheetPrimaryBtnText: {
+    ...typography.labelLarge,
     color: colors.white,
-    fontWeight: '600',
-    fontSize: 14,
-    flexShrink: 1,
+    fontWeight: '700',
   },
-  footerActionGhostText: {
+  sheetDangerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.dangerSoft,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.full,
+  },
+  sheetDangerBtnText: {
+    ...typography.labelMedium,
+    color: colors.danger,
+    fontWeight: '700',
+  },
+  sheetBodyScroll: {
+    maxHeight: 380,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  detailLabel: {
+    ...typography.bodyMedium,
     color: colors.textSecondary,
   },
-
-  // Modal facturar
-  billOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.lg,
+  detailValue: {
+    ...typography.bodyLarge,
+    color: colors.textPrimary,
+    fontWeight: '600',
   },
-  billContent: {
-    width: '100%',
-    backgroundColor: colors.surface,
-    borderRadius: radii.card,
-    padding: spacing.lg,
-  },
-  billTitle: {
-    ...typography.title,
+  itemsTitle: {
+    ...typography.labelMedium,
+    color: colors.textSecondary,
+    fontWeight: '700',
+    marginTop: spacing.md,
     marginBottom: spacing.xs,
   },
-  billTotal: {
-    ...typography.bodyStrong,
-    color: colors.primary,
-    marginBottom: spacing.md,
-  },
-  billLabel: {
-    ...typography.caption,
-    marginBottom: spacing.sm,
-  },
-  billOption: {
+  itemDetailRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(195, 199, 208, 0.2)',
+  },
+  itemDetailCol: {
+    flex: 1,
+  },
+  itemDescText: {
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  itemQtyPriceText: {
+    ...typography.bodySmall,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  itemSubtotalText: {
+    ...typography.titleSmall,
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  totalDivider: {
+    height: 1,
+    backgroundColor: 'rgba(195, 199, 208, 0.4)',
+    marginVertical: spacing.md,
+  },
+  detailTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  totalBoldLabel: {
+    ...typography.titleMedium,
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  totalBoldAmount: {
+    ...typography.headlineSmall,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  newQuoteScroll: {
+    maxHeight: 460,
+  },
+  orderSelectWrapper: {
+    marginTop: spacing.sm,
+  },
+  fieldLabel: {
+    ...typography.labelMedium,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+    fontWeight: '600',
+  },
+  orderChipsRow: {
+    paddingVertical: 4,
+  },
+  orderChip: {
     paddingHorizontal: spacing.md,
-    borderRadius: radii.button,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.sm,
+    paddingVertical: 8,
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceContainer,
+    marginRight: spacing.xs,
   },
-  billOptionSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primarySoft,
-  },
-  billRadio: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: colors.textMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-  billRadioSelected: {
-    borderColor: colors.primary,
-  },
-  billRadioDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  orderChipSelected: {
     backgroundColor: colors.primary,
   },
-  billOptionText: {
-    ...typography.body,
+  orderChipText: {
+    ...typography.labelSmall,
+    color: colors.textPrimary,
   },
-  billOptionTextSelected: {
-    fontWeight: '600',
-    color: colors.primary,
+  orderChipTextSelected: {
+    color: colors.white,
+    fontWeight: '700',
   },
-  billActions: {
-    flexDirection: 'row',
-    gap: spacing.md,
+  addItemCard: {
+    padding: spacing.md,
     marginTop: spacing.md,
+    backgroundColor: colors.surfaceContainerLow,
   },
-  billCancel: {
+  addItemTitle: {
+    ...typography.titleSmall,
+    color: colors.textPrimary,
+    fontWeight: '700',
+    marginBottom: spacing.xs,
+  },
+  itemInputsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  halfInput: {
     flex: 1,
+  },
+  addItemBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    borderRadius: radii.button,
-    backgroundColor: colors.surfaceMuted,
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.primarySoft,
+    borderRadius: radii.full,
+    marginTop: spacing.xs,
   },
-  billCancelText: {
-    color: colors.textSecondary,
-    fontWeight: '600',
-    fontSize: 15,
+  addItemBtnText: {
+    ...typography.labelMedium,
+    color: colors.primary,
+    fontWeight: '700',
   },
-  billConfirm: {
+  addedItemsList: {
+    marginTop: spacing.md,
+    paddingTop: spacing.xs,
+  },
+  addedItemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(195, 199, 208, 0.2)',
+  },
+  addedItemInfo: {
     flex: 1,
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderRadius: radii.button,
-    backgroundColor: colors.success,
   },
-  billConfirmDisabled: {
+  formTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+    paddingTop: spacing.xs,
+  },
+  formTotalLabel: {
+    ...typography.titleMedium,
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  formTotalAmount: {
+    ...typography.headlineSmall,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  saveQuoteBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.full,
+    minHeight: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  saveQuoteBtnDisabled: {
     opacity: 0.6,
   },
-  billConfirmText: {
+  saveQuoteBtnText: {
+    ...typography.labelLarge,
     color: colors.white,
-    fontWeight: '600',
-    fontSize: 15,
+    fontWeight: '700',
+  },
+  billSheetBody: {
+    paddingVertical: spacing.sm,
+    gap: spacing.md,
+  },
+  payMethodsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  payMethodChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceContainer,
+  },
+  payMethodChipSelected: {
+    backgroundColor: colors.primary,
+  },
+  payMethodText: {
+    ...typography.labelSmall,
+    color: colors.textPrimary,
+  },
+  payMethodTextSelected: {
+    color: colors.white,
+    fontWeight: '700',
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.dangerSoft,
+    padding: spacing.md,
+    marginHorizontal: spacing.lg,
+    borderRadius: radii.md,
+    gap: spacing.sm,
+  },
+  errorText: {
+    ...typography.bodyMedium,
+    color: colors.danger,
+    flex: 1,
   },
 });
-
-export default BudgetsScreen;

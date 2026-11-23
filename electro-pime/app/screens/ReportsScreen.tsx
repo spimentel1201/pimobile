@@ -1,3 +1,4 @@
+// ponytail: M3 ReportsScreen with tonal quote-to-cash metrics and analytics table
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -8,9 +9,10 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../services/api';
 import { Quote } from '../types/api';
-import { colors, typography, spacing, radii } from '../theme';
+import { colors, typography, spacing, radii, tonalElevation } from '../theme';
 import Card from '../components/ui/Card';
 import SectionHeader from '../components/ui/SectionHeader';
 import StatusBadge from '../components/ui/StatusBadge';
@@ -22,12 +24,8 @@ import {
   QuoteSummaryRow,
 } from '../utils/quoteStats';
 
-/**
- * Reportes del ciclo quote-to-cash: totales por etapa de cobro (aprobado,
- * pagado, facturado) y la tabla de presupuestos agrupados por estado.
- * Fuente única: GET /quotes (solo lectura, permitido para técnicos).
- */
-const ReportsScreen = () => {
+export default function ReportsScreen() {
+  const insets = useSafeAreaInsets();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [rows, setRows] = useState<QuoteSummaryRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,9 +38,9 @@ const ReportsScreen = () => {
       const data = await api.getQuotes();
       setQuotes(data);
       setRows(summarizeQuotesByStatus(data));
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching quotes for reports:', err);
-      setError((err as Error)?.message || 'No se pudieron cargar los reportes');
+      setError(err?.message || 'No se pudieron cargar los reportes');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -72,16 +70,21 @@ const ReportsScreen = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Reportes</Text>
-        <Text style={styles.headerSubtitle}>Presupuestos y cobros</Text>
+      <View style={[styles.topHeader, { paddingTop: insets.top + spacing.sm }]}>
+        <Text style={styles.screenTitle}>Reportes Financieros</Text>
+        <Text style={styles.screenSubtitle}>Balance de Presupuestos y Cobros</Text>
       </View>
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: 100 }]}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
         }
       >
         {error && (
@@ -93,50 +96,55 @@ const ReportsScreen = () => {
 
         {/* Totales por etapa de cobro */}
         <View style={styles.section}>
-          <SectionHeader title="Estado de cobro" />
-          <View style={styles.metricRow}>
+          <SectionHeader title="Ciclo de Cobro (Quote-to-Cash)" />
+          <View style={styles.metricGrid}>
             <MetricCard
-              label="Por cobrar"
+              label="Por Cobrar"
               value={`S/ ${totals.porCobrar.toFixed(2)}`}
-              icon="clock-outline"
+              subtitle="Aprobado por el cliente"
+              icon="clock-alert-outline"
+              iconColor={colors.secondary}
+              iconBg={colors.secondarySoft}
               style={styles.metricCard}
             />
             <MetricCard
-              label="Cobrado"
+              label="Cobrado en Caja"
               value={`S/ ${totals.cobrado.toFixed(2)}`}
-              icon="cash-multiple"
-              style={styles.metricCard}
-            />
-            <MetricCard
-              label="Facturado"
-              value={`S/ ${totals.facturado.toFixed(2)}`}
-              icon="receipt"
+              subtitle="Pagado en taller"
+              icon="cash-check"
+              iconColor={colors.success}
+              iconBg={colors.successSoft}
               style={styles.metricCard}
             />
           </View>
-          <Text style={styles.metricHint}>
-            Por cobrar = aprobado sin pagar · Cobrado = pagado · Facturado = venta generada
-          </Text>
+          <MetricCard
+            label="Total Facturado / Concretado"
+            value={`S/ ${totals.facturado.toFixed(2)}`}
+            subtitle="Ventas registradas y finalizadas"
+            icon="receipt"
+            variant="hero"
+            style={styles.heroCard}
+          />
         </View>
 
         {/* Tabla de presupuestos por estado */}
         <View style={styles.section}>
-          <SectionHeader title="Presupuestos por estado" />
+          <SectionHeader title="Presupuestos por Estado" />
 
           {totalQuotes === 0 ? (
-            <Card>
+            <Card variant="outlined">
               <EmptyState
                 icon="file-document-outline"
-                title="Aún no hay presupuestos"
-                description="Cuando emitas presupuestos verás aquí el conteo y el monto agrupados por estado."
+                title="Aún no hay cotizaciones"
+                description="Cuando emitas presupuestos a tus clientes verás aquí el conteo y monto agrupados."
               />
             </Card>
           ) : (
-            <Card>
+            <Card variant="filled" style={styles.tableCard}>
               <View style={styles.tableHead}>
                 <Text style={styles.tableHeadLabel}>Estado</Text>
                 <Text style={[styles.tableHeadLabel, styles.countCol]}>Cant.</Text>
-                <Text style={[styles.tableHeadLabel, styles.amountCol]}>Monto</Text>
+                <Text style={[styles.tableHeadLabel, styles.amountCol]}>Total (S/)</Text>
               </View>
 
               {rows.map((row, index) => (
@@ -146,25 +154,20 @@ const ReportsScreen = () => {
                       label={row.style.label}
                       color={row.style.color}
                       soft={row.style.soft}
+                      icon={row.style.icon}
+                      compact
                     />
                   </View>
-                  <Text style={[styles.countValue, styles.countCol]}>{row.count}</Text>
-                  <Text
-                    style={[
-                      styles.amountValue,
-                      styles.amountCol,
-                      row.count === 0 && styles.amountEmpty,
-                    ]}
-                  >
+                  <Text style={[styles.cellText, styles.countCol]}>{row.count}</Text>
+                  <Text style={[styles.cellText, styles.amountCol, styles.amountText]}>
                     S/ {row.amount.toFixed(2)}
                   </Text>
                 </View>
               ))}
 
-              <View style={styles.tableTotal}>
-                <Text style={styles.tableTotalLabel}>Total</Text>
-                <Text style={styles.tableTotalCount}>{totalQuotes}</Text>
-                <Text style={styles.tableTotalAmount}>S/ {totalAmount.toFixed(2)}</Text>
+              <View style={styles.tableFooter}>
+                <Text style={styles.footerLabel}>Total Global ({totalQuotes} docs):</Text>
+                <Text style={styles.footerAmount}>S/ {totalAmount.toFixed(2)}</Text>
               </View>
             </Card>
           )}
@@ -172,7 +175,7 @@ const ReportsScreen = () => {
       </ScrollView>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -185,82 +188,70 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.canvas,
   },
-  header: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
+  topHeader: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: 'rgba(195, 199, 208, 0.3)',
   },
-  headerTitle: {
-    ...typography.display,
-    fontSize: 24,
+  screenTitle: {
+    ...typography.headlineSmall,
     color: colors.textPrimary,
+    fontWeight: '700',
   },
-  headerSubtitle: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: spacing.xs,
+  screenSubtitle: {
+    ...typography.bodyMedium,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   scroll: {
     flex: 1,
   },
   content: {
-    // Deja espacio para el TabBar flotante (pill margin 12 + altura ~66)
-    paddingTop: spacing.lg,
-    paddingBottom: 110,
+    padding: spacing.lg,
+    gap: spacing.lg,
   },
   section: {
-    paddingHorizontal: spacing.xl,
-    marginBottom: spacing.lg,
-  },
-
-  // Error (si hubo datos previos se muestra como banner, si no como pantalla)
-  errorBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: spacing.sm,
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.lg,
-    backgroundColor: colors.dangerSoft,
-    borderRadius: radii.button,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
   },
-  errorText: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.danger,
-  },
-
-  // KPIs de cobro
-  metricRow: {
+  metricGrid: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: spacing.md,
   },
   metricCard: {
+    flex: 1,
+  },
+  heroCard: {
+    marginTop: spacing.xs,
+  },
+  tableCard: {
     padding: spacing.md,
+    borderRadius: radii.card,
   },
-  metricHint: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: spacing.sm,
-  },
-
-  // Tabla por estado
   tableHead: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingBottom: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: 'rgba(195, 199, 208, 0.4)',
   },
   tableHeadLabel: {
-    ...typography.micro,
-    color: colors.textMuted,
+    ...typography.labelSmall,
+    color: colors.textSecondary,
+    fontWeight: '700',
     flex: 1,
-    textTransform: 'uppercase',
+  },
+  stateCol: {
+    flex: 1.5,
+  },
+  countCol: {
+    flex: 0.6,
+    textAlign: 'center',
+  },
+  amountCol: {
+    flex: 1.2,
+    textAlign: 'right',
   },
   tableRow: {
     flexDirection: 'row',
@@ -269,58 +260,46 @@ const styles = StyleSheet.create({
   },
   tableDivider: {
     borderTopWidth: 1,
-    borderTopColor: colors.border,
-    borderStyle: 'dashed',
+    borderTopColor: 'rgba(195, 199, 208, 0.2)',
   },
-  stateCol: {
-    flex: 1,
-    flexDirection: 'row',
-  },
-  countCol: {
-    width: 48,
-    textAlign: 'right',
-  },
-  amountCol: {
-    width: 104,
-    textAlign: 'right',
-  },
-  countValue: {
-    ...typography.body,
-    color: colors.textSecondary,
-  },
-  amountValue: {
-    ...typography.bodyStrong,
+  cellText: {
+    ...typography.bodyMedium,
     color: colors.textPrimary,
   },
-  amountEmpty: {
-    color: colors.textMuted,
-    fontWeight: '400',
+  amountText: {
+    fontWeight: '700',
+    color: colors.primary,
   },
-  tableTotal: {
+  tableFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: spacing.md,
+    marginTop: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(195, 199, 208, 0.4)',
+  },
+  footerLabel: {
+    ...typography.bodyMedium,
+    color: colors.textSecondary,
+    fontWeight: '700',
+  },
+  footerAmount: {
+    ...typography.titleLarge,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing.sm,
-    paddingTop: spacing.sm,
-    borderTopWidth: 2,
-    borderTopColor: colors.border,
+    backgroundColor: colors.dangerSoft,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    gap: spacing.sm,
   },
-  tableTotalLabel: {
-    ...typography.bodyStrong,
+  errorText: {
+    ...typography.bodyMedium,
+    color: colors.danger,
     flex: 1,
-    color: colors.textPrimary,
-  },
-  tableTotalCount: {
-    ...typography.bodyStrong,
-    width: 48,
-    textAlign: 'right',
-    color: colors.textSecondary,
-  },
-  tableTotalAmount: {
-    ...typography.bodyStrong,
-    width: 104,
-    textAlign: 'right',
-    color: colors.success,
   },
 });
-
-export default ReportsScreen;

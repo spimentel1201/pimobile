@@ -1,19 +1,21 @@
+// ponytail: M3 NewCustomerModal with M3TextFields, document type chips, and Electric Blue styling
 import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Modal,
-  TextInput,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   ActivityIndicator,
-  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, typography, spacing, radii } from '../theme';
 import { api } from '../services/api';
 import { Customer, CreateCustomerDto } from '../types/api';
+import M3TextField from './ui/M3TextField';
 
 interface NewCustomerModalProps {
   visible: boolean;
@@ -23,9 +25,9 @@ interface NewCustomerModalProps {
 }
 
 const DOC_TYPES = [
-  { value: 'dni', label: 'DNI' },
-  { value: 'ruc', label: 'RUC' },
-  { value: 'ce', label: 'CE' },
+  { value: 'dni', label: 'DNI (8 dígitos)' },
+  { value: 'ruc', label: 'RUC (11 dígitos)' },
+  { value: 'ce', label: 'C.E.' },
 ];
 
 export default function NewCustomerModal({
@@ -91,7 +93,6 @@ export default function NewCustomerModal({
         err?.message ||
         err?.response?.data?.message ||
         'No se pudo registrar el cliente';
-      // El backend devuelve 409 con mensaje de duplicado
       setError(Array.isArray(msg) ? msg.join(', ') : String(msg));
     } finally {
       setSaving(false);
@@ -105,120 +106,145 @@ export default function NewCustomerModal({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Nuevo cliente</Text>
-          <TouchableOpacity activeOpacity={0.7} onPress={onClose} style={styles.closeBtn}>
-            <MaterialCommunityIcons name="close" size={24} color={colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView
-          style={styles.form}
-          contentContainerStyle={styles.formContent}
-          keyboardShouldPersistTaps="handled"
-        >
-          {error ? (
-            <View style={styles.errorBox}>
-              <MaterialCommunityIcons name="alert-circle" size={18} color={colors.danger} />
-              <Text style={styles.errorText}>{error}</Text>
+      <KeyboardAvoidingView
+        style={styles.keyboardContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.container}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.headerIconCircle}>
+              <MaterialCommunityIcons name="account-plus" size={22} color={colors.primary} />
             </View>
-          ) : null}
-
-          <Text style={styles.label}>Nombre completo *</Text>
-          <TextInput
-            style={styles.input}
-            value={name}
-            onChangeText={setName}
-            placeholder="Ej. Juan Pérez"
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="words"
-          />
-
-          <Text style={styles.label}>Tipo de documento *</Text>
-          <View style={styles.docTypeRow}>
-            {DOC_TYPES.map((d) => (
-              <TouchableOpacity
-                key={d.value}
-                style={[styles.docTypeBtn, documentType === d.value && styles.docTypeBtnActive]}
-                onPress={() => setDocumentType(d.value)}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.docTypeText,
-                    documentType === d.value && styles.docTypeTextActive,
-                  ]}
-                >
-                  {d.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            <View style={styles.headerTexts}>
+              <Text style={styles.title}>Registrar Nuevo Cliente</Text>
+              <Text style={styles.subtitle}>Se asignará automáticamente a la orden</Text>
+            </View>
+            <Pressable
+              onPress={onClose}
+              style={styles.closeBtn}
+              android_ripple={{ color: 'rgba(0, 82, 255, 0.12)', borderless: true, radius: 20 }}
+            >
+              <MaterialCommunityIcons name="close" size={24} color={colors.textSecondary} />
+            </Pressable>
           </View>
 
-          <Text style={styles.label}>Número de documento *</Text>
-          <TextInput
-            style={styles.input}
-            value={documentNumber}
-            onChangeText={setDocumentNumber}
-            placeholder="DNI / RUC / CE"
-            placeholderTextColor={colors.textMuted}
-            keyboardType="numeric"
-            autoCapitalize="none"
-          />
-
-          <Text style={styles.label}>Teléfono *</Text>
-          <TextInput
-            style={styles.input}
-            value={phone}
-            onChangeText={setPhone}
-            placeholder="9 dígitos"
-            placeholderTextColor={colors.textMuted}
-            keyboardType="phone-pad"
-          />
-
-          <Text style={styles.label}>Correo (opcional)</Text>
-          <TextInput
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            placeholder="correo@ejemplo.com"
-            placeholderTextColor={colors.textMuted}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-
-          <Text style={styles.label}>Dirección (opcional)</Text>
-          <TextInput
-            style={styles.input}
-            value={address}
-            onChangeText={setAddress}
-            placeholder="Dirección"
-            placeholderTextColor={colors.textMuted}
-          />
-
-          <TouchableOpacity
-            style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
-            onPress={handleSave}
-            disabled={saving}
-            activeOpacity={0.7}
+          <ScrollView
+            style={styles.form}
+            contentContainerStyle={styles.formContent}
+            keyboardShouldPersistTaps="handled"
           >
-            {saving ? (
-              <ActivityIndicator color={colors.white} />
-            ) : (
-              <>
-                <MaterialCommunityIcons name="content-save" size={20} color={colors.white} />
-                <Text style={styles.saveBtnText}>Registrar cliente</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
+            {error ? (
+              <View style={styles.errorBox}>
+                <MaterialCommunityIcons name="alert-circle" size={18} color={colors.danger} />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            <M3TextField
+              label="Nombre completo *"
+              placeholder="Ej. Juan Pérez Soto"
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+              leadingIcon="account-outline"
+            />
+
+            {/* Document Type Selector Chips */}
+            <Text style={styles.fieldLabel}>Tipo de documento *</Text>
+            <View style={styles.docTypesRow}>
+              {DOC_TYPES.map((dt) => {
+                const isSelected = documentType === dt.value;
+                return (
+                  <Pressable
+                    key={dt.value}
+                    style={[styles.docTypeChip, isSelected && styles.docTypeChipSelected]}
+                    onPress={() => setDocumentType(dt.value)}
+                    android_ripple={{ color: 'rgba(0, 82, 255, 0.15)' }}
+                  >
+                    <Text style={[styles.docTypeChipText, isSelected && styles.docTypeChipTextSelected]}>
+                      {dt.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <M3TextField
+              label="Número de documento *"
+              placeholder="Ej. 72345678"
+              value={documentNumber}
+              onChangeText={setDocumentNumber}
+              keyboardType="numeric"
+              leadingIcon="card-account-details-outline"
+            />
+
+            <M3TextField
+              label="Teléfono / WhatsApp *"
+              placeholder="Ej. 987654321"
+              value={phone}
+              onChangeText={setPhone}
+              keyboardType="phone-pad"
+              leadingIcon="phone-outline"
+            />
+
+            <M3TextField
+              label="Correo electrónico (opcional)"
+              placeholder="cliente@ejemplo.com"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              leadingIcon="email-outline"
+            />
+
+            <M3TextField
+              label="Dirección (opcional)"
+              placeholder="Av. Principal 123, Urb..."
+              value={address}
+              onChangeText={setAddress}
+              leadingIcon="map-marker-outline"
+            />
+          </ScrollView>
+
+          {/* Footer Actions */}
+          <View style={styles.footer}>
+            <Pressable
+              style={styles.cancelBtn}
+              onPress={onClose}
+              disabled={saving}
+              android_ripple={{ color: 'rgba(0,0,0,0.05)' }}
+            >
+              <Text style={styles.cancelBtnText}>Cancelar</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+              onPress={handleSave}
+              disabled={saving}
+              android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+            >
+              {saving ? (
+                <ActivityIndicator color={colors.white} size="small" />
+              ) : (
+                <>
+                  <MaterialCommunityIcons name="check" size={20} color={colors.white} />
+                  <Text style={styles.saveBtnText}>Guardar y Asignar</Text>
+                </>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardContainer: {
+    flex: 1,
+    backgroundColor: colors.surface,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.surface,
@@ -226,102 +252,130 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    gap: spacing.md,
+  },
+  headerIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTexts: {
+    flex: 1,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '600',
+    ...typography.titleMedium,
     color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  subtitle: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   closeBtn: {
-    padding: 4,
+    padding: 6,
+    borderRadius: radii.full,
   },
   form: {
     flex: 1,
   },
   formContent: {
-    padding: 16,
-    paddingBottom: 32,
+    padding: spacing.lg,
+    paddingBottom: 40,
   },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
     backgroundColor: colors.dangerSoft,
-    borderRadius: radii.button,
-    padding: 12,
-    marginBottom: 12,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    marginBottom: spacing.md,
   },
   errorText: {
-    flex: 1,
-    fontSize: 13,
+    ...typography.bodySmall,
     color: colors.danger,
-  },
-  label: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 6,
-    fontWeight: '500',
-    marginTop: 8,
-  },
-  input: {
-    backgroundColor: colors.canvas,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.button,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    color: colors.textPrimary,
-    minHeight: 44,
-  },
-  docTypeRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 4,
-  },
-  docTypeBtn: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: radii.button,
+  },
+  fieldLabel: {
+    ...typography.labelMedium,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+    fontWeight: '600',
+  },
+  docTypesRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  docTypeChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: radii.full,
     borderWidth: 1,
     borderColor: colors.border,
-    alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceMuted,
   },
-  docTypeBtnActive: {
+  docTypeChipSelected: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  docTypeText: {
-    fontSize: 14,
-    fontWeight: '500',
+  docTypeChipText: {
+    ...typography.labelSmall,
     color: colors.textSecondary,
+    fontWeight: '600',
   },
-  docTypeTextActive: {
+  docTypeChipTextSelected: {
     color: colors.white,
+    fontWeight: '700',
+  },
+  footer: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+    gap: spacing.md,
+  },
+  cancelBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelBtnText: {
+    ...typography.labelLarge,
+    color: colors.textSecondary,
+    fontWeight: '600',
   },
   saveBtn: {
+    flex: 2,
+    height: 48,
+    borderRadius: radii.full,
+    backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.primary,
-    paddingVertical: 14,
-    borderRadius: radii.button,
-    borderCurve: 'continuous',
-    marginTop: 20,
-    minHeight: 48,
+    gap: spacing.xs,
   },
   saveBtnDisabled: {
-    opacity: 0.6,
+    opacity: 0.7,
   },
   saveBtnText: {
+    ...typography.labelLarge,
     color: colors.white,
-    fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

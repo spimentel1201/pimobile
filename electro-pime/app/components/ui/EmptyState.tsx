@@ -1,35 +1,50 @@
+// ponytail: M3 Empty State with tonal circular icon and ripple CTA
 import React from 'react';
-import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { View, Text, StyleSheet, StyleProp, ViewStyle, Pressable } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { TouchableOpacity } from 'react-native';
 import { colors, radii, spacing, typography } from '../../theme';
 
 interface EmptyStateProps {
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
   title: string;
   description?: string;
-  /** Texto del botón de acción opcional */
   ctaLabel?: string;
   onCta?: () => void;
+  actionLabel?: string;
+  onAction?: () => void;
   style?: StyleProp<ViewStyle>;
 }
 
-/**
- * Estado vacío diseñado: ícono outline en círculo muted + título + descripción + CTA opcional.
- * Nunca solo texto.
- */
-export default function EmptyState({ icon, title, description, ctaLabel, onCta, style }: EmptyStateProps) {
+export default function EmptyState({
+  icon,
+  title,
+  description,
+  ctaLabel,
+  onCta,
+  actionLabel,
+  onAction,
+  style,
+}: EmptyStateProps) {
+  const activeLabel = ctaLabel || actionLabel;
+  const activeAction = onCta || onAction;
+
   return (
     <View style={[styles.container, style]}>
       <View style={styles.iconCircle}>
-        <MaterialCommunityIcons name={icon} size={32} color={colors.textMuted} />
+        <MaterialCommunityIcons name={icon} size={36} color={colors.primary} />
       </View>
       <Text style={styles.title}>{title}</Text>
       {description && <Text style={styles.description}>{description}</Text>}
-      {ctaLabel && onCta && (
-        <TouchableOpacity style={styles.cta} onPress={onCta} activeOpacity={0.85}>
-          <Text style={styles.ctaText}>{ctaLabel}</Text>
-        </TouchableOpacity>
+      {activeLabel && activeAction && (
+        <View style={styles.ctaWrapper}>
+          <Pressable
+            style={styles.cta}
+            onPress={activeAction}
+            android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+          >
+            <Text style={styles.ctaText}>{activeLabel}</Text>
+          </Pressable>
+        </View>
       )}
     </View>
   );
@@ -38,38 +53,47 @@ export default function EmptyState({ icon, title, description, ctaLabel, onCta, 
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    paddingVertical: spacing.xxl,
-    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xxxl,
+    paddingHorizontal: spacing.xl,
   },
   iconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colors.surfaceMuted,
+    width: 80,
+    height: 80,
+    borderRadius: radii.full,
+    backgroundColor: colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
   title: {
-    ...typography.bodyStrong,
+    ...typography.titleMedium,
+    color: colors.textPrimary,
     textAlign: 'center',
   },
   description: {
-    ...typography.body,
+    ...typography.bodyMedium,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: spacing.xs,
-    maxWidth: 260,
+    maxWidth: 280,
+    lineHeight: 20,
+  },
+  ctaWrapper: {
+    marginTop: spacing.lg,
+    borderRadius: radii.full,
+    overflow: 'hidden',
   },
   cta: {
-    marginTop: spacing.lg,
     backgroundColor: colors.primary,
-    borderRadius: radii.button,
     paddingHorizontal: spacing.xl,
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   ctaText: {
+    ...typography.labelLarge,
     color: colors.white,
-    fontSize: 14,
     fontWeight: '600',
   },
 });

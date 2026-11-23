@@ -1,887 +1,823 @@
+// ponytail: M3 POS (New Sale) screen with customer search, product catalog, cart and payment chips
 import React, { useState, useCallback } from 'react';
 import {
-    Platform,
-    View,
-    Text,
-    StyleSheet,
-    ScrollView,
-    TouchableOpacity,
-    TextInput,
-    Modal,
-    FlatList,
-    ActivityIndicator,
-    SafeAreaView,
+  Platform,
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  TextInput,
+  Modal,
+  FlatList,
+  ActivityIndicator,
+  SafeAreaView,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../services/api';
 import { Product, Customer, PaymentMethod, CreateSaleDto } from '../types/api';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
-import { useAuth } from '../contexts/AuthContext';
-import { colors } from '../theme';
+import Card from '../components/ui/Card';
+import M3TextField from '../components/ui/M3TextField';
+import {
+  colors,
+  typography,
+  radii,
+  spacing,
+  tonalElevation,
+  PAYMENT_METHOD,
+} from '../theme';
 import * as Haptics from 'expo-haptics';
 
 interface CartItem {
-    product: Product;
-    quantity: number;
-    price: number;
+  product: Product;
+  quantity: number;
+  price: number;
 }
 
 const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: string }[] = [
-    { value: 'CASH', label: 'Efectivo', icon: 'cash' },
-    { value: 'CREDIT_CARD', label: 'Tarjeta Crédito', icon: 'credit-card' },
-    { value: 'DEBIT_CARD', label: 'Tarjeta Débito', icon: 'credit-card-outline' },
-    { value: 'TRANSFER', label: 'Transferencia', icon: 'bank-transfer' },
-    { value: 'YAPE', label: 'Yape', icon: 'cellphone' },
-    { value: 'PLIN', label: 'Plin', icon: 'cellphone' },
+  { value: 'CASH', label: 'Efectivo', icon: 'cash' },
+  { value: 'YAPE', label: 'Yape', icon: 'cellphone' },
+  { value: 'PLIN', label: 'Plin', icon: 'cellphone' },
+  { value: 'CREDIT_CARD', label: 'Tarjeta Crédito', icon: 'credit-card' },
+  { value: 'DEBIT_CARD', label: 'Tarjeta Débito', icon: 'credit-card-outline' },
+  { value: 'TRANSFER', label: 'Transferencia', icon: 'bank-transfer' },
 ];
 
 export default function NewSaleScreen() {
-    const router = useRouter();
-    const { user } = useAuth();
-    const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-    const [customerQuery, setCustomerQuery] = useState('');
-    const [customerMatches, setCustomerMatches] = useState<Customer[]>([]);
-    const [customerSearching, setCustomerSearching] = useState(false);
-    const [showCustomerMatches, setShowCustomerMatches] = useState(false);
-    const [cart, setCart] = useState<CartItem[]>([]);
-    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
-    const [showPaymentPicker, setShowPaymentPicker] = useState(false);
-    const [showProductSearch, setShowProductSearch] = useState(false);
-    const [saving, setSaving] = useState(false);
-    const [confirmSale, setConfirmSale] = useState<{ total: number; items: number } | null>(null);
-    const [errorDialog, setErrorDialog] = useState<string | null>(null);
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [customerQuery, setCustomerQuery] = useState('');
+  const [customerMatches, setCustomerMatches] = useState<Customer[]>([]);
+  const [customerSearching, setCustomerSearching] = useState(false);
+  const [showCustomerMatches, setShowCustomerMatches] = useState(false);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
+  const [showProductSearch, setShowProductSearch] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [confirmSale, setConfirmSale] = useState<{ total: number; items: number } | null>(null);
+  const [errorDialog, setErrorDialog] = useState<string | null>(null);
 
-    // Product search
-    const [productSearchQuery, setProductSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState<Product[]>([]);
-    const [searching, setSearching] = useState(false);
+  // Product search
+  const [productSearchQuery, setProductSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const [searching, setSearching] = useState(false);
 
-    const searchCustomers = async (query: string): Promise<Customer[]> => {
-        if (query.trim().length === 0) {
-            return api.getCustomers();
-        }
-        return api.searchCustomers(query.trim());
-    };
+  const searchCustomers = async (query: string): Promise<Customer[]> => {
+    if (query.trim().length === 0) {
+      return api.getCustomers();
+    }
+    return api.searchCustomers(query.trim());
+  };
 
-    // Búsqueda en vivo: a medida que se tipea se muestran las coincidencias
-    const runCustomerSearch = useCallback(async (query: string) => {
-        setCustomerSearching(true);
-        try {
-            const results = await searchCustomers(query);
-            setCustomerMatches(results);
-        } catch (error) {
-            console.error('Error searching customers:', error);
-            setCustomerMatches([]);
-        } finally {
-            setCustomerSearching(false);
-        }
-    }, []);
+  const runCustomerSearch = useCallback(async (query: string) => {
+    setCustomerSearching(true);
+    try {
+      const results = await searchCustomers(query);
+      setCustomerMatches(results);
+    } catch {
+      setCustomerMatches([]);
+    } finally {
+      setCustomerSearching(false);
+    }
+  }, []);
 
-    const handleCustomerQueryChange = useCallback((text: string) => {
-        setCustomerQuery(text);
-        setShowCustomerMatches(true);
-        runCustomerSearch(text);
-    }, [runCustomerSearch]);
+  const handleCustomerQueryChange = useCallback(
+    (text: string) => {
+      setCustomerQuery(text);
+      setShowCustomerMatches(true);
+      runCustomerSearch(text);
+    },
+    [runCustomerSearch]
+  );
 
-    const handleSelectCustomer = (customer: Customer) => {
-        setSelectedCustomer(customer);
-        setCustomerQuery('');
-        setCustomerMatches([]);
-        setShowCustomerMatches(false);
-    };
+  const handleSelectCustomer = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setCustomerQuery('');
+    setCustomerMatches([]);
+    setShowCustomerMatches(false);
+  };
 
-    const clearCustomer = () => {
-        setSelectedCustomer(null);
-        setCustomerQuery('');
-        setCustomerMatches([]);
-    };
+  const clearCustomer = () => {
+    setSelectedCustomer(null);
+    setCustomerQuery('');
+    setCustomerMatches([]);
+  };
 
-    const searchProducts = useCallback(async (query: string) => {
-        if (query.length < 2) {
-            setSearchResults([]);
-            return;
-        }
+  const searchProducts = useCallback(async (query: string) => {
+    if (query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
 
-        setSearching(true);
-        try {
-            const results = await api.searchProducts(query);
-            setSearchResults(results);
-        } catch (error) {
-            console.error('Error searching products:', error);
-        } finally {
-            setSearching(false);
-        }
-    }, []);
+    setSearching(true);
+    try {
+      const results = await api.searchProducts(query);
+      setSearchResults(results);
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  }, []);
 
-    const addToCart = (product: Product) => {
-        const existingIndex = cart.findIndex(item => item.product.id === product.id);
+  const addToCart = (product: Product) => {
+    Platform.OS !== 'web' && Haptics.selectionAsync();
+    const existingIndex = cart.findIndex((item) => item.product.id === product.id);
 
-        if (existingIndex >= 0) {
-            // Increment quantity
-            const updatedCart = [...cart];
-            updatedCart[existingIndex].quantity += 1;
-            setCart(updatedCart);
-        } else {
-            // Add new item
-            setCart([...cart, {
-                product,
-                quantity: 1,
-                price: product.price,
-            }]);
-        }
+    if (existingIndex >= 0) {
+      const updatedCart = [...cart];
+      updatedCart[existingIndex].quantity += 1;
+      setCart(updatedCart);
+    } else {
+      setCart([
+        ...cart,
+        {
+          product,
+          quantity: 1,
+          price: product.price,
+        },
+      ]);
+    }
 
-        setShowProductSearch(false);
-        setProductSearchQuery('');
-        setSearchResults([]);
-    };
+    setShowProductSearch(false);
+    setProductSearchQuery('');
+    setSearchResults([]);
+  };
 
-    const updateQuantity = (index: number, quantity: number) => {
-        if (quantity <= 0) {
-            removeFromCart(index);
-            return;
-        }
+  const updateQuantity = (index: number, quantity: number) => {
+    Platform.OS !== 'web' && Haptics.selectionAsync();
+    if (quantity <= 0) {
+      removeFromCart(index);
+      return;
+    }
 
-        const updatedCart = [...cart];
-        updatedCart[index].quantity = quantity;
-        setCart(updatedCart);
-    };
+    const updatedCart = [...cart];
+    updatedCart[index].quantity = quantity;
+    setCart(updatedCart);
+  };
 
-    const removeFromCart = (index: number) => {
-        setCart(cart.filter((_, i) => i !== index));
-    };
+  const removeFromCart = (index: number) => {
+    setCart(cart.filter((_, i) => i !== index));
+  };
 
-    const calculateTotal = () => {
-        return cart.reduce((sum, item) => sum + (item.quantity * item.price), 0);
-    };
+  const calculateTotal = () => {
+    return cart.reduce((sum, item) => sum + item.quantity * item.price, 0);
+  };
 
-    const handleCreateSale = async () => {
-        if (cart.length === 0) {
-            setErrorDialog('Agrega al menos un producto antes de registrar la venta.');
-            return;
-        }
+  const handleCreateSale = async () => {
+    if (cart.length === 0) {
+      setErrorDialog('Agrega al menos un producto antes de registrar la venta.');
+      return;
+    }
 
-        Platform.OS !== 'web' && Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        setSaving(true);
-        try {
-            const saleData: CreateSaleDto = {
-                customerId: selectedCustomer?.id,
-                customerName: selectedCustomer?.name,
-                paymentMethod,
-                items: cart.map(item => ({
-                    productId: item.product.id,
-                    quantity: item.quantity,
-                    price: item.price,
-                })),
-            };
+    Platform.OS !== 'web' && Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setSaving(true);
+    try {
+      const saleData: CreateSaleDto = {
+        customerId: selectedCustomer?.id,
+        customerName: selectedCustomer?.name,
+        paymentMethod,
+        items: cart.map((item) => ({
+          productId: item.product.id,
+          quantity: item.quantity,
+          price: item.price,
+        })),
+      };
 
-            await api.createSale(saleData);
-            setSaving(false);
-            setConfirmSale({ total: calculateTotal(), items: cart.length });
-        } catch (err: any) {
-            setErrorDialog(err.message || 'No se pudo registrar la venta');
-        } finally {
-            setSaving(false);
-        }
-    };
+      await api.createSale(saleData);
+      setSaving(false);
+      setConfirmSale({ total: calculateTotal(), items: cart.length });
+    } catch (err: any) {
+      setErrorDialog(err.message || 'No se pudo registrar la venta');
+    } finally {
+      setSaving(false);
+    }
+  };
 
-    const resetForm = () => {
-        clearCustomer();
-        setCart([]);
-        setPaymentMethod('CASH');
-    };
-
-    const renderCartItem = (item: CartItem, index: number) => (
-        <View key={index} style={styles.cartItem}>
-            <View style={styles.cartItemInfo}>
-                <Text style={styles.cartItemName}>{item.product.name}</Text>
-                <Text style={styles.cartItemPrice}>S/ {item.price.toFixed(2)} c/u</Text>
-            </View>
-            <View style={styles.quantityControls}>
-                <TouchableOpacity activeOpacity={0.7}
-                    style={styles.quantityButton}
-                    onPress={() => updateQuantity(index, item.quantity - 1)}
-                >
-                    <MaterialCommunityIcons name="minus" size={18} color={colors.textSecondary} />
-                </TouchableOpacity>
-                <Text style={styles.quantityText}>{item.quantity}</Text>
-                <TouchableOpacity activeOpacity={0.7}
-                    style={styles.quantityButton}
-                    onPress={() => updateQuantity(index, item.quantity + 1)}
-                >
-                    <MaterialCommunityIcons name="plus" size={18} color={colors.textSecondary} />
-                </TouchableOpacity>
-            </View>
-            <Text style={styles.cartItemTotal}>S/ {(item.quantity * item.price).toFixed(2)}</Text>
-            <TouchableOpacity activeOpacity={0.7} onPress={() => removeFromCart(index)}>
-                <MaterialCommunityIcons name="delete" size={22} color={colors.danger} />
-            </TouchableOpacity>
-        </View>
-    );
-
-    const renderProductSearchModal = () => (
-        <Modal
-            visible={showProductSearch}
-            animationType="slide"
-            onRequestClose={() => setShowProductSearch(false)}
+  return (
+    <SafeAreaView style={styles.container}>
+      {/* Top Header */}
+      <View style={[styles.topHeader, { paddingTop: insets.top + spacing.xs }]}>
+        <Pressable
+          style={styles.backBtn}
+          onPress={() => router.back()}
+          android_ripple={{ color: 'rgba(0, 82, 255, 0.15)', borderless: true, radius: 24 }}
         >
-            <View style={styles.modalContainer}>
-                <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>Buscar Producto</Text>
-                    <TouchableOpacity activeOpacity={0.7} onPress={() => setShowProductSearch(false)}>
-                        <MaterialCommunityIcons name="close" size={24} color={colors.textSecondary} />
-                    </TouchableOpacity>
-                </View>
+          <MaterialCommunityIcons name="arrow-left" size={24} color={colors.textPrimary} />
+        </Pressable>
+        <Text style={styles.headerTitle}>Punto de Venta</Text>
+      </View>
 
-                <View style={styles.searchContainer}>
-                    <MaterialCommunityIcons name="magnify" size={20} color={colors.textMuted} />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Buscar por nombre o código..."
-                        value={productSearchQuery}
-                        onChangeText={(text) => {
-                            setProductSearchQuery(text);
-                            searchProducts(text);
-                        }}
-                        autoFocus
-                    />
-                </View>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Customer Section */}
+        <Card style={styles.card}>
+          <Text style={styles.cardTitle}>Cliente</Text>
 
-                {searching ? (
-                    <View style={styles.centered}>
-                        <ActivityIndicator size="large" color={colors.primary} />
-                    </View>
-                ) : (
-                    <FlatList
-                        data={searchResults}
-                        keyExtractor={item => item.id}
-                        renderItem={({ item }) => (
-                            <TouchableOpacity activeOpacity={0.7}
-                                style={styles.productItem}
-                                onPress={() => addToCart(item)}
-                            >
-                                <View style={styles.productInfo}>
-                                    <Text style={styles.productName}>{item.name}</Text>
-                                    <Text style={styles.productStock}>Stock: {item.stock}</Text>
-                                </View>
-                                <Text style={styles.productPrice}>S/ {item.price.toFixed(2)}</Text>
-                            </TouchableOpacity>
-                        )}
-                        ListEmptyComponent={
-                            productSearchQuery.length >= 2 ? (
-                                <View style={styles.emptySearch}>
-                                    <Text style={styles.emptySearchText}>No se encontraron productos</Text>
-                                </View>
-                            ) : (
-                                <View style={styles.emptySearch}>
-                                    <Text style={styles.emptySearchText}>Escriba al menos 2 caracteres</Text>
-                                </View>
-                            )
-                        }
-                    />
-                )}
+          {selectedCustomer ? (
+            <View style={styles.selectedCustomerRow}>
+              <View style={styles.customerAvatar}>
+                <Text style={styles.customerAvatarText}>
+                  {selectedCustomer.name.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <View style={styles.customerDetails}>
+                <Text style={styles.customerName}>{selectedCustomer.name}</Text>
+                <Text style={styles.customerSub}>
+                  {selectedCustomer.documentType || 'Doc'}: {selectedCustomer.documentNumber || '—'} · {selectedCustomer.phone || 'Sin tel'}
+                </Text>
+              </View>
+              <Pressable onPress={clearCustomer} style={styles.clearCustomerBtn}>
+                <MaterialCommunityIcons name="close" size={20} color={colors.textSecondary} />
+              </Pressable>
             </View>
-        </Modal>
-    );
+          ) : (
+            <View>
+              <View style={styles.customerSearchBox}>
+                <MaterialCommunityIcons name="magnify" size={20} color={colors.textMuted} />
+                <TextInput
+                  style={styles.customerSearchInput}
+                  placeholder="Buscar cliente (o dejar en blanco para General)..."
+                  placeholderTextColor={colors.textMuted}
+                  value={customerQuery}
+                  onChangeText={handleCustomerQueryChange}
+                />
+              </View>
 
-    return (
-        <SafeAreaView style={styles.container}>
-            <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
-                {/* Customer Selection */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Cliente (Opcional)</Text>
-
-                    {selectedCustomer ? (
-                        <View style={styles.customerSelected}>
-                            <View style={styles.customerSelectedIcon}>
-                                <MaterialCommunityIcons name="account" size={20} color={colors.surface} />
-                            </View>
-                            <View style={styles.customerSelectedInfo}>
-                                <Text style={styles.customerSelectedName} numberOfLines={1}>
-                                    {selectedCustomer.name}
-                                </Text>
-                                {!!selectedCustomer.phone && (
-                                    <Text style={styles.customerSelectedPhone}>
-                                        Tel: {selectedCustomer.phone}
-                                    </Text>
-                                )}
-                            </View>
-                            <TouchableOpacity
-                                style={styles.customerClearButton}
-                                onPress={clearCustomer}
-                                activeOpacity={0.7}
-                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                                <MaterialCommunityIcons name="close" size={20} color={colors.textSecondary} />
-                            </TouchableOpacity>
-                        </View>
-                    ) : (
-                        <>
-                            <View style={styles.customerSearchBar}>
-                                <MaterialCommunityIcons name="magnify" size={20} color={colors.textMuted} />
-                                <TextInput
-                                    style={styles.customerSearchInput}
-                                    placeholder="Buscar por nombre o teléfono..."
-                                    placeholderTextColor={colors.textMuted}
-                                    value={customerQuery}
-                                    onChangeText={handleCustomerQueryChange}
-                                    onFocus={() => {
-                                        setShowCustomerMatches(true);
-                                        if (customerMatches.length === 0) {
-                                            runCustomerSearch('');
-                                        }
-                                    }}
-                                    autoCorrect={false}
-                                />
-                                {customerSearching && (
-                                    <ActivityIndicator size="small" color={colors.primary} />
-                                )}
-                            </View>
-
-                            {showCustomerMatches && (
-                                <View style={styles.customerMatches}>
-                                    {customerMatches.length === 0 && !customerSearching ? (
-                                        <Text style={styles.customerMatchesEmpty}>
-                                            {customerQuery.trim().length > 0
-                                                ? 'Sin coincidencias'
-                                                : 'No hay clientes registrados'}
-                                        </Text>
-                                    ) : (
-                                        customerMatches.slice(0, 6).map((customer) => (
-                                            <TouchableOpacity activeOpacity={0.7}
-                                                key={customer.id}
-                                                style={styles.customerMatch}
-                                                onPress={() => handleSelectCustomer(customer)}
-                                            >
-                                                <View style={styles.customerMatchInfo}>
-                                                    <Text style={styles.customerMatchName} numberOfLines={1}>
-                                                        {customer.name}
-                                                    </Text>
-                                                    <Text style={styles.customerMatchMeta} numberOfLines={1}>
-                                                        {customer.phone}
-                                                        {customer.documentNumber
-                                                            ? ` · ${customer.documentNumber}`
-                                                            : ''}
-                                                    </Text>
-                                                </View>
-                                                <MaterialCommunityIcons
-                                                    name="chevron-right"
-                                                    size={20}
-                                                    color={colors.border}
-                                                />
-                                            </TouchableOpacity>
-                                        ))
-                                    )}
-                                </View>
-                            )}
-                        </>
-                    )}
-                </View>
-
-                {/* Add Products */}
-                <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Productos</Text>
-                        <TouchableOpacity activeOpacity={0.7}
-                            style={styles.addProductButton}
-                            onPress={() => setShowProductSearch(true)}
-                        >
-                            <MaterialCommunityIcons name="plus" size={18} color={colors.surface} />
-                            <Text style={styles.addProductButtonText}>Agregar</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    {cart.length === 0 ? (
-                        <View style={styles.emptyCart}>
-                            <MaterialCommunityIcons name="cart-outline" size={48} color={colors.border} />
-                            <Text style={styles.emptyCartText}>No hay productos</Text>
-                            <TouchableOpacity activeOpacity={0.7}
-                                style={styles.emptyCartButton}
-                                onPress={() => setShowProductSearch(true)}
-                            >
-                                <Text style={styles.emptyCartButtonText}>Agregar Producto</Text>
-                            </TouchableOpacity>
-                        </View>
-                    ) : (
-                        <View style={styles.cartList}>
-                            {cart.map((item, index) => renderCartItem(item, index))}
-                        </View>
-                    )}
-                </View>
-
-                {/* Payment Method */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Método de Pago</Text>
-                    <TouchableOpacity activeOpacity={0.7}
-                        style={styles.paymentSelector}
-                        onPress={() => setShowPaymentPicker(!showPaymentPicker)}
+              {showCustomerMatches && customerMatches.length > 0 && (
+                <View style={styles.matchesList}>
+                  {customerMatches.slice(0, 4).map((c) => (
+                    <Pressable
+                      key={c.id}
+                      style={styles.matchItem}
+                      onPress={() => handleSelectCustomer(c)}
                     >
-                        <MaterialCommunityIcons
-                            name={PAYMENT_METHODS.find(p => p.value === paymentMethod)?.icon as any || 'cash'}
-                            size={24}
-                            color={colors.primary}
-                        />
-                        <Text style={styles.paymentText}>
-                            {PAYMENT_METHODS.find(p => p.value === paymentMethod)?.label || 'Efectivo'}
-                        </Text>
-                        <MaterialCommunityIcons name="chevron-down" size={24} color={colors.textSecondary} />
-                    </TouchableOpacity>
-
-                    {showPaymentPicker && (
-                        <View style={styles.paymentOptions}>
-                            {PAYMENT_METHODS.map((method) => (
-                                <TouchableOpacity
-                                    key={method.value}
-                                    style={[
-                                        styles.paymentOption,
-                                        paymentMethod === method.value && styles.paymentOptionSelected
-                                    ]}
-                                    activeOpacity={0.7}
-                                    onPress={() => {
-                                        setPaymentMethod(method.value);
-                                        setShowPaymentPicker(false);
-                                    }}
-                                >
-                                    <MaterialCommunityIcons
-                                        name={method.icon as any}
-                                        size={20}
-                                        color={paymentMethod === method.value ? colors.primary : colors.textSecondary}
-                                    />
-                                    <Text style={[
-                                        styles.paymentOptionText,
-                                        paymentMethod === method.value && styles.paymentOptionTextSelected
-                                    ]}>
-                                        {method.label}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    )}
+                      <Text style={styles.matchName}>{c.name}</Text>
+                      <Text style={styles.matchDoc}>{c.phone || c.documentNumber}</Text>
+                    </Pressable>
+                  ))}
                 </View>
-            </ScrollView>
-
-            {/* Footer with Total and Submit */}
-            <View style={styles.footer}>
-                <View style={styles.totalContainer}>
-                    <Text style={styles.totalLabel}>Total:</Text>
-                    <Text style={styles.totalAmount}>S/ {calculateTotal().toFixed(2)}</Text>
-                </View>
-                <TouchableOpacity
-                    style={[styles.submitButton, (saving || cart.length === 0) && styles.buttonDisabled]}
-                    onPress={handleCreateSale}
-                    activeOpacity={0.7}
-                    disabled={saving || cart.length === 0}
-                >
-                    {saving ? (
-                        <ActivityIndicator color={colors.surface} />
-                    ) : (
-                        <>
-                            <MaterialCommunityIcons name="check" size={20} color={colors.surface} />
-                            <Text style={styles.submitButtonText}>Registrar Venta</Text>
-                        </>
-                    )}
-                </TouchableOpacity>
+              )}
             </View>
+          )}
+        </Card>
 
-            {renderProductSearchModal()}
+        {/* Add Product Button / Catalog */}
+        <Pressable
+          style={styles.addProductBtn}
+          onPress={() => setShowProductSearch(true)}
+          android_ripple={{ color: 'rgba(0, 82, 255, 0.15)' }}
+        >
+          <MaterialCommunityIcons name="plus-circle-outline" size={22} color={colors.primary} />
+          <Text style={styles.addProductBtnText}>Buscar y Agregar Repuesto / Producto</Text>
+        </Pressable>
 
-            {/* Confirmación de venta registrada (tipo Android) */}
-            <ConfirmDialog
-                visible={!!confirmSale}
-                icon="check-circle-outline"
-                tone="success"
-                title="Venta registrada"
-                message="La venta se guardó correctamente en el módulo de Ventas."
-                details={
-                    confirmSale
-                        ? [
-                            {
-                                label: 'Cliente',
-                                value: selectedCustomer?.name || 'Cliente General',
-                            },
-                            {
-                                label: 'Método de pago',
-                                value:
-                                    PAYMENT_METHODS.find((m) => m.value === paymentMethod)?.label ||
-                                    'Efectivo',
-                            },
-                            {
-                                label: 'Productos',
-                                value: `${confirmSale.items} ${
-                                    confirmSale.items === 1 ? 'producto' : 'productos'
-                                }`,
-                            },
-                            { label: 'Total', value: `S/ ${confirmSale.total.toFixed(2)}` },
-                        ]
-                        : []
-                }
-                confirmLabel="Ver ventas"
-                onConfirm={() => {
-                    setConfirmSale(null);
-                    router.replace('/sales');
-                }}
+        {/* Cart Items */}
+        <Card style={styles.card}>
+          <View style={styles.cartHeaderRow}>
+            <Text style={styles.cardTitle}>Carrito ({cart.length})</Text>
+            {cart.length > 0 && (
+              <Pressable onPress={() => setCart([])}>
+                <Text style={styles.clearCartText}>Vaciar</Text>
+              </Pressable>
+            )}
+          </View>
+
+          {cart.length === 0 ? (
+            <View style={styles.emptyCartBox}>
+              <MaterialCommunityIcons name="cart-outline" size={36} color={colors.textMuted} />
+              <Text style={styles.emptyCartText}>El carrito está vacío</Text>
+            </View>
+          ) : (
+            cart.map((item, index) => (
+              <View key={item.product.id} style={[styles.cartItemRow, index > 0 && styles.itemDivider]}>
+                <View style={styles.cartItemTextCol}>
+                  <Text style={styles.cartItemName}>{item.product.name}</Text>
+                  <Text style={styles.cartItemUnitPrice}>S/ {item.price.toFixed(2)} c/u</Text>
+                </View>
+
+                {/* Quantity Stepper */}
+                <View style={styles.stepperWrapper}>
+                  <Pressable
+                    style={styles.stepperBtn}
+                    onPress={() => updateQuantity(index, item.quantity - 1)}
+                  >
+                    <MaterialCommunityIcons name="minus" size={16} color={colors.primary} />
+                  </Pressable>
+                  <Text style={styles.stepperQty}>{item.quantity}</Text>
+                  <Pressable
+                    style={styles.stepperBtn}
+                    onPress={() => updateQuantity(index, item.quantity + 1)}
+                  >
+                    <MaterialCommunityIcons name="plus" size={16} color={colors.primary} />
+                  </Pressable>
+                </View>
+
+                <Text style={styles.cartItemSubtotal}>
+                  S/ {(item.quantity * item.price).toFixed(2)}
+                </Text>
+
+                <Pressable
+                  style={styles.deleteItemBtn}
+                  onPress={() => removeFromCart(index)}
+                >
+                  <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.danger} />
+                </Pressable>
+              </View>
+            ))
+          )}
+        </Card>
+
+        {/* Payment Methods */}
+        <Card style={styles.card}>
+          <Text style={styles.cardTitle}>Método de Pago</Text>
+          <View style={styles.paymentMethodsGrid}>
+            {PAYMENT_METHODS.map((pm) => {
+              const isSelected = paymentMethod === pm.value;
+              return (
+                <Pressable
+                  key={pm.value}
+                  style={[styles.paymentChip, isSelected && styles.paymentChipSelected]}
+                  onPress={() => setPaymentMethod(pm.value)}
+                >
+                  <MaterialCommunityIcons
+                    name={pm.icon as any}
+                    size={20}
+                    color={isSelected ? colors.white : colors.textPrimary}
+                  />
+                  <Text style={[styles.paymentChipText, isSelected && styles.paymentChipTextSelected]}>
+                    {pm.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </Card>
+      </ScrollView>
+
+      {/* Sticky Bottom Bar */}
+      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
+        <View style={styles.totalBlock}>
+          <Text style={styles.bottomTotalLabel}>Total a Cobrar:</Text>
+          <Text style={styles.bottomTotalAmount}>S/ {calculateTotal().toFixed(2)}</Text>
+        </View>
+
+        <Pressable
+          style={[styles.confirmBtn, (cart.length === 0 || saving) && styles.confirmBtnDisabled]}
+          onPress={handleCreateSale}
+          disabled={cart.length === 0 || saving}
+          android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+        >
+          {saving ? (
+            <ActivityIndicator size="small" color={colors.white} />
+          ) : (
+            <>
+              <MaterialCommunityIcons name="check" size={22} color={colors.white} />
+              <Text style={styles.confirmBtnText}>Confirmar Venta</Text>
+            </>
+          )}
+        </Pressable>
+      </View>
+
+      {/* Product Search Modal */}
+      <Modal
+        visible={showProductSearch}
+        animationType="slide"
+        onRequestClose={() => setShowProductSearch(false)}
+      >
+        <SafeAreaView style={styles.searchModal}>
+          <View style={styles.searchModalHeader}>
+            <Text style={styles.searchModalTitle}>Catálogo de Repuestos</Text>
+            <Pressable onPress={() => setShowProductSearch(false)} style={styles.closeSearchBtn}>
+              <MaterialCommunityIcons name="close" size={24} color={colors.textPrimary} />
+            </Pressable>
+          </View>
+
+          <View style={styles.productSearchField}>
+            <MaterialCommunityIcons name="magnify" size={20} color={colors.textMuted} />
+            <TextInput
+              style={styles.productInput}
+              placeholder="Buscar por repuesto, código, modelo..."
+              placeholderTextColor={colors.textMuted}
+              value={productSearchQuery}
+              onChangeText={(text) => {
+                setProductSearchQuery(text);
+                searchProducts(text);
+              }}
+              autoFocus
             />
+          </View>
 
-            {/* Error al registrar */}
-            <ConfirmDialog
-                visible={!!errorDialog}
-                icon="alert-circle-outline"
-                tone="danger"
-                title="No se pudo registrar"
-                message={errorDialog || undefined}
-                confirmLabel="Entendido"
-                onConfirm={() => setErrorDialog(null)}
+          {searching ? (
+            <View style={styles.centered}>
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : (
+            <FlatList
+              data={searchResults}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.searchResultList}
+              renderItem={({ item }) => (
+                <Pressable
+                  style={styles.productItemCard}
+                  onPress={() => addToCart(item)}
+                  android_ripple={{ color: 'rgba(0, 82, 255, 0.12)' }}
+                >
+                  <View style={styles.productInfo}>
+                    <Text style={styles.productItemName}>{item.name}</Text>
+                    <Text style={styles.productItemCategory}>
+                      {item.category} · Stock: {item.stock}
+                    </Text>
+                  </View>
+                  <Text style={styles.productItemPrice}>S/ {item.price.toFixed(2)}</Text>
+                  <MaterialCommunityIcons name="plus-circle" size={24} color={colors.primary} />
+                </Pressable>
+              )}
             />
+          )}
         </SafeAreaView>
-    );
+      </Modal>
+
+      {/* Success Dialog */}
+      {confirmSale && (
+        <ConfirmDialog
+          visible={Boolean(confirmSale)}
+          title="¡Venta Registrada!"
+          message={`Se registró la venta de ${confirmSale.items} producto(s) por un total de S/ ${confirmSale.total.toFixed(2)}.`}
+          confirmLabel="Volver a Ventas"
+          onConfirm={() => {
+            setConfirmSale(null);
+            router.replace('/sales');
+          }}
+          tone="success"
+          icon="check-circle-outline"
+        />
+      )}
+
+      {/* Error Dialog */}
+      {errorDialog && (
+        <ConfirmDialog
+          visible={Boolean(errorDialog)}
+          title="Atención"
+          message={errorDialog}
+          confirmLabel="Entendido"
+          onConfirm={() => setErrorDialog(null)}
+          tone="danger"
+          icon="alert-circle-outline"
+        />
+      )}
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: colors.canvas,
-    },
-    content: {
-        flex: 1,
-    },
-    section: {
-        backgroundColor: 'white',
-        padding: 16,
-        marginBottom: 8,
-    },
-    customerSearchBar: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        backgroundColor: colors.canvas,
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: 10,
-        paddingHorizontal: 12,
-        minHeight: 48,
-    },
-    customerSearchInput: {
-        flex: 1,
-        fontSize: 16,
-        color: colors.textPrimary,
-        paddingVertical: 12,
-    },
-    customerMatches: {
-        marginTop: 8,
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: 10,
-        backgroundColor: colors.surface,
-        overflow: 'hidden',
-    },
-    customerMatch: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-        paddingVertical: 10,
-        paddingHorizontal: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
-    },
-    customerMatchInfo: {
-        flex: 1,
-    },
-    customerMatchName: {
-        fontSize: 15,
-        color: colors.textPrimary,
-        fontWeight: '600',
-    },
-    customerMatchMeta: {
-        fontSize: 12,
-        color: colors.textSecondary,
-        marginTop: 2,
-    },
-    customerMatchesEmpty: {
-        fontSize: 13,
-        color: colors.textMuted,
-        padding: 14,
-        textAlign: 'center',
-    },
-    customerSelected: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-        backgroundColor: colors.surface,
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: 10,
-        padding: 12,
-    },
-    customerSelectedIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: colors.primary,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    customerSelectedInfo: {
-        flex: 1,
-    },
-    customerSelectedName: {
-        fontSize: 16,
-        color: colors.textPrimary,
-        fontWeight: '600',
-    },
-    customerSelectedPhone: {
-        fontSize: 13,
-        color: colors.textSecondary,
-        marginTop: 2,
-    },
-    customerClearButton: {
-        padding: 4,
-    },
-    sectionHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    sectionTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: colors.textPrimary,
-    },
-    addProductButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.primary,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 8,
-    },
-    addProductButtonText: {
-        color: 'white',
-        fontWeight: '500',
-        marginLeft: 4,
-    },
-    emptyCart: {
-        alignItems: 'center',
-        padding: 32,
-    },
-    emptyCartText: {
-        marginTop: 12,
-        fontSize: 14,
-        color: colors.textSecondary,
-    },
-    emptyCartButton: {
-        marginTop: 12,
-        backgroundColor: colors.primary,
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        borderRadius: 8,
-    },
-    emptyCartButtonText: {
-        color: 'white',
-        fontWeight: '500',
-    },
-    cartList: {
-        gap: 12,
-    },
-    cartItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.surface,
-        padding: 12,
-        borderRadius: 8,
-        gap: 12,
-    },
-    cartItemInfo: {
-        flex: 1,
-    },
-    cartItemName: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: colors.textPrimary,
-    },
-    cartItemPrice: {
-        fontSize: 12,
-        color: colors.textSecondary,
-        marginTop: 2,
-    },
-    quantityControls: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.border,
-        borderRadius: 8,
-    },
-    quantityButton: {
-        padding: 8,
-    },
-    quantityText: {
-        paddingHorizontal: 12,
-        fontSize: 14,
-        fontWeight: '600',
-        color: colors.textPrimary,
-    },
-    cartItemTotal: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: colors.success,
-        minWidth: 70,
-        textAlign: 'right',
-    },
-    paymentSelector: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.surface,
-        padding: 12,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: colors.border,
-        gap: 12,
-    },
-    paymentText: {
-        flex: 1,
-        fontSize: 16,
-        color: colors.textPrimary,
-    },
-    paymentOptions: {
-        marginTop: 8,
-        backgroundColor: colors.surface,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    paymentOption: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 12,
-        gap: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
-    },
-    paymentOptionSelected: {
-        backgroundColor: colors.primarySoft,
-    },
-    paymentOptionText: {
-        fontSize: 14,
-        color: colors.textSecondary,
-    },
-    paymentOptionTextSelected: {
-        color: colors.primary,
-        fontWeight: '500',
-    },
-    footer: {
-        backgroundColor: 'white',
-        padding: 16,
-        paddingBottom: 80,
-        borderTopWidth: 1,
-        borderTopColor: colors.border,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 16,
-    },
-    scrollContent: {
-        paddingBottom: 20,
-    },
-    totalContainer: {
-        flex: 1,
-    },
-    totalLabel: {
-        fontSize: 14,
-        color: colors.textSecondary,
-    },
-    totalAmount: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: colors.textPrimary,
-    },
-    submitButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.success,
-        paddingHorizontal: 24,
-        paddingVertical: 14,
-        borderRadius: 8,
-        gap: 8,
-    },
-    submitButtonText: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    buttonDisabled: {
-        opacity: 0.5,
-    },
-    modalContainer: {
-        flex: 1,
-        backgroundColor: colors.surface,
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 16,
-        backgroundColor: 'white',
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
-    },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: colors.textPrimary,
-    },
-    searchContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'white',
-        margin: 16,
-        paddingHorizontal: 12,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    searchInput: {
-        flex: 1,
-        height: 44,
-        fontSize: 16,
-        marginLeft: 8,
-        color: colors.textPrimary,
-    },
-    centered: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    productItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'white',
-        padding: 16,
-        marginHorizontal: 16,
-        marginBottom: 8,
-        borderRadius: 8,
-    },
-    productInfo: {
-        flex: 1,
-    },
-    productName: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: colors.textPrimary,
-    },
-    productStock: {
-        fontSize: 12,
-        color: colors.textSecondary,
-        marginTop: 2,
-    },
-    productPrice: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: colors.success,
-    },
-    emptySearch: {
-        alignItems: 'center',
-        padding: 32,
-    },
-    emptySearchText: {
-        fontSize: 14,
-        color: colors.textSecondary,
-    },
+  container: {
+    flex: 1,
+    backgroundColor: colors.canvas,
+  },
+  topHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(195, 199, 208, 0.3)',
+  },
+  backBtn: {
+    width: 48,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: radii.full,
+  },
+  headerTitle: {
+    ...typography.titleLarge,
+    color: colors.textPrimary,
+    fontWeight: '700',
+    marginLeft: spacing.xs,
+  },
+  scrollContent: {
+    padding: spacing.lg,
+    paddingBottom: 110,
+    gap: spacing.md,
+  },
+  card: {
+    padding: spacing.lg,
+  },
+  cardTitle: {
+    ...typography.titleMedium,
+    color: colors.textPrimary,
+    fontWeight: '700',
+    marginBottom: spacing.sm,
+  },
+  selectedCustomerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  customerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.full,
+    backgroundColor: colors.primarySoft,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  customerAvatarText: {
+    ...typography.titleSmall,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  customerDetails: {
+    flex: 1,
+  },
+  customerName: {
+    ...typography.bodyLarge,
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  customerSub: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  clearCustomerBtn: {
+    padding: spacing.xs,
+  },
+  customerSearchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceContainer,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    minHeight: 48,
+    gap: spacing.xs,
+  },
+  customerSearchInput: {
+    flex: 1,
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+  },
+  matchesList: {
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: radii.md,
+    marginTop: spacing.xs,
+    overflow: 'hidden',
+  },
+  matchItem: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(195, 199, 208, 0.2)',
+  },
+  matchName: {
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  matchDoc: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+  },
+  addProductBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.surface,
+    paddingVertical: spacing.md,
+    borderRadius: radii.card,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.primary,
+  },
+  addProductBtnText: {
+    ...typography.labelLarge,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  cartHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  clearCartText: {
+    ...typography.labelSmall,
+    color: colors.danger,
+    fontWeight: '600',
+  },
+  emptyCartBox: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+    gap: spacing.xs,
+  },
+  emptyCartText: {
+    ...typography.bodyMedium,
+    color: colors.textMuted,
+  },
+  cartItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
+  },
+  itemDivider: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(195, 199, 208, 0.3)',
+  },
+  cartItemTextCol: {
+    flex: 1,
+  },
+  cartItemName: {
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  cartItemUnitPrice: {
+    ...typography.bodySmall,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  stepperWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceContainer,
+    borderRadius: radii.full,
+    paddingHorizontal: 4,
+  },
+  stepperBtn: {
+    width: 28,
+    height: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stepperQty: {
+    ...typography.labelMedium,
+    color: colors.textPrimary,
+    paddingHorizontal: 8,
+    fontWeight: '700',
+  },
+  cartItemSubtotal: {
+    ...typography.titleSmall,
+    color: colors.primary,
+    fontWeight: '700',
+    minWidth: 70,
+    textAlign: 'right',
+  },
+  deleteItemBtn: {
+    padding: spacing.xs,
+  },
+  paymentMethodsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  paymentChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceContainer,
+    borderWidth: 1,
+    borderColor: 'rgba(195, 199, 208, 0.3)',
+  },
+  paymentChipSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  paymentChipText: {
+    ...typography.labelSmall,
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  paymentChipTextSelected: {
+    color: colors.white,
+    fontWeight: '700',
+  },
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(195, 199, 208, 0.4)',
+    elevation: 12,
+  },
+  totalBlock: {
+    flex: 1,
+  },
+  bottomTotalLabel: {
+    ...typography.labelSmall,
+    color: colors.textSecondary,
+  },
+  bottomTotalAmount: {
+    ...typography.headlineSmall,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  confirmBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.success,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radii.full,
+  },
+  confirmBtnDisabled: {
+    opacity: 0.6,
+  },
+  confirmBtnText: {
+    ...typography.labelLarge,
+    color: colors.white,
+    fontWeight: '700',
+  },
+  searchModal: {
+    flex: 1,
+    backgroundColor: colors.canvas,
+  },
+  searchModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(195, 199, 208, 0.3)',
+  },
+  searchModalTitle: {
+    ...typography.titleLarge,
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  closeSearchBtn: {
+    padding: spacing.xs,
+  },
+  productSearchField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    margin: spacing.lg,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    minHeight: 50,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    gap: spacing.xs,
+  },
+  productInput: {
+    flex: 1,
+    ...typography.bodyLarge,
+    color: colors.textPrimary,
+  },
+  searchResultList: {
+    paddingHorizontal: spacing.lg,
+    gap: spacing.xs,
+  },
+  productItemCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: 'rgba(195, 199, 208, 0.3)',
+    gap: spacing.sm,
+  },
+  productInfo: {
+    flex: 1,
+  },
+  productItemName: {
+    ...typography.bodyLarge,
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  productItemCategory: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  productItemPrice: {
+    ...typography.titleMedium,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

@@ -1,8 +1,9 @@
+// ponytail: M3 Dialog with 28dp radius, tonal icon header and text actions
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Modal, View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ComponentProps } from 'react';
-import { colors, radii, shadow, spacing, typography } from '../../theme';
+import { colors, radii, spacing, typography } from '../../theme';
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -10,23 +11,17 @@ interface ConfirmDialogProps {
   visible: boolean;
   title: string;
   message?: string;
-  /** Detalle opcional (líneas clave→valor) del resumen */
   details?: { label: string; value: string }[];
   icon?: IconName;
   tone?: 'success' | 'danger' | 'primary';
+  destructive?: boolean;
   confirmLabel?: string;
   cancelLabel?: string;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
   onCancel?: () => void;
-  /** Cuando es true el botón de confirmar queda deshabilitado (ej. procesando) */
   busy?: boolean;
 }
 
-/**
- * Diálogo de confirmación estilo Android (Material): superficie elevada,
- * icono circular, título, mensaje y hasta dos acciones de texto.
- * Sustituye a Alert.alert, que no está implementado en react-native-web.
- */
 export default function ConfirmDialog({
   visible,
   title,
@@ -34,16 +29,18 @@ export default function ConfirmDialog({
   details,
   icon = 'check-circle-outline',
   tone = 'success',
+  destructive,
   confirmLabel = 'Aceptar',
   cancelLabel,
   onConfirm,
   onCancel,
   busy = false,
 }: ConfirmDialogProps) {
+  const effectiveTone = destructive ? 'danger' : tone;
   const palette =
-    tone === 'danger'
+    effectiveTone === 'danger'
       ? { color: colors.danger, soft: colors.dangerSoft }
-      : tone === 'primary'
+      : effectiveTone === 'primary'
         ? { color: colors.primary, soft: colors.primarySoft }
         : { color: colors.success, soft: colors.successSoft };
 
@@ -82,25 +79,31 @@ export default function ConfirmDialog({
 
           <View style={styles.actions}>
             {!!cancelLabel && onCancel && (
-              <TouchableOpacity
-                style={[styles.action, styles.actionGhost]}
-                onPress={onCancel}
-                activeOpacity={0.85}
-                disabled={busy}
-              >
-                <Text style={styles.actionGhostText}>{cancelLabel}</Text>
-              </TouchableOpacity>
+              <View style={styles.btnWrapper}>
+                <Pressable
+                  style={styles.textBtn}
+                  onPress={onCancel}
+                  disabled={busy}
+                  android_ripple={{ color: 'rgba(0,0,0,0.08)' }}
+                >
+                  <Text style={styles.cancelText}>{cancelLabel}</Text>
+                </Pressable>
+              </View>
             )}
-            <TouchableOpacity
-              style={[styles.action, styles.actionPrimary, busy && styles.actionDisabled]}
-              onPress={onConfirm}
-              activeOpacity={0.85}
-              disabled={busy}
-            >
-              <Text style={styles.actionPrimaryText}>
-                {busy ? 'Procesando…' : confirmLabel}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.btnWrapper}>
+              <Pressable
+                style={[styles.primaryBtn, { backgroundColor: palette.color }]}
+                onPress={onConfirm}
+                disabled={busy}
+                android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
+              >
+                {busy ? (
+                  <ActivityIndicator size="small" color={colors.white} />
+                ) : (
+                  <Text style={styles.confirmText}>{confirmLabel}</Text>
+                )}
+              </Pressable>
+            </View>
           </View>
         </View>
       </View>
@@ -111,102 +114,98 @@ export default function ConfirmDialog({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(16, 24, 40, 0.55)',
-    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
     justifyContent: 'center',
+    alignItems: 'center',
     padding: spacing.xl,
   },
   dialog: {
     width: '100%',
-    maxWidth: 380,
+    maxWidth: 360,
     backgroundColor: colors.surface,
-    borderRadius: radii.sheet,
-    padding: spacing.xl,
-    ...shadow,
-    elevation: 12,
+    borderRadius: radii.xxl,
+    padding: spacing.xxl,
+    alignItems: 'center',
+    elevation: 24,
   },
   iconBubble: {
     width: 56,
     height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
+    borderRadius: radii.full,
     justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: spacing.lg,
-    alignSelf: 'center',
   },
   title: {
-    ...typography.title,
-    fontSize: 19,
+    ...typography.titleLarge,
     color: colors.textPrimary,
     textAlign: 'center',
   },
   message: {
-    ...typography.body,
+    ...typography.bodyMedium,
     color: colors.textSecondary,
     textAlign: 'center',
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
+    lineHeight: 20,
   },
   details: {
+    width: '100%',
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: radii.md,
+    padding: spacing.md,
     marginTop: spacing.lg,
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radii.button,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.lg,
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.sm + 2,
+    paddingVertical: spacing.xs,
   },
   detailRowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: 'rgba(195, 199, 208, 0.3)',
   },
   detailLabel: {
-    ...typography.caption,
+    ...typography.bodySmall,
     color: colors.textSecondary,
   },
   detailValue: {
-    ...typography.bodyStrong,
+    ...typography.labelMedium,
     color: colors.textPrimary,
-    flexShrink: 1,
-    textAlign: 'right',
+    fontWeight: '600',
   },
   actions: {
     flexDirection: 'row',
-    gap: spacing.md,
+    justifyContent: 'flex-end',
+    width: '100%',
     marginTop: spacing.xl,
+    gap: spacing.sm,
   },
-  action: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+  btnWrapper: {
+    borderRadius: radii.full,
+    overflow: 'hidden',
+  },
+  textBtn: {
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    borderRadius: radii.button,
     minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  actionGhost: {
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  actionGhostText: {
-    fontSize: 15,
-    fontWeight: '600',
+  cancelText: {
+    ...typography.labelLarge,
     color: colors.textSecondary,
   },
-  actionPrimary: {
-    backgroundColor: colors.primary,
+  primaryBtn: {
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: radii.full,
   },
-  actionDisabled: {
-    opacity: 0.6,
-  },
-  actionPrimaryText: {
-    fontSize: 15,
-    fontWeight: '700',
+  confirmText: {
+    ...typography.labelLarge,
     color: colors.white,
+    fontWeight: '600',
   },
 });

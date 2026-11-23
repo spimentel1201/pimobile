@@ -1,25 +1,50 @@
+// ponytail: M3 Status Chip with semantic icon and container tone
 import React from 'react';
 import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
-import { colors, radii, typography } from '../../theme';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { radii, typography } from '../../theme';
 
 interface StatusBadgeProps {
   label: string;
-  /** Color principal del estado (texto + dot) */
   color: string;
-  /** Color de fondo suave (pareja del color) */
   soft: string;
+  icon?: string;
   style?: StyleProp<ViewStyle>;
+  compact?: boolean;
 }
 
-/**
- * Pill de estado: fondo soft + texto del color + dot de 6px.
- * Nunca fondo sólido con texto blanco.
- */
-export default function StatusBadge({ label, color, soft, style }: StatusBadgeProps) {
+export default function StatusBadge({
+  label,
+  color,
+  soft,
+  icon,
+  style,
+  compact = false,
+}: StatusBadgeProps) {
   return (
-    <View style={[styles.badge, { backgroundColor: soft }, style]}>
-      <View style={[styles.dot, { backgroundColor: color }]} />
-      <Text style={[styles.text, { color }]}>{label}</Text>
+    <View
+      style={[
+        styles.badge,
+        { backgroundColor: soft },
+        compact && styles.compactBadge,
+        style,
+      ]}
+      accessibilityRole="text"
+      accessibilityLabel={`Estado: ${label}`}
+    >
+      {icon ? (
+        <MaterialCommunityIcons
+          name={icon as any}
+          size={compact ? 12 : 14}
+          color={color}
+          style={styles.icon}
+        />
+      ) : (
+        <View style={[styles.dot, { backgroundColor: color }]} />
+      )}
+      <Text style={[styles.text, { color }, compact && styles.compactText]}>
+        {label}
+      </Text>
     </View>
   );
 }
@@ -29,22 +54,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radii.pill,
-    borderCurve: 'continuous',
+    paddingVertical: 5,
+    borderRadius: radii.full,
     alignSelf: 'flex-start',
+  },
+  compactBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
   dot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    borderCurve: 'continuous',
     marginRight: 6,
   },
+  icon: {
+    marginRight: 5,
+  },
   text: {
-    ...typography.micro,
-    textTransform: 'none',
-    fontSize: 12,
-    letterSpacing: 0.2,
+    ...typography.labelMedium,
+    fontWeight: '600',
+  },
+  compactText: {
+    ...typography.labelSmall,
+    fontWeight: '600',
   },
 });
