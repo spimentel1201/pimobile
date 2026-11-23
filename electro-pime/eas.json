@@ -12,7 +12,10 @@
       "android": {
         "buildType": "apk"
       },
-      "channel": "preview"
+      "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://repair-service-api.vercel.app"
+      }
     },
     "production": {
       "channel": "production"
