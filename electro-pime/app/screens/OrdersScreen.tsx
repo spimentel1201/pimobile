@@ -31,7 +31,7 @@ const STATUS_COLORS: Record<RepairOrderStatus, string> = {
   IN_PROGRESS: colors.warning,
   WAITING_FOR_PARTS: colors.violet,
   COMPLETED: colors.success,
-  DELIVERED: '#059669',
+  DELIVERED: colors.success,
   CANCELLED: colors.danger,
 };
 
