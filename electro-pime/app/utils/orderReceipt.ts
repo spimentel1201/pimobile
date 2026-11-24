@@ -453,13 +453,181 @@ export const printReceiptHTML = async (html: string): Promise<void> => {
   await Print.printAsync({ html });
 };
 
-/** Carga los datos, genera el HTML y abre la impresión. Flujo de un solo paso. */
-export const printOrderReceipt = async (order: RepairOrder) => {
+/** Genera el HTML A4 de un presupuesto (cotización). */
+export const generateQuoteReceiptHTML = (quote: Quote) => {
+  const money = (v: number) => `S/ ${v.toFixed(2)}`;
+  const status = quoteStatusStyle(quote.status);
+  const registeredAt = (() => {
+    const parsed = new Date(quote.createdAt);
+    return Number.isNaN(parsed.getTime())
+      ? 'Fecha no disponible'
+      : format(parsed, "d 'de' MMMM 'de' yyyy", { locale: es });
+  })();
+
+  const customerName = quote.customer?.name || quote.customerName || 'Cliente General';
+  const technicianName = quote.technician
+    ? `${quote.technician.firstName} ${quote.technician.lastName}`.trim()
+    : 'No Asignado';
+
+  const rows = (quote.items || [])
+    .map((item) => {
+      const price = item.price ?? item.unitPrice ?? 0;
+      const qty = item.quantity || 1;
+      return `
+                  <tr>
+                    <td>
+                      <div class="cell-title">${escapeHtml(item.productName || item.description || 'Ítem')}</div>
+                      ${item.productId ? `<div class="cell-sub">Ref: ${escapeHtml(item.productId)}</div>` : ''}
+                    </td>
+                    <td class="cell-qty">${qty}</td>
+                    <td class="price-col">${money(price)}</td>
+                    <td class="price-col">${money(price * qty)}</td>
+                  </tr>`;
+    })
+    .join('');
+
+  return `
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+            @page { size: A4 portrait; margin: 8mm; }
+            * { box-sizing: border-box; }
+            body { font-family: 'Inter', Helvetica, Arial, sans-serif; color: #1F2937; background: #fff; line-height: 1.35; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            @media screen { body { padding: 10px; } }
+            .brand-header { text-align: center; margin-bottom: 6px; }
+            .brand-name { font-size: 19px; font-weight: 800; color: #1E40AF; text-transform: uppercase; letter-spacing: -0.4px; }
+            .brand-details { font-size: 9px; color: #6B7280; line-height: 1.3; max-width: 70%; margin: 2px auto 0; }
+            .doc-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-top: 1px solid #E5E7EB; border-bottom: 1px solid #E5E7EB; margin-bottom: 8px; }
+            .header-badge { padding: 2px 8px; border-radius: 999px; display: inline-block; font-size: 9px; font-weight: 600; text-transform: uppercase; }
+            .doc-title { font-size: 17px; font-weight: 800; color: #111827; letter-spacing: -0.4px; line-height: 1.15; }
+            .doc-subtitle { color: #6B7280; font-size: 9px; margin-top: 1px; }
+            .doc-head-text { flex: 1; }
+            .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+            .card { border: 1px solid #E5E7EB; border-radius: 8px; padding: 8px 10px; }
+            .card-title { font-size: 8px; font-weight: 700; color: #9CA3AF; text-transform: uppercase; margin-bottom: 3px; letter-spacing: 0.8px; }
+            .card-content h3 { margin: 0; font-size: 12px; color: #111827; font-weight: 700; }
+            .card-content p { margin: 0; color: #4B5563; font-size: 9.5px; line-height: 1.4; }
+            .table-section { margin-bottom: 8px; }
+            .table-title { font-size: 11px; font-weight: 700; margin-bottom: 5px; color: #111827; text-transform: uppercase; letter-spacing: 0.5px; }
+            table { width: 100%; border-collapse: separate; border-spacing: 0; border: 1px solid #E5E7EB; border-radius: 8px; overflow: hidden; }
+            th { text-align: left; padding: 5px 7px; background: #F9FAFB; color: #6B7280; font-size: 8px; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid #E5E7EB; letter-spacing: 0.4px; }
+            td { padding: 5px 7px; border-bottom: 1px solid #E5E7EB; font-size: 9.5px; color: #1F2937; vertical-align: top; }
+            tr:last-child td { border-bottom: none; }
+            thead { display: table-header-group; }
+            .cell-title { font-weight: 600; color: #111827; }
+            .cell-sub { color: #6B7280; font-size: 8.5px; }
+            .cell-qty { text-align: center; color: #6B7280; }
+            .price-col { font-weight: 700; color: #2563EB; text-align: right; white-space: nowrap; }
+            .footer-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 8px; margin-bottom: 8px; }
+            .terms-box { border: 1px solid #E5E7EB; border-radius: 8px; padding: 8px 10px; background: #F9FAFB; }
+            .terms-title { font-size: 8px; font-weight: 700; margin-bottom: 4px; text-transform: uppercase; color: #111827; letter-spacing: 0.5px; }
+            .terms-text { font-size: 7.5px; color: #6B7280; line-height: 1.45; orphans: 3; widows: 3; }
+            .summary-box { border: 1px solid #E5E7EB; border-radius: 8px; padding: 8px 10px; background: #fff; }
+            .summary-title { font-size: 8px; font-weight: 700; color: #6B7280; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px; }
+            .summary-row { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 3px; font-size: 9.5px; color: #374151; }
+            .total-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #E5E7EB; font-size: 15px; font-weight: 800; color: #2563EB; }
+            .signature-section { display: flex; justify-content: space-between; align-items: flex-end; padding-top: 34px; }
+            .signature-block { width: 46%; }
+            .signature-line { border-top: 1px solid #6B7280; text-align: center; padding-top: 4px; }
+            .signature-text { font-size: 8px; font-weight: 700; color: #6B7280; text-transform: uppercase; }
+            .signature-space { width: 46%; }
+          </style>
+        </head>
+        <body>
+          <div class="brand-header">
+            <div class="brand-name">Electrónica Pimentel</div>
+            <div class="brand-details">
+              Av. Principal 123, Lima • Tel: 555-0123 • contacto@pimentel.com<br>
+              Especialistas en Reparación de Electrodomésticos
+            </div>
+          </div>
+
+          <div class="doc-head">
+            <div class="doc-head-text">
+              <h1 class="doc-title">Presupuesto COT-${escapeHtml(quote.id.slice(0, 6).toUpperCase())}</h1>
+              <div class="doc-subtitle">Emitido el ${escapeHtml(registeredAt)}</div>
+            </div>
+            <span class="header-badge" style="background:${status.soft};color:${status.color}">${escapeHtml(status.label)}</span>
+          </div>
+
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-title">Cliente</div>
+              <div class="card-content">
+                <h3>${escapeHtml(customerName)}</h3>
+                ${quote.customer?.email ? `<p>${escapeHtml(quote.customer.email)}</p>` : ''}
+                ${quote.customer?.phone ? `<p>${escapeHtml(quote.customer.phone)}</p>` : ''}
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">Técnico</div>
+              <div class="card-content">
+                <h3>${escapeHtml(technicianName)}</h3>
+                ${quote.technician?.email ? `<p>${escapeHtml(quote.technician.email)}</p>` : ''}
+              </div>
+            </div>
+          </div>
+
+          <div class="table-section">
+            <h2 class="table-title">Detalle del Presupuesto</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 50%">Ítem</th>
+                  <th style="width: 12%; text-align: center">Cant.</th>
+                  <th style="width: 19%; text-align: right">P. Unit.</th>
+                  <th style="width: 19%; text-align: right">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>${rows || '<tr><td colspan="4">Sin ítems</td></tr>'}</tbody>
+            </table>
+          </div>
+
+          <div class="footer-grid">
+            <div class="terms-box">
+              <div class="terms-title">Términos y Condiciones</div>
+              <div class="terms-text">Presupuesto sujeto a revisión técnica final. Los precios incluyen mano de obra y repuestos estimados.</div>
+            </div>
+            <div class="summary-box">
+              <div class="summary-title">Resumen</div>
+              <div class="summary-row">
+                <span>Subtotal</span>
+                <span>${money(Number(quote.totalAmount))}</span>
+              </div>
+              <div class="total-row">
+                <span>Total</span>
+                <span>${money(Number(quote.totalAmount))}</span>
+              </div>
+              ${quote.repairOrderId ? `<div class="summary-row"><span>Orden vinculada</span><span>#${escapeHtml(quote.repairOrderId.slice(0, 8).toUpperCase())}</span></div>` : ''}
+            </div>
+          </div>
+
+          <div class="signature-section">
+            <div class="signature-space"></div>
+            <div class="signature-block">
+              <div class="signature-line">
+                <div class="signature-text">Firma del Cliente</div>
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+};
+
+export const printQuoteReceipt = async (quote: Quote) => {
   try {
-    const { order: receiptOrder, quotes } = await fetchOrderReceiptData(order);
-    await printReceiptHTML(generateOrderReceiptHTML(receiptOrder, quotes));
+    const html = generateQuoteReceiptHTML(quote);
+    if (Platform.OS === 'web') {
+      await printInWebFrame(html);
+      return;
+    }
+    await Print.printAsync({ html });
   } catch (error) {
-    console.error('Error printing receipt:', error);
+    console.error('Error printing quote receipt:', error);
     throw error;
   }
 };
