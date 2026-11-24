@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLocalSearchParams } from 'expo-router';
 import { api, ApiError } from '../services/api';
 import { Quote, QuoteStatus, CreateQuoteDto, Customer, RepairOrder } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -36,6 +37,7 @@ import Toast from '../components/ui/Toast';
 import BottomSheet from '../components/ui/BottomSheet';
 import M3TextField from '../components/ui/M3TextField';
 import M3Fab from '../components/ui/M3Fab';
+import { printQuoteReceipt } from '../utils/orderReceipt';
 
 type StatusFilter = QuoteStatus | 'ALL';
 
@@ -56,6 +58,7 @@ interface FormQuoteItem {
 
 export default function BudgetsScreen() {
   const insets = useSafeAreaInsets();
+  const { repairOrderId } = useLocalSearchParams<{ repairOrderId?: string }>();
   const { user } = useAuth();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -131,6 +134,40 @@ export default function BudgetsScreen() {
       setLoading(false);
     }
   }, [user, fetchQuotes]);
+
+  // Si se llega desde el detalle de una orden (repairOrderId en la URL),
+  // pre-selecciona esa orden y abre el modal de nueva cotización.
+  useEffect(() => {
+    if (!repairOrderId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const order = await api.getRepairOrderById(repairOrderId as string);
+        if (cancelled) return;
+        if (order.customer) {
+          setSelectedCustomer(order.customer);
+          try {
+            const orders = await api.getRepairOrdersByCustomer(order.customer.id);
+            if (cancelled) return;
+            setCustomerOrders(orders.length ? orders : [order]);
+          } catch {
+            if (!cancelled) setCustomerOrders([order]);
+          }
+        } else {
+          setCustomerOrders([order]);
+        }
+        if (!cancelled) {
+          setSelectedRepairOrder(order);
+          setShowNewQuoteModal(true);
+        }
+      } catch (e) {
+        console.error('Error loading order for quote:', e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [repairOrderId]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -498,6 +535,20 @@ export default function BudgetsScreen() {
                   <Text style={styles.sheetDangerBtnText}>Eliminar</Text>
                 </Pressable>
               )}
+              <Pressable
+                style={styles.sheetSecondaryBtn}
+                onPress={async () => {
+                  if (!selectedQuote) return;
+                  try {
+                    await printQuoteReceipt(selectedQuote);
+                  } catch (e) {
+                    console.error('Error printing quote:', e);
+                  }
+                }}
+              >
+                <MaterialCommunityIcons name="printer-outline" size={20} color={colors.primary} />
+                <Text style={styles.sheetSecondaryBtnText}>Imprimir A4</Text>
+              </Pressable>
             </View>
           }
         >
@@ -908,6 +959,21 @@ const styles = StyleSheet.create({
   sheetDangerBtnText: {
     ...typography.labelMedium,
     color: colors.danger,
+    fontWeight: '700',
+  },
+  sheetSecondaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.primarySoft,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.full,
+    marginTop: spacing.xs,
+  },
+  sheetSecondaryBtnText: {
+    ...typography.labelMedium,
+    color: colors.primary,
     fontWeight: '700',
   },
   sheetBodyScroll: {

@@ -498,6 +498,16 @@ export default function OrderDetailScreen() {
           </Card>
         )}
 
+        {/* Acción: crear presupuesto para esta orden */}
+        <Pressable
+          style={styles.createQuoteBtn}
+          onPress={() => router.push(`/budgets?repairOrderId=${order.id}` as never)}
+          android_ripple={{ color: 'rgba(0, 82, 255, 0.12)' }}
+        >
+          <MaterialCommunityIcons name="file-document-outline" size={20} color={colors.white} />
+          <Text style={styles.createQuoteBtnText}>Crear presupuesto para esta orden</Text>
+        </Pressable>
+
         {/* Etiqueta QR del taller */}
         <Card style={styles.sectionCard}>
           <View style={styles.sectionTitleRow}>
@@ -1000,6 +1010,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+  },
+  createQuoteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radii.button,
+    marginBottom: spacing.lg,
+  },
+  createQuoteBtnText: {
+    ...typography.labelLarge,
+    color: colors.white,
+    fontWeight: '700',
   },
   qrContainer: {
     alignItems: 'center',
