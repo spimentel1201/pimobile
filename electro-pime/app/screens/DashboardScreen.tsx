@@ -614,10 +614,11 @@ const styles = StyleSheet.create({
   },
   actionTile: {
     flex: 1,
-    minWidth: '22%',
+    minWidth: '44%',
+    aspectRatio: 1,
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
     paddingHorizontal: spacing.xs,
     alignItems: 'center',
     justifyContent: 'center',
