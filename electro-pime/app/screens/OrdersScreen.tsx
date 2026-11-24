@@ -58,6 +58,18 @@ const OrdersScreen = () => {
   const insets = useSafeAreaInsets();
   const { openOrderId } = useLocalSearchParams<{ openOrderId: string }>();
   const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
+  // Orden canónico del flujo de reparación (mayor = más avanzado). Solo ADMIN
+  // puede retroceder a un estado anterior; el backend valida la transición.
+  const STATUS_RANK: Record<RepairOrderStatus, number> = {
+    RECEIVED: 0,
+    DIAGNOSED: 1,
+    IN_PROGRESS: 2,
+    WAITING_FOR_PARTS: 3,
+    COMPLETED: 4,
+    DELIVERED: 5,
+    CANCELLED: -1,
+  };
   const [orders, setOrders] = useState<RepairOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -389,13 +401,26 @@ const OrdersScreen = () => {
             {(Object.keys(ORDER_STATUS) as RepairOrderStatus[]).map((st) => {
               const info = ORDER_STATUS[st];
               const isCurrent = statusPickerOrder.status === st;
+              const isBackward =
+                st !== 'CANCELLED' &&
+                statusPickerOrder.status !== 'CANCELLED' &&
+                STATUS_RANK[st] < STATUS_RANK[statusPickerOrder.status];
+              const disabled = isBackward && !isAdmin;
 
               return (
                 <Pressable
                   key={st}
-                  style={[styles.statusOptionRow, isCurrent && styles.statusOptionRowCurrent]}
-                  onPress={() => handleStatusUpdate(statusPickerOrder.id, st)}
-                  android_ripple={{ color: 'rgba(0, 82, 255, 0.12)' }}
+                  disabled={disabled}
+                  style={[
+                    styles.statusOptionRow,
+                    isCurrent && styles.statusOptionRowCurrent,
+                    disabled && styles.statusOptionRowDisabled,
+                  ]}
+                  onPress={() => {
+                    if (disabled) return;
+                    handleStatusUpdate(statusPickerOrder.id, st);
+                  }}
+                  android_ripple={disabled ? undefined : { color: 'rgba(0, 82, 255, 0.12)' }}
                 >
                   <View style={[styles.statusOptionIcon, { backgroundColor: info.soft }]}>
                     <MaterialCommunityIcons name={(info.icon || 'tag') as any} size={20} color={info.color} />
@@ -608,6 +633,9 @@ const styles = StyleSheet.create({
   },
   statusOptionRowCurrent: {
     backgroundColor: colors.primarySoft,
+  },
+  statusOptionRowDisabled: {
+    opacity: 0.4,
   },
   statusOptionIcon: {
     width: 36,

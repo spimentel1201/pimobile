@@ -255,45 +255,55 @@ export default function OrderDetailScreen() {
 
           {/* Interactive Progress Timeline */}
           <Text style={styles.timelineLabel}>Flujo de Reparación:</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.timelineScroll}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.timelineScroll} contentContainerStyle={styles.timelineContent}>
             {TIMELINE_STEPS.map((st, idx) => {
               const stepInfo = ORDER_STATUS[st];
               const isPast = currentIndex > idx;
               const isCurrent = currentIndex === idx;
+              const isLast = idx === TIMELINE_STEPS.length - 1;
 
               return (
-                <Pressable
-                  key={st}
-                  style={styles.timelineItem}
-                  onPress={() => handleStatusUpdate(st)}
-                  disabled={updating}
-                >
-                  <View
-                    style={[
-                      styles.timelineCircle,
-                      isPast && styles.timelineCirclePast,
-                      isCurrent && [styles.timelineCircleCurrent, { backgroundColor: stepInfo.color }],
-                    ]}
+                <React.Fragment key={st}>
+                  <Pressable
+                    style={styles.timelineItem}
+                    onPress={() => handleStatusUpdate(st)}
+                    disabled={updating}
                   >
-                    {isPast ? (
-                      <MaterialCommunityIcons name="check" size={14} color={colors.white} />
-                    ) : (
-                      <MaterialCommunityIcons
-                        name={(stepInfo.icon || 'circle') as any}
-                        size={14}
-                        color={isCurrent ? colors.white : colors.textMuted}
-                      />
-                    )}
-                  </View>
-                  <Text
-                    style={[
-                      styles.timelineItemText,
-                      isCurrent && [styles.timelineItemTextCurrent, { color: stepInfo.color }],
-                    ]}
-                  >
-                    {stepInfo.label}
-                  </Text>
-                </Pressable>
+                    <View
+                      style={[
+                        styles.timelineCircle,
+                        isPast && styles.timelineCirclePast,
+                        isCurrent && [styles.timelineCircleCurrent, { backgroundColor: stepInfo.color }],
+                      ]}
+                    >
+                      {isPast ? (
+                        <MaterialCommunityIcons name="check" size={14} color={colors.white} />
+                      ) : (
+                        <MaterialCommunityIcons
+                          name={(stepInfo.icon || 'circle') as any}
+                          size={14}
+                          color={isCurrent ? colors.white : colors.textMuted}
+                        />
+                      )}
+                    </View>
+                    <Text
+                      style={[
+                        styles.timelineItemText,
+                        isCurrent && [styles.timelineItemTextCurrent, { color: stepInfo.color }],
+                      ]}
+                    >
+                      {stepInfo.label}
+                    </Text>
+                  </Pressable>
+                  {!isLast && (
+                    <View
+                      style={[
+                        styles.timelineConnector,
+                        (isPast || isCurrent) && styles.timelineConnectorPast,
+                      ]}
+                    />
+                  )}
+                </React.Fragment>
               );
             })}
           </ScrollView>
@@ -458,7 +468,12 @@ export default function OrderDetailScreen() {
             {orderQuotes.map((q) => {
               const qStyle = quoteStatusStyle(q.status);
               return (
-                <View key={q.id} style={styles.quoteItemRow}>
+                <Pressable
+                  key={q.id}
+                  style={styles.quoteItemRow}
+                  onPress={() => router.push('/budgets' as never)}
+                  android_ripple={{ color: 'rgba(0, 82, 255, 0.08)' }}
+                >
                   <View style={styles.quoteInfo}>
                     <Text style={styles.quoteCode}>COT-{q.id.slice(0, 6).toUpperCase()}</Text>
                     <StatusBadge
@@ -468,9 +483,16 @@ export default function OrderDetailScreen() {
                       icon={qStyle.icon}
                       compact
                     />
+                    <Text style={styles.quoteMeta}>
+                      {new Date(q.createdAt).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      {q.items?.length ? ` · ${q.items.length} ítem${q.items.length > 1 ? 's' : ''}` : ''}
+                    </Text>
                   </View>
-                  <Text style={styles.quoteAmount}>S/ {q.totalAmount.toFixed(2)}</Text>
-                </View>
+                  <View style={styles.quoteRight}>
+                    <Text style={styles.quoteAmount}>S/ {q.totalAmount.toFixed(2)}</Text>
+                    <MaterialCommunityIcons name="chevron-right" size={18} color={colors.textMuted} />
+                  </View>
+                </Pressable>
               );
             })}
           </Card>
@@ -710,6 +732,9 @@ const styles = StyleSheet.create({
   timelineScroll: {
     paddingVertical: spacing.xs,
   },
+  timelineContent: {
+    alignItems: 'center',
+  },
   timelineItem: {
     alignItems: 'center',
     marginRight: spacing.md,
@@ -738,6 +763,17 @@ const styles = StyleSheet.create({
   },
   timelineItemTextCurrent: {
     fontWeight: '700',
+  },
+  timelineConnector: {
+    width: 24,
+    height: 2,
+    backgroundColor: colors.border,
+    marginTop: -22,
+    marginRight: spacing.xs,
+    borderRadius: 1,
+  },
+  timelineConnectorPast: {
+    backgroundColor: colors.success,
   },
   noticeBanner: {
     flexDirection: 'row',
@@ -954,6 +990,16 @@ const styles = StyleSheet.create({
     ...typography.titleSmall,
     color: colors.primary,
     fontWeight: '700',
+  },
+  quoteMeta: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  quoteRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   qrContainer: {
     alignItems: 'center',

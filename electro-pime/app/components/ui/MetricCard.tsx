@@ -89,6 +89,7 @@ const styles = StyleSheet.create({
   hero: {
     backgroundColor: colors.primary,
     ...tonalElevation.level2,
+    minHeight: 96,
   },
   tonal: {
     backgroundColor: colors.surfaceContainer,

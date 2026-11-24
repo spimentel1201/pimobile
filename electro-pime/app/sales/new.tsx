@@ -360,6 +360,15 @@ export default function NewSaleScreen() {
 
       {/* Sticky Bottom Bar */}
       <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
+        <Pressable
+          style={styles.cancelBtn}
+          onPress={() => router.back()}
+          android_ripple={{ color: 'rgba(0, 82, 255, 0.12)' }}
+        >
+          <MaterialCommunityIcons name="close" size={20} color={colors.textSecondary} />
+          <Text style={styles.cancelBtnText}>Cancelar</Text>
+        </Pressable>
+
         <View style={styles.totalBlock}>
           <Text style={styles.bottomTotalLabel}>Total a Cobrar:</Text>
           <Text style={styles.bottomTotalAmount}>S/ {calculateTotal().toFixed(2)}</Text>
@@ -702,7 +711,7 @@ const styles = StyleSheet.create({
   },
   bottomBar: {
     position: 'absolute',
-    bottom: 0,
+    bottom: 72,
     left: 0,
     right: 0,
     flexDirection: 'row',
@@ -714,6 +723,20 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(195, 199, 208, 0.4)',
     elevation: 12,
+  },
+  cancelBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceMuted,
+  },
+  cancelBtnText: {
+    ...typography.labelLarge,
+    color: colors.textSecondary,
+    fontWeight: '600',
   },
   totalBlock: {
     flex: 1,
