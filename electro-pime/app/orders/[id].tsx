@@ -14,6 +14,7 @@ import {
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../services/api';
 import { RepairOrder, RepairOrderStatus, Quote, QuoteStatus, PaymentMethod } from '../types/api';
+import { useAuth } from '../contexts/AuthContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import {
@@ -48,9 +49,21 @@ const TIMELINE_STEPS: RepairOrderStatus[] = [
   'DELIVERED',
 ];
 
+const STATUS_RANK: Record<RepairOrderStatus, number> = {
+  RECEIVED: 0,
+  DIAGNOSED: 1,
+  IN_PROGRESS: 2,
+  WAITING_FOR_PARTS: 3,
+  COMPLETED: 4,
+  DELIVERED: 5,
+  CANCELLED: -1,
+};
+
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
   const [order, setOrder] = useState<RepairOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -115,6 +128,11 @@ export default function OrderDetailScreen() {
 
   const handleStatusUpdate = async (newStatus: RepairOrderStatus) => {
     if (!order) return;
+    // Solo ADMIN puede retroceder el estado de una orden.
+    if (!isAdmin && STATUS_RANK[newStatus] < STATUS_RANK[order.status]) {
+      showToast('Solo un administrador puede retroceder el estado', 'error');
+      return;
+    }
     try {
       setUpdating(true);
       const updatedOrder = await api.updateRepairOrderStatus(order.id, newStatus);
@@ -253,28 +271,30 @@ export default function OrderDetailScreen() {
             />
           </View>
 
-          {/* Interactive Progress Timeline */}
+          {/* Progress Timeline (vertical, todos los pasos visibles) */}
           <Text style={styles.timelineLabel}>Flujo de Reparación:</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.timelineScroll} contentContainerStyle={styles.timelineContent}>
+          <View style={styles.timelineVertical}>
             {TIMELINE_STEPS.map((st, idx) => {
               const stepInfo = ORDER_STATUS[st];
               const isPast = currentIndex > idx;
               const isCurrent = currentIndex === idx;
               const isLast = idx === TIMELINE_STEPS.length - 1;
+              const canTap =
+                !updating &&
+                (isAdmin || STATUS_RANK[st] >= STATUS_RANK[order.status]);
 
               return (
-                <React.Fragment key={st}>
-                  <Pressable
-                    style={styles.timelineItem}
-                    onPress={() => handleStatusUpdate(st)}
-                    disabled={updating}
-                  >
-                    <View
+                <View key={st} style={styles.timelineRow}>
+                  <View style={styles.timelineLeft}>
+                    <Pressable
                       style={[
                         styles.timelineCircle,
                         isPast && styles.timelineCirclePast,
                         isCurrent && [styles.timelineCircleCurrent, { backgroundColor: stepInfo.color }],
                       ]}
+                      onPress={() => canTap && handleStatusUpdate(st)}
+                      disabled={!canTap}
+                      android_ripple={{ color: 'rgba(0, 82, 255, 0.15)', borderless: true, radius: 18 }}
                     >
                       {isPast ? (
                         <MaterialCommunityIcons name="check" size={14} color={colors.white} />
@@ -285,28 +305,41 @@ export default function OrderDetailScreen() {
                           color={isCurrent ? colors.white : colors.textMuted}
                         />
                       )}
-                    </View>
+                    </Pressable>
+                    {!isLast && (
+                      <View
+                        style={[
+                          styles.timelineConnectorV,
+                          (isPast || isCurrent) && styles.timelineConnectorPast,
+                        ]}
+                      />
+                    )}
+                  </View>
+                  <Pressable
+                    style={styles.timelineRowBody}
+                    onPress={() => canTap && handleStatusUpdate(st)}
+                    disabled={!canTap}
+                    android_ripple={{ color: 'rgba(0, 82, 255, 0.08)' }}
+                  >
                     <Text
                       style={[
                         styles.timelineItemText,
                         isCurrent && [styles.timelineItemTextCurrent, { color: stepInfo.color }],
+                        !canTap && styles.timelineItemTextDisabled,
                       ]}
                     >
                       {stepInfo.label}
                     </Text>
+                    {isCurrent && (
+                      <Text style={[styles.timelineCurrentHint, { color: stepInfo.color }]}>
+                        Estado actual
+                      </Text>
+                    )}
                   </Pressable>
-                  {!isLast && (
-                    <View
-                      style={[
-                        styles.timelineConnector,
-                        (isPast || isCurrent) && styles.timelineConnectorPast,
-                      ]}
-                    />
-                  )}
-                </React.Fragment>
+                </View>
               );
             })}
-          </ScrollView>
+          </View>
         </Card>
 
         {/* Lock notice if paid */}
@@ -784,6 +817,40 @@ const styles = StyleSheet.create({
   },
   timelineConnectorPast: {
     backgroundColor: colors.success,
+  },
+  timelineVertical: {
+    paddingVertical: spacing.xs,
+  },
+  timelineRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    minHeight: 44,
+  },
+  timelineLeft: {
+    width: 32,
+    alignItems: 'center',
+  },
+  timelineConnectorV: {
+    width: 2,
+    flex: 1,
+    minHeight: 16,
+    backgroundColor: colors.border,
+    marginTop: 2,
+    borderRadius: 1,
+  },
+  timelineRowBody: {
+    flex: 1,
+    paddingLeft: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radii.sm,
+  },
+  timelineCurrentHint: {
+    ...typography.caption,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  timelineItemTextDisabled: {
+    opacity: 0.45,
   },
   noticeBanner: {
     flexDirection: 'row',

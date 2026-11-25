@@ -9,7 +9,6 @@ import {
   Modal,
   ActivityIndicator,
   RefreshControl,
-  Platform,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -20,6 +19,7 @@ import { api } from '../services/api';
 import { Sale } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
 import { FlashList } from '@shopify/flash-list';
+import { printSaleReceipt, type TicketSize } from '../utils/orderReceipt';
 import {
   colors,
   typography,
@@ -37,7 +37,6 @@ import BottomSheet from '../components/ui/BottomSheet';
 import M3Fab from '../components/ui/M3Fab';
 
 type DateFilter = 'today' | 'week' | 'month' | 'all';
-type TicketSize = '58' | '80' | 'A4' | 'LETTER';
 
 function formatRelativeDate(iso: string): string {
   const date = new Date(iso);
@@ -78,18 +77,33 @@ export default function SalesScreen() {
       setError(null);
       const params: { startDate?: string; endDate?: string } = {};
       const today = new Date();
+      const startOfLocalDay = (date: Date) =>
+        new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+      const endOfLocalDay = (date: Date) =>
+        new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+
+      let rangeStart: Date | null = null;
+      let rangeEnd: Date | null = null;
 
       if (dateFilter === 'today') {
-        params.startDate = today.toISOString().split('T')[0];
-        params.endDate = today.toISOString().split('T')[0];
+        rangeStart = startOfLocalDay(today);
+        rangeEnd = endOfLocalDay(today);
       } else if (dateFilter === 'week') {
-        const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-        params.startDate = weekAgo.toISOString().split('T')[0];
-        params.endDate = today.toISOString().split('T')[0];
+        // Lunes de la semana actual (la semana empieza en lunes).
+        const monday = new Date(today);
+        monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+        rangeStart = startOfLocalDay(monday);
+        rangeEnd = endOfLocalDay(today);
       } else if (dateFilter === 'month') {
-        const monthAgo = new Date(today.getFullYear(), today.getMonth(), 1);
-        params.startDate = monthAgo.toISOString().split('T')[0];
-        params.endDate = today.toISOString().split('T')[0];
+        rangeStart = startOfLocalDay(new Date(today.getFullYear(), today.getMonth(), 1));
+        rangeEnd = endOfLocalDay(today);
+      }
+
+      // Se envían instantes ISO completos: el backend compara contra createdAt
+      // y una fecha suelta (YYYY-MM-DD) dejaba fuera las ventas del día.
+      if (rangeStart && rangeEnd) {
+        params.startDate = rangeStart.toISOString();
+        params.endDate = rangeEnd.toISOString();
       }
 
       const data = await api.getSales(params);
@@ -126,58 +140,10 @@ export default function SalesScreen() {
   }, [sales]);
 
   const handlePrint = async (sale: Sale) => {
-    const html = `
-      <html>
-        <head>
-          <style>
-            body { font-family: monospace; padding: 10px; font-size: 12px; }
-            .center { text-align: center; }
-            .bold { font-weight: bold; }
-            .row { display: flex; justify-content: space-between; margin: 4px 0; }
-            hr { border: 0.5px dashed #000; }
-          </style>
-        </head>
-        <body>
-          <div class="center bold">ELECTRO-PIME</div>
-          <div class="center">Servicio Técnico y Repuestos</div>
-          <div class="center">Ticket #${sale.id.slice(0, 8).toUpperCase()}</div>
-          <div class="center">${new Date(sale.createdAt).toLocaleString('es-ES')}</div>
-          <hr/>
-          <div>Cliente: ${sale.customerFullName || sale.customerName || 'Cliente General'}</div>
-          <div>Atendido por: ${sale.userName || 'Técnico'}</div>
-          <hr/>
-          ${(sale.items || [])
-            .map(
-              (it) => `
-            <div class="row">
-              <span>${it.quantity}x ${it.productName || it.description}</span>
-              <span>S/ ${(it.price * it.quantity).toFixed(2)}</span>
-            </div>`
-            )
-            .join('')}
-          <hr/>
-          <div class="row bold">
-            <span>TOTAL:</span>
-            <span>S/ ${sale.totalAmount.toFixed(2)}</span>
-          </div>
-          <div class="row">
-            <span>Método de Pago:</span>
-            <span>${sale.paymentMethod}</span>
-          </div>
-          <hr/>
-          <div class="center">¡Gracias por su preferencia!</div>
-        </body>
-      </html>
-    `;
-
     try {
-      if (Platform.OS === 'web') {
-        window.print();
-      } else {
-        await Print.printAsync({ html });
-      }
+      await printSaleReceipt(sale, ticketSize);
     } catch (e) {
-      console.error(e);
+      console.error('Error printing sale receipt:', e);
     }
   };
 
@@ -361,23 +327,52 @@ export default function SalesScreen() {
           subtitle={formatRelativeDate(selectedSale.createdAt)}
           onClose={() => setShowDetails(false)}
           footer={
-            <View style={styles.sheetFooterRow}>
-              <Pressable
-                style={styles.sheetBtnSecondary}
-                onPress={() => handleShare(selectedSale)}
-                android_ripple={{ color: 'rgba(0, 82, 255, 0.12)' }}
-              >
-                <MaterialCommunityIcons name="share-variant" size={20} color={colors.primary} />
-                <Text style={styles.sheetBtnSecondaryText}>Compartir</Text>
-              </Pressable>
-              <Pressable
-                style={styles.sheetBtnPrimary}
-                onPress={() => handlePrint(selectedSale)}
-                android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
-              >
-                <MaterialCommunityIcons name="printer" size={20} color={colors.white} />
-                <Text style={styles.sheetBtnPrimaryText}>Imprimir Ticket</Text>
-              </Pressable>
+            <View>
+              <View style={styles.ticketSizeRow}>
+                {([
+                  { key: '58', label: '58 mm' },
+                  { key: '80', label: '80 mm' },
+                  { key: 'A4', label: 'A4' },
+                  { key: 'LETTER', label: 'Carta' },
+                ] as { key: TicketSize; label: string }[]).map((opt) => {
+                  const active = ticketSize === opt.key;
+                  return (
+                    <Pressable
+                      key={opt.key}
+                      style={[styles.ticketSizeChip, active && styles.ticketSizeChipActive]}
+                      onPress={() => setTicketSize(opt.key)}
+                      android_ripple={{ color: 'rgba(0, 82, 255, 0.15)' }}
+                    >
+                      <Text
+                        style={[
+                          styles.ticketSizeText,
+                          active && styles.ticketSizeTextActive,
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <View style={styles.sheetFooterRow}>
+                <Pressable
+                  style={styles.sheetBtnSecondary}
+                  onPress={() => handleShare(selectedSale)}
+                  android_ripple={{ color: 'rgba(0, 82, 255, 0.12)' }}
+                >
+                  <MaterialCommunityIcons name="share-variant" size={20} color={colors.primary} />
+                  <Text style={styles.sheetBtnSecondaryText}>Compartir</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.sheetBtnPrimary}
+                  onPress={() => handlePrint(selectedSale)}
+                  android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+                >
+                  <MaterialCommunityIcons name="printer" size={20} color={colors.white} />
+                  <Text style={styles.sheetBtnPrimaryText}>Imprimir Ticket</Text>
+                </Pressable>
+              </View>
             </View>
           }
         >
@@ -633,6 +628,33 @@ const styles = StyleSheet.create({
   totalAmountText: {
     ...typography.headlineSmall,
     color: colors.primary,
+    fontWeight: '700',
+  },
+  ticketSizeRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: spacing.sm,
+  },
+  ticketSizeChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: 'rgba(195, 199, 208, 0.5)',
+    backgroundColor: colors.surface,
+  },
+  ticketSizeChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  ticketSizeText: {
+    ...typography.labelSmall,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  ticketSizeTextActive: {
+    color: colors.white,
     fontWeight: '700',
   },
   sheetFooterRow: {

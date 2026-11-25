@@ -17,7 +17,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../services/api';
-import { Product, Customer, PaymentMethod, CreateSaleDto } from '../types/api';
+import { Product, Customer, PaymentMethod, CreateSaleDto, Sale } from '../types/api';
+import { printSaleReceipt } from '../utils/orderReceipt';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Card from '../components/ui/Card';
 import M3TextField from '../components/ui/M3TextField';
@@ -58,7 +59,7 @@ export default function NewSaleScreen() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
   const [showProductSearch, setShowProductSearch] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [confirmSale, setConfirmSale] = useState<{ total: number; items: number } | null>(null);
+  const [confirmSale, setConfirmSale] = useState<{ sale: Sale; total: number; items: number } | null>(null);
   const [errorDialog, setErrorDialog] = useState<string | null>(null);
 
   // Product search
@@ -188,9 +189,9 @@ export default function NewSaleScreen() {
         })),
       };
 
-      await api.createSale(saleData);
+      const createdSale = await api.createSale(saleData);
       setSaving(false);
-      setConfirmSale({ total: calculateTotal(), items: cart.length });
+      setConfirmSale({ sale: createdSale, total: calculateTotal(), items: cart.length });
     } catch (err: any) {
       setErrorDialog(err.message || 'No se pudo registrar la venta');
     } finally {
@@ -456,8 +457,16 @@ export default function NewSaleScreen() {
           visible={Boolean(confirmSale)}
           title="¡Venta Registrada!"
           message={`Se registró la venta de ${confirmSale.items} producto(s) por un total de S/ ${confirmSale.total.toFixed(2)}.`}
-          confirmLabel="Volver a Ventas"
-          onConfirm={() => {
+          confirmLabel="Imprimir Ticket"
+          onConfirm={async () => {
+            try {
+              await printSaleReceipt(confirmSale.sale, '80');
+            } catch (e) {
+              console.error('Error printing sale receipt:', e);
+            }
+          }}
+          cancelLabel="Volver a Ventas"
+          onCancel={() => {
             setConfirmSale(null);
             router.replace('/sales');
           }}

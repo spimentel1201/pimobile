@@ -316,38 +316,43 @@ export default function BudgetsScreen() {
     ];
 
     return (
-      <View style={styles.filterScroll}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-          {list.map((st) => {
-            const isSelected = statusFilter === st;
-            const info = st === 'ALL' ? null : QUOTE_STATUS[st];
-            const count = statusCounts[st] || 0;
+      <View style={styles.filtersContent}>
+        {list.map((st) => {
+          const isSelected = statusFilter === st;
+          const info = st === 'ALL' ? null : QUOTE_STATUS[st];
+          const count = statusCounts[st] || 0;
 
-            return (
-              <Pressable
-                key={st}
-                style={[styles.filterChip, isSelected && styles.filterChipActive]}
-                onPress={() => setStatusFilter(st)}
+          return (
+            <Pressable
+              key={st}
+              style={[styles.filterChip, isSelected && styles.filterChipActive]}
+              onPress={() => setStatusFilter(st)}
+              android_ripple={{ color: 'rgba(0, 82, 255, 0.15)' }}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isSelected }}
+            >
+              {info && (
+                <MaterialCommunityIcons
+                  name={(info.icon || 'circle') as any}
+                  size={14}
+                  color={isSelected ? colors.white : info.color}
+                  style={styles.chipIcon}
+                />
+              )}
+              <Text
+                numberOfLines={1}
+                style={[styles.filterChipText, isSelected && styles.filterChipTextActive]}
               >
-                {info && (
-                  <MaterialCommunityIcons
-                    name={(info.icon || 'circle') as any}
-                    size={15}
-                    color={isSelected ? colors.white : info.color}
-                  />
-                )}
-                <Text style={[styles.filterChipText, isSelected && styles.filterChipTextActive]}>
-                  {st === 'ALL' ? 'Todos' : info?.label}
+                {st === 'ALL' ? 'Todos' : info?.label}
+              </Text>
+              <View style={[styles.countPill, isSelected && styles.countPillActive]}>
+                <Text style={[styles.countText, isSelected && styles.countTextActive]}>
+                  {count}
                 </Text>
-                <View style={[styles.countPill, isSelected && styles.countPillActive]}>
-                  <Text style={[styles.countText, isSelected && styles.countTextActive]}>
-                    {count}
-                  </Text>
-                </View>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+              </View>
+            </Pressable>
+          );
+        })}
       </View>
     );
   };
@@ -797,6 +802,13 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontWeight: '700',
   },
+  filtersContent: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 4,
+    gap: 6,
+  },
   filterScroll: {
     marginVertical: spacing.xs,
   },
@@ -804,6 +816,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     gap: spacing.xs,
     paddingVertical: 4,
+  },
+  chipIcon: {
+    marginRight: 2,
   },
   filterChip: {
     flexDirection: 'row',

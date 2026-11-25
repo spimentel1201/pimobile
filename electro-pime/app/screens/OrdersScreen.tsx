@@ -38,6 +38,18 @@ import {
 
 type FilterStatus = RepairOrderStatus | 'ALL';
 
+/** Etiquetas cortas para que todos los filtros entren en pantalla sin scroll. */
+const FILTER_LABELS: Record<FilterStatus, string> = {
+  ALL: 'Todas',
+  RECEIVED: 'Recibido',
+  DIAGNOSED: 'Diagnóstico',
+  IN_PROGRESS: 'Reparación',
+  WAITING_FOR_PARTS: 'Repuestos',
+  COMPLETED: 'Listo',
+  DELIVERED: 'Entregado',
+  CANCELLED: 'Cancelado',
+};
+
 function formatRelativeDate(iso: string): string {
   const date = new Date(iso);
   const now = new Date();
@@ -251,64 +263,59 @@ const OrdersScreen = () => {
     const statuses: FilterStatus[] = ['ALL', ...(Object.keys(ORDER_STATUS) as RepairOrderStatus[])];
 
     return (
-      <View style={styles.filtersScrollWrapper}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filtersContent}
-        >
-          {statuses.map((st) => {
-            const isSelected = filterStatus === st;
-            const styleObj = st === 'ALL' ? null : ORDER_STATUS[st];
-            const count = statusCounts[st] || 0;
+      <View style={styles.filtersContent}>
+        {statuses.map((st) => {
+          const isSelected = filterStatus === st;
+          const styleObj = st === 'ALL' ? null : ORDER_STATUS[st];
+          const count = statusCounts[st] || 0;
 
-            return (
-              <Pressable
-                key={st}
+          return (
+            <Pressable
+              key={st}
+              style={[
+                styles.filterChip,
+                isSelected && styles.filterChipSelected,
+              ]}
+              onPress={() => setFilterStatus(st)}
+              android_ripple={{ color: 'rgba(0, 82, 255, 0.15)' }}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isSelected }}
+            >
+              {styleObj && (
+                <MaterialCommunityIcons
+                  name={(styleObj.icon || 'circle') as any}
+                  size={14}
+                  color={isSelected ? colors.white : styleObj.color}
+                  style={styles.chipIcon}
+                />
+              )}
+              <Text
+                numberOfLines={1}
                 style={[
-                  styles.filterChip,
-                  isSelected && styles.filterChipSelected,
+                  styles.chipText,
+                  isSelected && styles.chipTextSelected,
                 ]}
-                onPress={() => setFilterStatus(st)}
-                android_ripple={{ color: 'rgba(0, 82, 255, 0.15)' }}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isSelected }}
               >
-                {styleObj && (
-                  <MaterialCommunityIcons
-                    name={(styleObj.icon || 'circle') as any}
-                    size={15}
-                    color={isSelected ? colors.white : styleObj.color}
-                    style={styles.chipIcon}
-                  />
-                )}
+                {FILTER_LABELS[st]}
+              </Text>
+              <View
+                style={[
+                  styles.countBadge,
+                  isSelected ? styles.countBadgeSelected : styles.countBadgeUnselected,
+                ]}
+              >
                 <Text
                   style={[
-                    styles.chipText,
-                    isSelected && styles.chipTextSelected,
+                    styles.countText,
+                    isSelected && styles.countTextSelected,
                   ]}
                 >
-                  {st === 'ALL' ? 'Todas' : styleObj?.label}
+                  {count}
                 </Text>
-                <View
-                  style={[
-                    styles.countBadge,
-                    isSelected ? styles.countBadgeSelected : styles.countBadgeUnselected,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.countText,
-                      isSelected && styles.countTextSelected,
-                    ]}
-                  >
-                    {count}
-                  </Text>
-                </View>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+              </View>
+            </Pressable>
+          );
+        })}
       </View>
     );
   };
@@ -552,34 +559,34 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  filtersScrollWrapper: {
-    marginVertical: spacing.xs,
-  },
   filtersContent: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     paddingHorizontal: spacing.lg,
-    gap: spacing.xs,
     paddingVertical: 4,
+    gap: 6,
   },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: radii.full,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: 'rgba(195, 199, 208, 0.5)',
-    gap: 6,
+    gap: 4,
   },
   filterChipSelected: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
   chipIcon: {
-    marginRight: 2,
+    marginRight: 1,
   },
   chipText: {
-    ...typography.labelMedium,
+    ...typography.labelSmall,
+    fontSize: 11,
     color: colors.textSecondary,
     fontWeight: '600',
   },
@@ -601,7 +608,7 @@ const styles = StyleSheet.create({
   countText: {
     ...typography.labelSmall,
     color: colors.textSecondary,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
   },
   countTextSelected: {

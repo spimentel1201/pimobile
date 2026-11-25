@@ -2,8 +2,8 @@ import { Platform } from 'react-native';
 import * as Print from 'expo-print';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { RepairOrder, Quote, RepairOrderStatus } from '../types/api';
-import { ORDER_STATUS, quoteStatusStyle } from '../theme';
+import { RepairOrder, Quote, RepairOrderStatus, Sale } from '../types/api';
+import { ORDER_STATUS, quoteStatusStyle, PAYMENT_METHOD } from '../theme';
 import { api } from '../services/api';
 
 /** Escapa HTML para inyectar texto de la orden sin romper el documento. */
@@ -68,7 +68,8 @@ export const generateOrderReceiptHTML = (order: RepairOrder, quotes: Quote[] = [
   // `initialReviewCost` es un único monto de la ORDEN (campo del formulario),
   // por eso no se puede repetir en cada fila: Haría creer N × monto.
   const lineCost = (item: RepairOrder['items'][number]): number | null => {
-    if (item.price == null) return null;
+    // Sin precio (o precio 0) se muestra "—" para no implying un cargo de S/ 0.00.
+    if (item.price == null || item.price === 0) return null;
     return item.price * (item.quantity || 1);
   };
 
@@ -77,7 +78,6 @@ export const generateOrderReceiptHTML = (order: RepairOrder, quotes: Quote[] = [
 
   const reviewCost = order.initialReviewCost ?? 0;
   const totalUnits = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
-  const totalCost = order.totalCost ?? reviewCost + itemsTotal;
 
   const money = (value: number) => `S/ ${value.toFixed(2)}`;
 
@@ -153,6 +153,16 @@ export const generateOrderReceiptHTML = (order: RepairOrder, quotes: Quote[] = [
     .filter((q) => q.status === 'APPROVED')
     .reduce((sum, q) => sum + (Number(q.totalAmount) || 0), 0);
 
+  // "Total General" del servicio: revisión + cargo por equipo + presupuestos
+  // vigentes (aprobados/pagados/facturados). Antes se usaba solo
+  // `order.totalCost`, que dejaba fuera los presupuestos y mostraba un total
+  // menor a lo cobrado (p.ej. S/ 40.00 con un cobro de S/ 180.00).
+  const quotesBillable = quotesCollected + quotesPending;
+  const hasQuotes = quotes.length > 0;
+  const totalCost = hasQuotes
+    ? reviewCost + itemsTotal + quotesBillable
+    : reviewCost + itemsTotal;
+
   const quotesSection = quotes.length
     ? `
           <div class="table-section">
@@ -190,6 +200,9 @@ export const generateOrderReceiptHTML = (order: RepairOrder, quotes: Quote[] = [
   // Cobro acumulado (ventas generadas), si la orden lo reporta.
   const billedTotal = order.billing?.billedTotal ?? 0;
   const salesCount = order.billing?.salesCount ?? 0;
+
+  // Por cobrar: revisión (si no está pagada) + presupuestos aprobados pendientes.
+  const porCobrar = (order.reviewPaid ? 0 : reviewCost) + quotesPending;
 
   return `
       <html>
@@ -342,7 +355,8 @@ export const generateOrderReceiptHTML = (order: RepairOrder, quotes: Quote[] = [
                 <span>${money(reviewCost)}</span>
               </div>
               ${hasItemPrices ? `<div class="summary-row"><span>Equipos (precio estimado)</span><span>${money(itemsTotal)}</span></div>` : ''}
-              ${billedTotal > 0 ? `<div class="summary-row paid"><span>Cobrado${salesCount ? ` (${salesCount} venta${salesCount > 1 ? 's' : ''})` : ''}</span><span>${money(billedTotal)}</span></div>` : ''}
+              ${billedTotal > 0 || order.reviewPaid ? `<div class="summary-row paid"><span>Cobrado${salesCount ? ` (${salesCount} venta${salesCount > 1 ? 's' : ''})` : ''}${order.reviewPaid ? ' · rev. pagada' : ''}</span><span>${money(billedTotal + (order.reviewPaid ? reviewCost : 0))}</span></div>` : ''}
+              ${porCobrar > 0 ? `<div class="summary-row"><span>Por cobrar</span><span>${money(porCobrar)}</span></div>` : ''}
               <div class="total-row">
                 <span>Total General</span>
                 <span>${money(totalCost)}</span>
@@ -628,6 +642,104 @@ export const printQuoteReceipt = async (quote: Quote) => {
     await Print.printAsync({ html });
   } catch (error) {
     console.error('Error printing quote receipt:', error);
+    throw error;
+  }
+};
+
+// ============================================================
+// Ticket de venta (POS)
+// ============================================================
+
+export type TicketSize = '58' | '80' | 'A4' | 'LETTER';
+
+/** Genera el HTML del ticket de venta para 58 mm, 80 mm, A4 o Carta. */
+export const generateSaleReceiptHTML = (sale: Sale, size: TicketSize = '80') => {
+  const money = (value: number) => `S/ ${Number(value || 0).toFixed(2)}`;
+  const payment = PAYMENT_METHOD[sale.paymentMethod]?.label ?? sale.paymentMethod;
+  const created = new Date(sale.createdAt);
+  const dateText = Number.isNaN(created.getTime())
+    ? 'Fecha no disponible'
+    : format(created, "d MMM yyyy · HH:mm", { locale: es });
+  const customer = sale.customerFullName || sale.customerName || 'Cliente General';
+  const seller = sale.userName || 'No registrado';
+
+  const isNarrow = size === '58' || size === '80';
+  const pageSize =
+    size === '58' ? '58mm auto' : size === '80' ? '80mm auto' : size === 'A4' ? 'A4' : 'Letter';
+  const bodyWidth = size === '58' ? '58mm' : '80mm';
+
+  const rows = (sale.items || [])
+    .map((item) => {
+      const qty = item.quantity || 1;
+      const price = Number(item.price || 0);
+      const name = item.productName || item.description || item.productDescription || 'Producto';
+      return `
+      <div class="item">
+        <div class="item-name">${escapeHtml(name)}</div>
+        <div class="item-line">
+          <span>${qty} x ${money(price)}</span>
+          <span>${money(price * qty)}</span>
+        </div>
+      </div>`;
+    })
+    .join('');
+
+  return `
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <style>
+            @page { size: ${pageSize}; margin: ${isNarrow ? '0' : '12mm'}; }
+            * { box-sizing: border-box; }
+            body {
+              font-family: 'Courier New', ui-monospace, monospace;
+              color: #000;
+              margin: 0 auto;
+              width: ${isNarrow ? bodyWidth : '100%'};
+              padding: ${isNarrow ? '4mm 3mm' : '0'};
+              font-size: ${isNarrow ? '11px' : '13px'};
+              line-height: 1.35;
+            }
+            .center { text-align: center; }
+            .brand { font-size: ${isNarrow ? '15px' : '20px'}; font-weight: 700; letter-spacing: 1px; }
+            .muted { color: #555; }
+            .small { font-size: ${isNarrow ? '10px' : '11px'}; }
+            hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
+            .row { display: flex; justify-content: space-between; gap: 8px; }
+            .row span:last-child { text-align: right; }
+            .item { margin: 4px 0; }
+            .item-name { word-break: break-word; font-weight: 600; }
+            .item-line { display: flex; justify-content: space-between; gap: 8px; color: #333; font-size: ${isNarrow ? '10px' : '12px'}; }
+            .total { font-size: ${isNarrow ? '14px' : '18px'}; font-weight: 700; }
+            .footer { margin-top: 10px; }
+          </style>
+        </head>
+        <body>
+          <div class="brand center">ELECTRO-PIME</div>
+          <div class="center small">Servicio Técnico y Repuestos</div>
+          <div class="center small muted">Ticket #${escapeHtml(sale.id.slice(0, 8).toUpperCase())}</div>
+          <hr />
+          <div class="row"><span>Fecha</span><span>${escapeHtml(dateText)}</span></div>
+          <div class="row"><span>Cliente</span><span>${escapeHtml(customer)}</span></div>
+          <div class="row"><span>Atendido por</span><span>${escapeHtml(seller)}</span></div>
+          <div class="row"><span>Pago</span><span>${escapeHtml(payment)}</span></div>
+          <hr />
+          ${rows || '<div class="center small muted">Sin ítems</div>'}
+          <hr />
+          <div class="row total"><span>TOTAL</span><span>${money(sale.totalAmount)}</span></div>
+          <hr />
+          <div class="center small muted footer">¡Gracias por su preferencia!</div>
+        </body>
+      </html>
+    `;
+};
+
+/** Imprime el ticket de venta (un solo diálogo, sin la UI de la app). */
+export const printSaleReceipt = async (sale: Sale, size: TicketSize = '80') => {
+  try {
+    await printReceiptHTML(generateSaleReceiptHTML(sale, size));
+  } catch (error) {
+    console.error('Error printing sale receipt:', error);
     throw error;
   }
 };

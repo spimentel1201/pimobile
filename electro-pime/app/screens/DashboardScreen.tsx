@@ -86,9 +86,13 @@ const DashboardScreen = () => {
     try {
       setError(null);
 
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
       const [orders, salesResult, quotesResult] = await Promise.allSettled([
         api.getRepairOrders(),
-        api.getSales({ startDate: new Date().toISOString().split('T')[0] }),
+        api.getSales({ startDate: todayStart.toISOString(), endDate: todayEnd.toISOString() }),
         api.getQuotes(),
       ]);
 
@@ -281,26 +285,33 @@ const DashboardScreen = () => {
       <View style={styles.section}>
         <SectionHeader title="Accesos Rápidos" />
         <View style={styles.actionGrid}>
-          {actions.map((act) => (
-            <Pressable
-              key={act.label}
-              style={[styles.actionTile, act.isMain && styles.actionTileMain]}
-              onPress={() => {
-                Platform.OS !== 'web' && Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push(act.route as any);
-              }}
-              android_ripple={{ color: 'rgba(0, 82, 255, 0.12)' }}
-              accessibilityRole="button"
-              accessibilityLabel={act.label}
-            >
-              <View style={[styles.actionIconBubble, { backgroundColor: act.bg }]}>
-                <MaterialCommunityIcons name={act.icon} size={24} color={act.color} />
-              </View>
-              <Text style={[styles.actionTileLabel, act.isMain && styles.actionTileLabelMain]}>
-                {act.label}
-              </Text>
-            </Pressable>
-          ))}
+          {actions.map((act, index) => {
+            const isLastOdd = actions.length % 2 === 1 && index === actions.length - 1;
+            return (
+              <Pressable
+                key={act.label}
+                style={[
+                  styles.actionTile,
+                  isLastOdd ? styles.actionTileWide : styles.actionTileSquare,
+                  act.isMain && styles.actionTileMain,
+                ]}
+                onPress={() => {
+                  Platform.OS !== 'web' && Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push(act.route as any);
+                }}
+                android_ripple={{ color: 'rgba(0, 82, 255, 0.12)' }}
+                accessibilityRole="button"
+                accessibilityLabel={act.label}
+              >
+                <View style={[styles.actionIconBubble, { backgroundColor: act.bg }]}>
+                  <MaterialCommunityIcons name={act.icon} size={22} color={act.color} />
+                </View>
+                <Text style={[styles.actionTileLabel, act.isMain && styles.actionTileLabelMain]}>
+                  {act.label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
       </View>
     );
@@ -609,39 +620,46 @@ const styles = StyleSheet.create({
   actionGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'space-between',
     gap: spacing.sm,
     marginTop: spacing.xs,
   },
   actionTile: {
-    flex: 1,
-    minWidth: '44%',
-    aspectRatio: 1,
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
     paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.xs,
+    paddingHorizontal: spacing.sm,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    flexDirection: 'row',
+    gap: spacing.sm,
     borderWidth: 1,
     borderColor: 'rgba(195, 199, 208, 0.4)',
     ...tonalElevation.level1,
+  },
+  actionTileSquare: {
+    width: '48%',
+  },
+  actionTileWide: {
+    width: '100%',
+    justifyContent: 'center',
   },
   actionTileMain: {
     borderColor: colors.primary,
     backgroundColor: colors.primarySoft,
   },
   actionIconBubble: {
-    width: 46,
-    height: 46,
+    width: 40,
+    height: 40,
     borderRadius: radii.full,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.xs,
   },
   actionTileLabel: {
     ...typography.labelSmall,
     color: colors.textPrimary,
-    textAlign: 'center',
+    textAlign: 'left',
+    flexShrink: 1,
     fontWeight: '600',
   },
   actionTileLabelMain: {
