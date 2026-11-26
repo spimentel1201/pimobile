@@ -209,15 +209,15 @@ export const generateOrderReceiptHTML = (order: RepairOrder, quotes: Quote[] = [
       <html>
         <head>
           <meta charset="utf-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
             /* A4 vertical con márgenes reales (el padding del body no aplica al imprimir). */
-            @page { size: A4 portrait; margin: 8mm; }
+            @page { size: 210mm 297mm; margin: 8mm; }
 
             * { box-sizing: border-box; }
-            body { font-family: 'Inter', Helvetica, Arial, sans-serif; color: #1F2937; background: #fff; line-height: 1.35; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            body { font-family: 'Inter', Helvetica, Arial, sans-serif; color: #1F2937; background: #fff; line-height: 1.35; margin: 0; padding: 0; min-height: 281mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             @media screen { body { padding: 10px; } }
 
             /* Evitar que un bloque se parta entre dos hojas */
@@ -520,9 +520,9 @@ export const generateQuoteReceiptHTML = (quote: Quote) => {
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-            @page { size: A4 portrait; margin: 8mm; }
+            @page { size: 210mm 297mm; margin: 8mm; }
             * { box-sizing: border-box; }
-            body { font-family: 'Inter', Helvetica, Arial, sans-serif; color: #1F2937; background: #fff; line-height: 1.35; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            body { font-family: 'Inter', Helvetica, Arial, sans-serif; color: #1F2937; background: #fff; line-height: 1.35; margin: 0; padding: 0; min-height: 281mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             @media screen { body { padding: 10px; } }
             .brand-header { text-align: center; margin-bottom: 6px; }
             .brand-name { font-size: 19px; font-weight: 800; color: #1E40AF; text-transform: uppercase; letter-spacing: -0.4px; }
