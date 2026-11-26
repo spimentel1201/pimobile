@@ -487,13 +487,15 @@ const styles = StyleSheet.create({
   },
   metricsWrapper: {
     paddingHorizontal: spacing.lg,
-    marginVertical: spacing.xs,
+    marginTop: spacing.xs,
+    marginBottom: spacing.md,
   },
   filtersContent: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: spacing.lg,
-    paddingVertical: 4,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.xs,
     gap: spacing.xs,
   },
   filterChip: {
