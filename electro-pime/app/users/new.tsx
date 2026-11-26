@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { api } from '../services/api';
@@ -35,6 +36,7 @@ const ROLE_OPTIONS: { value: 'ADMIN' | 'TECHNICIAN'; label: string; icon: keyof 
 
 export default function NewUserScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -110,7 +112,7 @@ export default function NewUserScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
         keyboardShouldPersistTaps="handled"
       >
         <Card variant="filled" style={styles.formCard}>
@@ -266,7 +268,7 @@ export default function NewUserScreen() {
             ) : (
               <>
                 <MaterialCommunityIcons name="content-save-outline" size={20} color={theme.colorRoles.onPrimary} />
-                <Text style={styles.submitBtnText}>Guardar Usuario</Text>
+                <Text style={styles.submitBtnText}>Registrar Usuario</Text>
               </>
             )}
           </Pressable>
