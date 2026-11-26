@@ -1,10 +1,11 @@
 // ponytail: M3 Profile Screen with tonal hero card, M3 List Items and ConfirmDialog
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Platform, ScrollView, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from './contexts/AuthContext';
+import { useTheme } from './contexts/ThemeContext';
 import * as Haptics from 'expo-haptics';
 import { colors, radii, spacing, typography, tonalElevation } from './theme';
 import Card from './components/ui/Card';
@@ -15,6 +16,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
+  const { isDark, isSystem, setPreference } = useTheme();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -133,6 +135,45 @@ export default function ProfileScreen() {
           </View>
         ))}
 
+        {/* Apariencia */}
+        <View style={styles.sectionWrapper}>
+          <Text style={styles.sectionTitle}>Apariencia</Text>
+          <Card style={styles.menuCard}>
+            <View style={styles.switchRow}>
+              <View style={styles.menuIconCircle}>
+                <MaterialCommunityIcons name="theme-light-dark" size={22} color={colors.primary} />
+              </View>
+              <View style={styles.menuTextCol}>
+                <Text style={styles.menuItemTitle}>Modo oscuro</Text>
+                <Text style={styles.menuItemSub}>
+                  {isSystem ? 'Automático (sistema)' : 'Manual'}
+                </Text>
+              </View>
+              <Switch
+                value={isDark}
+                onValueChange={(v) => setPreference(v ? 'dark' : 'light')}
+                trackColor={{ false: colors.surfaceContainer, true: colors.primarySoft }}
+                thumbColor={isDark ? colors.primary : colors.surface}
+              />
+            </View>
+            <View style={[styles.switchRow, styles.itemDivider]}>
+              <View style={styles.menuIconCircle}>
+                <MaterialCommunityIcons name="cellphone-cog" size={22} color={colors.primary} />
+              </View>
+              <View style={styles.menuTextCol}>
+                <Text style={styles.menuItemTitle}>Seguir configuración del sistema</Text>
+                <Text style={styles.menuItemSub}>Usa el tema del teléfono</Text>
+              </View>
+              <Switch
+                value={isSystem}
+                onValueChange={(v) => setPreference(v ? 'system' : (isDark ? 'dark' : 'light'))}
+                trackColor={{ false: colors.surfaceContainer, true: colors.primarySoft }}
+                thumbColor={isSystem ? colors.primary : colors.surface}
+              />
+            </View>
+          </Card>
+        </View>
+
         {/* Logout Button */}
         <Pressable
           style={styles.logoutBtn}
@@ -233,6 +274,13 @@ const styles = StyleSheet.create({
   itemDivider: {
     borderTopWidth: 1,
     borderTopColor: 'rgba(195, 199, 208, 0.3)',
+  },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.md,
   },
   menuIconCircle: {
     width: 40,

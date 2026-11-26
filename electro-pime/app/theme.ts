@@ -141,7 +141,50 @@ export const colors = {
   surfaceContainerHighest: lightColorScheme.surfaceContainerHighest,
 
   white: '#FFFFFF',
-} as const;
+};
+
+// ============================================================
+// Tema dinámico (claro/oscuro)
+// ============================================================
+export type ThemePreference = 'system' | 'light' | 'dark';
+
+/** Aplica la paleta clara u oscura sobre el objeto `colors` mutable. */
+export function applyColorScheme(isDark: boolean) {
+  const scheme = isDark ? darkColorScheme : lightColorScheme;
+  colors.surface = scheme.surface;
+  colors.surfaceMuted = scheme.surfaceContainerLow;
+  colors.canvas = scheme.background;
+  colors.border = scheme.outlineVariant;
+  colors.borderStrong = scheme.outline;
+  colors.textPrimary = scheme.onSurface;
+  colors.textSecondary = scheme.onSurfaceVariant;
+  colors.primary = scheme.primary;
+  colors.primarySoft = scheme.primaryContainer;
+  colors.secondary = scheme.secondary;
+  colors.secondarySoft = scheme.secondaryContainer;
+  colors.surfaceContainerLowest = scheme.surfaceContainerLowest;
+  colors.surfaceContainerLow = scheme.surfaceContainerLow;
+  colors.surfaceContainer = scheme.surfaceContainer;
+  colors.surfaceContainerHigh = scheme.surfaceContainerHigh;
+  colors.surfaceContainerHighest = scheme.surfaceContainerHighest;
+  colors.danger = scheme.error;
+  colors.dangerSoft = scheme.errorContainer;
+  // Acentos adaptados al modo oscuro
+  colors.violet = isDark ? '#C4A8F0' : '#754B9C';
+  colors.violetSoft = isDark ? '#3A2A50' : '#F0DCFF';
+  colors.success = isDark ? '#6DD58C' : '#006D44';
+  colors.successSoft = isDark ? '#1B3A28' : '#94F8BE';
+  colors.warning = isDark ? '#FFB68F' : '#9C4100';
+  colors.warningSoft = isDark ? '#3A2010' : '#FFDCC2';
+  // Tipografía: actualizar colores dependientes
+  typography.display.color = colors.textPrimary;
+  typography.title.color = colors.textPrimary;
+  typography.bodyStrong.color = colors.textPrimary;
+  typography.body.color = colors.textSecondary;
+  typography.caption.color = colors.textMuted;
+  typography.micro.color = colors.textMuted;
+  theme.colorRoles = scheme;
+}
 
 // Escala tipográfica M3
 export const typography = {

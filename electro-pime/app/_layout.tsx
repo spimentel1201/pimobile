@@ -5,11 +5,11 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar, View, StyleSheet, ActivityIndicator } from 'react-native';
 import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
-import { useColorScheme } from 'react-native';
 import BottomTabBar from './components/BottomTabBar';
 import CustomHeader, { StackScreenWithCustomHeader } from './components/CustomHeader';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ServiceOrderProvider } from './contexts/ServiceOrderContext';
+import { ThemeProvider as AppThemeProvider, useTheme } from './contexts/ThemeContext';
 import { colors } from './theme';
 // SecureStore is imported in AuthContext
 
@@ -20,9 +20,10 @@ const HIDDEN_ROUTES = ['/login', '/register', '/welcome', '/'];
 
 function RootLayoutNav() {
   const { user, loading } = useAuth();
+  const { isDark } = useTheme();
   const segments = useSegments();
   const [isTabBarVisible, setIsTabBarVisible] = useState(true);
-  const colorScheme = useColorScheme();
+  const colorScheme = isDark ? 'dark' : 'light';
 
   const router = useRouter();
 
@@ -54,8 +55,8 @@ function RootLayoutNav() {
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <View style={styles.container}>
+    <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
+      <View style={styles.container} key={isDark ? 'dark' : 'light'}>
         <Stack
           screenOptions={{
             header: (props) => <CustomHeader {...props} />,
@@ -80,7 +81,7 @@ function RootLayoutNav() {
         </Stack>
 
         {isTabBarVisible && <BottomTabBar />}
-        <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       </View>
     </ThemeProvider>
   );
@@ -121,7 +122,9 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <ServiceOrderProvider>
-        <RootLayoutNav />
+        <AppThemeProvider>
+          <RootLayoutNav />
+        </AppThemeProvider>
       </ServiceOrderProvider>
     </AuthProvider>
   );
