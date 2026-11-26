@@ -226,6 +226,7 @@ const styles = StyleSheet.create({
   sheet: {
     width: '100%',
     maxWidth: 760,
+    height: '92%',
     maxHeight: '98%',
     alignSelf: 'center',
     backgroundColor: colors.surface,
