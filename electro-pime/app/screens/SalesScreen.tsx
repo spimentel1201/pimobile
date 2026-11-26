@@ -1,5 +1,5 @@
 // ponytail: M3 SalesScreen with financial KPIs, FlashList, BottomSheet and Ticket print
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -35,6 +35,7 @@ import MetricCard from '../components/ui/MetricCard';
 import EmptyState from '../components/ui/EmptyState';
 import BottomSheet from '../components/ui/BottomSheet';
 import M3Fab from '../components/ui/M3Fab';
+import Toast from '../components/ui/Toast';
 
 type DateFilter = 'today' | 'week' | 'month' | 'all';
 
@@ -66,6 +67,9 @@ export default function SalesScreen() {
   const [showTicket, setShowTicket] = useState(false);
   const [ticketSize, setTicketSize] = useState<TicketSize>('80');
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [printing, setPrinting] = useState(false);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchSales = useCallback(async () => {
     if (!user) {
@@ -128,6 +132,16 @@ export default function SalesScreen() {
     }
   }, [fetchSales, user]);
 
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 2800);
+  }, []);
+
+  useEffect(() => () => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+  }, []);
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchSales();
@@ -140,10 +154,23 @@ export default function SalesScreen() {
   }, [sales]);
 
   const handlePrint = async (sale: Sale) => {
+    if (printing) return;
+    setPrinting(true);
+    // Se cierra la hoja emergente antes de imprimir: en Android el diálogo de
+    // impresión del SO puede quedar detrás del Modal si se lanza con él abierto.
+    setShowDetails(false);
+    await new Promise((resolve) => setTimeout(resolve, 150));
     try {
       await printSaleReceipt(sale, ticketSize);
-    } catch (e) {
+      showToast('Ticket enviado a impresión', 'success');
+    } catch (e: any) {
       console.error('Error printing sale receipt:', e);
+      showToast(
+        e?.message ? `No se pudo imprimir: ${e.message}` : 'No se pudo abrir la impresión',
+        'error'
+      );
+    } finally {
+      setPrinting(false);
     }
   };
 
@@ -160,9 +187,15 @@ export default function SalesScreen() {
         </html>
       `;
       const { uri } = await Print.printToFileAsync({ html });
-      await Sharing.shareAsync(uri);
-    } catch (e) {
+      const available = await Sharing.isAvailableAsync();
+      if (available) {
+        await Sharing.shareAsync(uri);
+      } else {
+        showToast('Compartir no está disponible en este dispositivo', 'error');
+      }
+    } catch (e: any) {
       console.error(e);
+      showToast(e?.message ? `No se pudo compartir: ${e.message}` : 'No se pudo compartir', 'error');
     }
   };
 
@@ -175,24 +208,22 @@ export default function SalesScreen() {
     ];
 
     return (
-      <View style={styles.filterScroll}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-          {filters.map((f) => {
-            const active = dateFilter === f.key;
-            return (
-              <Pressable
-                key={f.key}
-                style={[styles.filterChip, active && styles.filterChipActive]}
-                onPress={() => setDateFilter(f.key)}
-                android_ripple={{ color: 'rgba(0, 82, 255, 0.15)' }}
-              >
-                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
-                  {f.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+      <View style={styles.filtersContent}>
+        {filters.map((f) => {
+          const active = dateFilter === f.key;
+          return (
+            <Pressable
+              key={f.key}
+              style={[styles.filterChip, active && styles.filterChipActive]}
+              onPress={() => setDateFilter(f.key)}
+              android_ripple={{ color: 'rgba(0, 82, 255, 0.15)' }}
+            >
+              <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                {f.label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
     );
   };
@@ -365,12 +396,19 @@ export default function SalesScreen() {
                   <Text style={styles.sheetBtnSecondaryText}>Compartir</Text>
                 </Pressable>
                 <Pressable
-                  style={styles.sheetBtnPrimary}
+                  style={[styles.sheetBtnPrimary, printing && styles.sheetBtnDisabled]}
                   onPress={() => handlePrint(selectedSale)}
+                  disabled={printing}
                   android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
                 >
-                  <MaterialCommunityIcons name="printer" size={20} color={colors.white} />
-                  <Text style={styles.sheetBtnPrimaryText}>Imprimir Ticket</Text>
+                  {printing ? (
+                    <ActivityIndicator size="small" color={colors.white} />
+                  ) : (
+                    <MaterialCommunityIcons name="printer" size={20} color={colors.white} />
+                  )}
+                  <Text style={styles.sheetBtnPrimaryText}>
+                    {printing ? 'Abriendo…' : 'Imprimir Ticket'}
+                  </Text>
                 </Pressable>
               </View>
             </View>
@@ -422,6 +460,7 @@ export default function SalesScreen() {
           </ScrollView>
         </BottomSheet>
       )}
+      {toast && <Toast message={toast.message} type={toast.type} />}
     </View>
   );
 }
@@ -450,11 +489,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     marginVertical: spacing.xs,
   },
-  filterScroll: {
-    marginVertical: spacing.xs,
-  },
-  filterRow: {
+  filtersContent: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     paddingHorizontal: spacing.lg,
+    paddingVertical: 4,
     gap: spacing.xs,
   },
   filterChip: {
@@ -685,6 +724,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: radii.full,
     minHeight: 48,
+  },
+  sheetBtnDisabled: {
+    opacity: 0.7,
   },
   sheetBtnPrimaryText: {
     ...typography.labelLarge,

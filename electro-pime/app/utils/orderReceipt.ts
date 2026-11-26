@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { RepairOrder, Quote, RepairOrderStatus, Sale } from '../types/api';
@@ -464,7 +465,19 @@ export const printReceiptHTML = async (html: string): Promise<void> => {
     return;
   }
 
-  await Print.printAsync({ html });
+  try {
+    await Print.printAsync({ html });
+  } catch (error) {
+    // Respaldo cuando el diálogo de impresión del SO no se abre: se genera
+    // un PDF y se abre la hoja de compartir, así el ticket igual sale.
+    console.warn('printAsync falló, usando printToFileAsync + compartir:', error);
+    const { uri } = await Print.printToFileAsync({ html });
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Ticket' });
+      return;
+    }
+    throw error;
+  }
 };
 
 /** Genera el HTML A4 de un presupuesto (cotización). */

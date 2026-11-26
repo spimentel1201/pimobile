@@ -84,7 +84,6 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: radii.card,
     padding: spacing.md,
-    flex: 1,
   },
   hero: {
     backgroundColor: colors.primary,

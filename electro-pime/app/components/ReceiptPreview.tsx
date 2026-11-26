@@ -221,12 +221,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(16, 24, 40, 0.6)',
     justifyContent: 'center',
-    padding: spacing.lg,
+    padding: spacing.sm,
   },
   sheet: {
     width: '100%',
     maxWidth: 760,
-    maxHeight: '95%',
+    maxHeight: '98%',
     alignSelf: 'center',
     backgroundColor: colors.surface,
     borderRadius: radii.sheet,
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   // Hoja A4 simulada: el HTML dentro es el mismo que se imprime.
   paper: {
     flex: 1,
-    minHeight: 520,
+    minHeight: 480,
     backgroundColor: colors.surfaceMuted,
     padding: spacing.md,
   },
