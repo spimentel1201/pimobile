@@ -35,6 +35,7 @@ import {
   radii,
   spacing,
   ORDER_STATUS,
+  withAlpha,
 } from '../theme';
 
 type FilterStatus = RepairOrderStatus | 'ALL';
@@ -253,7 +254,7 @@ const OrdersScreen = () => {
           setScanProcessed(false);
           setScanVisible(true);
         }}
-        android_ripple={{ color: 'rgba(0, 82, 255, 0.15)', borderless: true, radius: 24 }}
+        android_ripple={{ color: colors.ripple, borderless: true, radius: 24 }}
         accessibilityRole="button"
         accessibilityLabel="Escanear QR de orden"
       >
@@ -280,7 +281,7 @@ const OrdersScreen = () => {
                 isSelected && styles.filterChipSelected,
               ]}
               onPress={() => setFilterStatus(st)}
-              android_ripple={{ color: 'rgba(0, 82, 255, 0.15)' }}
+              android_ripple={{ color: colors.ripple }}
               accessibilityRole="button"
               accessibilityState={{ selected: isSelected }}
             >
@@ -288,7 +289,7 @@ const OrdersScreen = () => {
                 <MaterialCommunityIcons
                   name={(styleObj.icon || 'circle') as any}
                   size={14}
-                  color={isSelected ? colors.white : styleObj.color}
+                  color={isSelected ? colors.onPrimary : styleObj.color}
                   style={styles.chipIcon}
                 />
               )}
@@ -430,7 +431,7 @@ const OrdersScreen = () => {
                     if (disabled) return;
                     handleStatusUpdate(statusPickerOrder.id, st);
                   }}
-                  android_ripple={disabled ? undefined : { color: 'rgba(0, 82, 255, 0.12)' }}
+                  android_ripple={disabled ? undefined : { color: colors.ripple }}
                 >
                   <View style={[styles.statusOptionIcon, { backgroundColor: info.soft }]}>
                     <MaterialCommunityIcons name={(info.icon || 'tag') as any} size={20} color={info.color} />
@@ -494,7 +495,7 @@ const OrdersScreen = () => {
               <Pressable
                 style={styles.scanCloseBtn}
                 onPress={() => setScanVisible(false)}
-                android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+                android_ripple={{ color: colors.rippleOnPrimary }}
               >
                 <Text style={styles.scanCloseText}>Cerrar Cámara</Text>
               </Pressable>
@@ -577,7 +578,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderRadius: radii.full,
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(195, 199, 208, 0.5)',
+    borderColor: colors.borderStrong,
     gap: 4,
   },
   filterChipSelected: {
@@ -594,7 +595,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '600',
   },
   chipTextSelected: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   countBadge: {
@@ -606,7 +607,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     backgroundColor: colors.surfaceContainer,
   },
   countBadgeSelected: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: withAlpha(colors.onPrimary, 0.18),
   },
   countText: {
     ...typography.labelSmall,
@@ -615,7 +616,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '700',
   },
   countTextSelected: {
-    color: colors.white,
+    color: colors.onPrimary,
   },
   listContainer: {
     flex: 1,
@@ -715,7 +716,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   scanCloseText: {
     ...typography.labelLarge,
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '600',
   },
 });

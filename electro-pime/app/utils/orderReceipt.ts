@@ -4,7 +4,7 @@ import * as Sharing from 'expo-sharing';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { RepairOrder, Quote, RepairOrderStatus, Sale } from '../types/api';
-import { ORDER_STATUS, quoteStatusStyle, PAYMENT_METHOD } from '../theme';
+import { printOrderStatusStyle, printQuoteStatusStyle, PAYMENT_METHOD } from '../theme';
 import { api } from '../services/api';
 
 /** Escapa HTML para inyectar texto de la orden sin romper el documento. */
@@ -19,11 +19,8 @@ const escapeHtml = (value: unknown): string =>
 const TERMS_REQUEST =
   'En caso de que la oferta de servicio no sea aceptada y/o el equipo no sea retirado dentro de 120 días después del ingreso se considerará abandonado. En este caso la empresa adquiere su derecho sobre el equipo quedando facultada de disponer del equipo, perdiendo el cliente todo derecho, reclamo o indemnización alguna. Al efectuar la reparación le garantizamos las piezas renovadas por un periodo de 90 días, pero no por todo el equipo. Todo servicio incluyendo la revisión tiene un costo.';
 
-/** Estado de la orden con etiqueta/colores del theme (fallback si aparece uno nuevo). */
-const orderStatusStyle = (status: RepairOrderStatus) =>
-  (ORDER_STATUS as Record<string, { label: string; color: string; soft: string } | undefined>)[
-    status
-  ] ?? { label: status, color: '#475467', soft: '#F6F7F9' };
+/** Estado de la orden con etiqueta/colores fijos de modo claro (papel). */
+const orderStatusStyle = (status: RepairOrderStatus) => printOrderStatusStyle(status);
 
 /** Fecha corta tipo "8 oct 2026" para las tablas. */
 const formatShortDate = (iso?: string): string => {
@@ -125,7 +122,7 @@ export const generateOrderReceiptHTML = (order: RepairOrder, quotes: Quote[] = [
   // cobro explícito (Sí/No) y monto, más totales al pie.
   const quoteRows = quotes
     .map((quote) => {
-      const st = quoteStatusStyle(quote.status);
+      const st = printQuoteStatusStyle(quote.status);
       const paid = quotePaidState(quote.status);
       const itemCount = quote.items?.length ?? 0;
       return `
@@ -483,7 +480,7 @@ export const printReceiptHTML = async (html: string): Promise<void> => {
 /** Genera el HTML A4 de un presupuesto (cotización). */
 export const generateQuoteReceiptHTML = (quote: Quote) => {
   const money = (v: number) => `S/ ${v.toFixed(2)}`;
-  const status = quoteStatusStyle(quote.status);
+  const status = printQuoteStatusStyle(quote.status);
   const registeredAt = (() => {
     const parsed = new Date(quote.createdAt);
     return Number.isNaN(parsed.getTime())

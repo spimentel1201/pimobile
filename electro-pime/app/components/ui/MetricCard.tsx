@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { colors, radii, tonalElevation, spacing, typography } from '../../theme';
+import { colors, radii, tonalElevation, spacing, typography, withAlpha } from '../../theme';
 import { useTheme } from '../../contexts/ThemeContext';
 
 interface MetricCardProps {
@@ -52,7 +52,7 @@ export default function MetricCard({
               styles.iconWrapper,
               {
                 backgroundColor: isHero
-                  ? 'rgba(255,255,255,0.2)'
+                  ? withAlpha(colors.onPrimary, 0.16)
                   : iconBg || colors.primarySoft,
               },
             ]}
@@ -60,7 +60,7 @@ export default function MetricCard({
             <MaterialCommunityIcons
               name={icon}
               size={18}
-              color={isHero ? colors.white : iconColor || colors.primary}
+              color={isHero ? colors.onPrimary : iconColor || colors.primary}
             />
           </View>
         )}
@@ -99,7 +99,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   default: {
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(195, 199, 208, 0.4)',
+    borderColor: colors.border,
     ...tonalElevation.level1,
   },
   topRow: {
@@ -121,7 +121,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     flex: 1,
   },
   labelHero: {
-    color: 'rgba(255, 255, 255, 0.85)',
+    color: withAlpha(colors.onPrimary, 0.82),
   },
   value: {
     ...typography.headlineMedium,
@@ -129,7 +129,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '700',
   },
   valueHero: {
-    color: colors.white,
+    color: colors.onPrimary,
   },
   subtitle: {
     ...typography.bodySmall,
@@ -137,7 +137,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     marginTop: 2,
   },
   subtitleHero: {
-    color: 'rgba(255, 255, 255, 0.75)',
+    color: withAlpha(colors.onPrimary, 0.72),
     marginTop: 2,
   },
 });

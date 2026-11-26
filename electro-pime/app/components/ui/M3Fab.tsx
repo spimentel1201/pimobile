@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, StyleProp, ViewStyle } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { colors, radii, tonalElevation, spacing, typography } from '../../theme';
+import { colors, radii, tonalElevation, spacing, typography, withAlpha } from '../../theme';
 import { useTheme } from '../../contexts/ThemeContext';
 
 interface M3FabProps {
@@ -33,14 +33,18 @@ export default function M3Fab({
       ? colors.secondary
       : colors.surfaceContainerHigh;
 
-  const textColor = isPrimary || isSecondary ? colors.white : colors.primary;
+  const textColor = isPrimary
+    ? colors.onPrimary
+    : isSecondary
+      ? colors.onSecondary
+      : colors.primary;
 
   return (
     <View style={[styles.fabContainer, { backgroundColor: bgColor }, style]}>
       <Pressable
         onPress={onPress}
         style={[styles.pressable, !extended && styles.pressableIconOnly]}
-        android_ripple={{ color: 'rgba(255, 255, 255, 0.25)' }}
+        android_ripple={{ color: withAlpha(colors.onPrimary, 0.25) }}
         accessibilityRole="button"
         accessibilityLabel={label || 'Acción flotante'}
       >

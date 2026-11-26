@@ -102,6 +102,27 @@ export const darkColorScheme: typeof lightColorScheme = {
 // ============================================================
 // Retrocompatibilidad con código existente
 // ============================================================
+// Verdadero cuando la paleta oscura está activa. Permite que los
+// estilos semánticos (estados, pagos) se resuelvan al leerlos.
+let currentSchemeIsDark = false;
+export const isDarkScheme = () => currentSchemeIsDark;
+
+/** Convierte #RRGGBB (o #RGB) en rgba() con la opacidad indicada. */
+export function withAlpha(hex: string, alpha: number): string {
+  const raw = hex.replace('#', '');
+  const full =
+    raw.length === 3
+      ? raw
+          .split('')
+          .map((c) => c + c)
+          .join('')
+      : raw;
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 export const colors = {
   // Superficies
   surface: lightColorScheme.surface,
@@ -111,27 +132,50 @@ export const colors = {
   // Bordes
   border: lightColorScheme.outlineVariant,
   borderStrong: lightColorScheme.outline,
+  outline: lightColorScheme.outline,
+  outlineVariant: lightColorScheme.outlineVariant,
 
   // Texto
   textPrimary: lightColorScheme.onSurface,
   textSecondary: lightColorScheme.onSurfaceVariant,
-  textMuted: '#73777F',
+  textMuted: lightColorScheme.outline,
+  textDisabled: '#A6ABB4',
 
   // Primario
   primary: lightColorScheme.primary,
+  onPrimary: lightColorScheme.onPrimary,
   primarySoft: lightColorScheme.primaryContainer,
+  primaryContainer: lightColorScheme.primaryContainer,
+  onPrimaryContainer: lightColorScheme.onPrimaryContainer,
+
   secondary: lightColorScheme.secondary,
+  onSecondary: lightColorScheme.onSecondary,
   secondarySoft: lightColorScheme.secondaryContainer,
+  secondaryContainer: lightColorScheme.secondaryContainer,
+  onSecondaryContainer: lightColorScheme.onSecondaryContainer,
+
+  tertiary: lightColorScheme.tertiary,
+  onTertiary: lightColorScheme.onTertiary,
+  tertiarySoft: lightColorScheme.tertiaryContainer,
+  onTertiaryContainer: lightColorScheme.onTertiaryContainer,
 
   // Semánticos
   success: '#006D44',
+  onSuccess: '#FFFFFF',
   successSoft: '#94F8BE',
+  onSuccessContainer: '#002111',
   warning: '#9C4100',
+  onWarning: '#FFFFFF',
   warningSoft: '#FFDCC2',
+  onWarningContainer: '#341100',
   danger: lightColorScheme.error,
+  onDanger: '#FFFFFF',
   dangerSoft: lightColorScheme.errorContainer,
+  onDangerContainer: lightColorScheme.onErrorContainer,
   violet: '#754B9C',
+  onViolet: '#FFFFFF',
   violetSoft: '#F0DCFF',
+  onVioletContainer: '#2D004F',
 
   // M3 containers
   surfaceContainerLowest: lightColorScheme.surfaceContainerLowest,
@@ -139,6 +183,14 @@ export const colors = {
   surfaceContainer: lightColorScheme.surfaceContainer,
   surfaceContainerHigh: lightColorScheme.surfaceContainerHigh,
   surfaceContainerHighest: lightColorScheme.surfaceContainerHighest,
+
+  inverseSurface: lightColorScheme.inverseSurface,
+  inverseOnSurface: lightColorScheme.inverseOnSurface,
+  scrim: lightColorScheme.scrim,
+
+  // Colores de interacción (ripple / selección)
+  ripple: withAlpha(lightColorScheme.primary, 0.12),
+  rippleOnPrimary: withAlpha(lightColorScheme.onPrimary, 0.2),
 
   white: '#FFFFFF',
 };
@@ -150,32 +202,81 @@ export type ThemePreference = 'system' | 'light' | 'dark';
 
 /** Aplica la paleta clara u oscura sobre el objeto `colors` mutable. */
 export function applyColorScheme(isDark: boolean) {
+  currentSchemeIsDark = isDark;
   const scheme = isDark ? darkColorScheme : lightColorScheme;
-  colors.surface = scheme.surface;
+
+  // Superficies: en oscuro las tarjetas usan containerLow para separarse
+  // del canvas (que es casi negro).
+  colors.surface = isDark ? scheme.surfaceContainerLow : scheme.surface;
   colors.surfaceMuted = scheme.surfaceContainerLow;
   colors.canvas = scheme.background;
+
+  // Bordes
   colors.border = scheme.outlineVariant;
   colors.borderStrong = scheme.outline;
+  colors.outline = scheme.outline;
+  colors.outlineVariant = scheme.outlineVariant;
+
+  // Texto
   colors.textPrimary = scheme.onSurface;
   colors.textSecondary = scheme.onSurfaceVariant;
+  colors.textMuted = scheme.outline;
+  colors.textDisabled = isDark ? '#5C6169' : '#A6ABB4';
+
+  // Primario y contenedores
   colors.primary = scheme.primary;
+  colors.onPrimary = scheme.onPrimary;
   colors.primarySoft = scheme.primaryContainer;
+  colors.primaryContainer = scheme.primaryContainer;
+  colors.onPrimaryContainer = scheme.onPrimaryContainer;
+
   colors.secondary = scheme.secondary;
+  colors.onSecondary = scheme.onSecondary;
   colors.secondarySoft = scheme.secondaryContainer;
+  colors.secondaryContainer = scheme.secondaryContainer;
+  colors.onSecondaryContainer = scheme.onSecondaryContainer;
+
+  colors.tertiary = scheme.tertiary;
+  colors.onTertiary = scheme.onTertiary;
+  colors.tertiarySoft = scheme.tertiaryContainer;
+  colors.onTertiaryContainer = scheme.onTertiaryContainer;
+
+  // Semánticos adaptados al modo oscuro
+  colors.success = isDark ? '#8FE3AE' : '#006D44';
+  colors.onSuccess = isDark ? '#00391F' : '#FFFFFF';
+  colors.successSoft = isDark ? 'rgba(143, 227, 174, 0.16)' : '#94F8BE';
+  colors.onSuccessContainer = isDark ? '#8FE3AE' : '#002111';
+
+  colors.warning = isDark ? '#FFB68F' : '#9C4100';
+  colors.onWarning = isDark ? '#4A1F00' : '#FFFFFF';
+  colors.warningSoft = isDark ? 'rgba(255, 182, 143, 0.16)' : '#FFDCC2';
+  colors.onWarningContainer = isDark ? '#FFB68F' : '#341100';
+
+  colors.danger = scheme.error;
+  colors.onDanger = scheme.onError;
+  colors.dangerSoft = isDark ? 'rgba(255, 180, 171, 0.16)' : scheme.errorContainer;
+  colors.onDangerContainer = scheme.onErrorContainer;
+
+  colors.violet = isDark ? '#D3B8F5' : '#754B9C';
+  colors.onViolet = isDark ? '#2E0F4F' : '#FFFFFF';
+  colors.violetSoft = isDark ? 'rgba(211, 184, 245, 0.16)' : '#F0DCFF';
+  colors.onVioletContainer = isDark ? '#D3B8F5' : '#2D004F';
+
+  // M3 containers
   colors.surfaceContainerLowest = scheme.surfaceContainerLowest;
   colors.surfaceContainerLow = scheme.surfaceContainerLow;
   colors.surfaceContainer = scheme.surfaceContainer;
   colors.surfaceContainerHigh = scheme.surfaceContainerHigh;
   colors.surfaceContainerHighest = scheme.surfaceContainerHighest;
-  colors.danger = scheme.error;
-  colors.dangerSoft = scheme.errorContainer;
-  // Acentos adaptados al modo oscuro
-  colors.violet = isDark ? '#C4A8F0' : '#754B9C';
-  colors.violetSoft = isDark ? '#3A2A50' : '#F0DCFF';
-  colors.success = isDark ? '#6DD58C' : '#006D44';
-  colors.successSoft = isDark ? '#1B3A28' : '#94F8BE';
-  colors.warning = isDark ? '#FFB68F' : '#9C4100';
-  colors.warningSoft = isDark ? '#3A2010' : '#FFDCC2';
+
+  colors.inverseSurface = scheme.inverseSurface;
+  colors.inverseOnSurface = scheme.inverseOnSurface;
+  colors.scrim = scheme.scrim;
+
+  // Interacción
+  colors.ripple = withAlpha(scheme.primary, isDark ? 0.2 : 0.12);
+  colors.rippleOnPrimary = withAlpha(scheme.onPrimary, 0.22);
+
   // Tipografía: actualizar colores dependientes
   typography.display.color = colors.textPrimary;
   typography.title.color = colors.textPrimary;
@@ -287,79 +388,167 @@ export interface StatusStyle {
   onContainer?: string;
 }
 
-export const ORDER_STATUS: Record<RepairOrderStatus, StatusStyle> = {
+// Colores de estado con variante clara y oscura. `color` es siempre el tono
+// legible sobre `soft` (el contenedor), así que se resuelve al leerlo y
+// cambia automáticamente con el tema.
+interface StatusSpec {
+  label: string;
+  icon?: string;
+  light: { color: string; soft: string };
+  dark: { color: string; soft: string };
+}
+
+const statusStyle = (spec: StatusSpec): StatusStyle => ({
+  label: spec.label,
+  icon: spec.icon,
+  get color() {
+    return (currentSchemeIsDark ? spec.dark : spec.light).color;
+  },
+  get soft() {
+    return (currentSchemeIsDark ? spec.dark : spec.light).soft;
+  },
+});
+
+/** Versión fija en modo claro, para impresión sobre papel blanco. */
+const lightStatus = (spec: StatusSpec): StatusStyle => ({
+  label: spec.label,
+  icon: spec.icon,
+  color: spec.light.color,
+  soft: spec.light.soft,
+});
+
+const ORDER_STATUS_SPECS: Record<RepairOrderStatus, StatusSpec> = {
   RECEIVED: {
     label: 'Recibido',
-    color: '#4A6267',
-    soft: '#CFE6EC',
     icon: 'tray-arrow-down',
-    onContainer: '#051F23',
+    light: { color: '#4A6267', soft: '#CFE6EC' },
+    dark: { color: '#A8D5DF', soft: 'rgba(168, 213, 223, 0.16)' },
   },
   DIAGNOSED: {
     label: 'Diagnosticado',
-    color: '#0052FF',
-    soft: '#DCE1FF',
     icon: 'clipboard-text-search-outline',
-    onContainer: '#001453',
+    light: { color: '#0052FF', soft: '#DCE1FF' },
+    dark: { color: '#B4C5FF', soft: 'rgba(180, 197, 255, 0.16)' },
   },
   IN_PROGRESS: {
     label: 'En Reparación',
-    color: '#9C4100',
-    soft: '#FFDCC2',
     icon: 'wrench',
-    onContainer: '#341100',
+    light: { color: '#9C4100', soft: '#FFDCC2' },
+    dark: { color: '#FFB68F', soft: 'rgba(255, 182, 143, 0.16)' },
   },
   WAITING_FOR_PARTS: {
     label: 'Esperando Repuestos',
-    color: '#754B9C',
-    soft: '#F0DCFF',
     icon: 'package-variant-closed',
-    onContainer: '#2D004F',
+    light: { color: '#754B9C', soft: '#F0DCFF' },
+    dark: { color: '#D3B8F5', soft: 'rgba(211, 184, 245, 0.16)' },
   },
   COMPLETED: {
     label: 'Listo p/ Entrega',
-    color: '#006D44',
-    soft: '#94F8BE',
     icon: 'check-circle-outline',
-    onContainer: '#002111',
+    light: { color: '#006D44', soft: '#94F8BE' },
+    dark: { color: '#8FE3AE', soft: 'rgba(143, 227, 174, 0.16)' },
   },
   DELIVERED: {
     label: 'Entregado',
-    color: '#006874',
-    soft: '#9EEFFD',
     icon: 'truck-delivery-outline',
-    onContainer: '#001F24',
+    light: { color: '#006874', soft: '#9EEFFD' },
+    dark: { color: '#86D9E6', soft: 'rgba(134, 217, 230, 0.16)' },
   },
   CANCELLED: {
     label: 'Cancelado',
-    color: '#BA1A1A',
-    soft: '#FFDAD6',
     icon: 'close-circle-outline',
-    onContainer: '#410002',
+    light: { color: '#BA1A1A', soft: '#FFDAD6' },
+    dark: { color: '#FFB4AB', soft: 'rgba(255, 180, 171, 0.16)' },
   },
 };
+
+export const ORDER_STATUS: Record<RepairOrderStatus, StatusStyle> = {
+  RECEIVED: statusStyle(ORDER_STATUS_SPECS.RECEIVED),
+  DIAGNOSED: statusStyle(ORDER_STATUS_SPECS.DIAGNOSED),
+  IN_PROGRESS: statusStyle(ORDER_STATUS_SPECS.IN_PROGRESS),
+  WAITING_FOR_PARTS: statusStyle(ORDER_STATUS_SPECS.WAITING_FOR_PARTS),
+  COMPLETED: statusStyle(ORDER_STATUS_SPECS.COMPLETED),
+  DELIVERED: statusStyle(ORDER_STATUS_SPECS.DELIVERED),
+  CANCELLED: statusStyle(ORDER_STATUS_SPECS.CANCELLED),
+};
+
+/** Variante para impresión (siempre modo claro). */
+export const printOrderStatusStyle = (status: string): StatusStyle =>
+  lightStatus(
+    (ORDER_STATUS_SPECS as Record<string, StatusSpec | undefined>)[status] ??
+      ORDER_STATUS_SPECS.RECEIVED
+  );
 
 // ============================================================
 // Estados de presupuestos (Quotes)
 // ============================================================
 export type { QuoteStatus };
 
-export const QUOTE_STATUS: Record<QuoteStatus, StatusStyle> = {
-  PENDING: { label: 'Pendiente', color: '#9C4100', soft: '#FFDCC2', icon: 'clock-outline' },
-  APPROVED: { label: 'Aprobado', color: '#0052FF', soft: '#DCE1FF', icon: 'thumb-up-outline' },
-  PAID: { label: 'Pagado', color: '#006D44', soft: '#94F8BE', icon: 'cash-check' },
-  REJECTED: { label: 'Rechazado', color: '#BA1A1A', soft: '#FFDAD6', icon: 'thumb-down-outline' },
-  EXPIRED: { label: 'Expirado', color: '#73777F', soft: '#ECEEF1', icon: 'clock-alert-outline' },
-  INVOICED: { label: 'Facturado', color: '#754B9C', soft: '#F0DCFF', icon: 'file-document-outline' },
+const QUOTE_STATUS_SPECS: Record<QuoteStatus, StatusSpec> = {
+  PENDING: {
+    label: 'Pendiente',
+    icon: 'clock-outline',
+    light: { color: '#9C4100', soft: '#FFDCC2' },
+    dark: { color: '#FFB68F', soft: 'rgba(255, 182, 143, 0.16)' },
+  },
+  APPROVED: {
+    label: 'Aprobado',
+    icon: 'thumb-up-outline',
+    light: { color: '#0052FF', soft: '#DCE1FF' },
+    dark: { color: '#B4C5FF', soft: 'rgba(180, 197, 255, 0.16)' },
+  },
+  PAID: {
+    label: 'Pagado',
+    icon: 'cash-check',
+    light: { color: '#006D44', soft: '#94F8BE' },
+    dark: { color: '#8FE3AE', soft: 'rgba(143, 227, 174, 0.16)' },
+  },
+  REJECTED: {
+    label: 'Rechazado',
+    icon: 'thumb-down-outline',
+    light: { color: '#BA1A1A', soft: '#FFDAD6' },
+    dark: { color: '#FFB4AB', soft: 'rgba(255, 180, 171, 0.16)' },
+  },
+  EXPIRED: {
+    label: 'Expirado',
+    icon: 'clock-alert-outline',
+    light: { color: '#73777F', soft: '#ECEEF1' },
+    dark: { color: '#C3C7D0', soft: 'rgba(195, 199, 208, 0.14)' },
+  },
+  INVOICED: {
+    label: 'Facturado',
+    icon: 'file-document-outline',
+    light: { color: '#754B9C', soft: '#F0DCFF' },
+    dark: { color: '#D3B8F5', soft: 'rgba(211, 184, 245, 0.16)' },
+  },
 };
 
-export const quoteStatusStyle = (status: string): StatusStyle =>
-  (QUOTE_STATUS as Record<string, StatusStyle | undefined>)[status] ?? {
-    label: status || 'Desconocido',
-    color: colors.textMuted,
-    soft: colors.surfaceMuted,
-    icon: 'help-circle-outline',
-  };
+export const QUOTE_STATUS: Record<QuoteStatus, StatusStyle> = {
+  PENDING: statusStyle(QUOTE_STATUS_SPECS.PENDING),
+  APPROVED: statusStyle(QUOTE_STATUS_SPECS.APPROVED),
+  PAID: statusStyle(QUOTE_STATUS_SPECS.PAID),
+  REJECTED: statusStyle(QUOTE_STATUS_SPECS.REJECTED),
+  EXPIRED: statusStyle(QUOTE_STATUS_SPECS.EXPIRED),
+  INVOICED: statusStyle(QUOTE_STATUS_SPECS.INVOICED),
+};
+
+const quoteFallbackStyle = (status: string): StatusStyle => ({
+  label: status || 'Desconocido',
+  color: colors.textMuted,
+  soft: colors.surfaceMuted,
+  icon: 'help-circle-outline',
+});
+
+export const quoteStatusStyle = (status: string): StatusStyle => {
+  const spec = (QUOTE_STATUS_SPECS as Record<string, StatusSpec | undefined>)[status];
+  return spec ? statusStyle(spec) : quoteFallbackStyle(status);
+};
+
+/** Variante para impresión (siempre modo claro). */
+export const printQuoteStatusStyle = (status: string): StatusStyle => {
+  const spec = (QUOTE_STATUS_SPECS as Record<string, StatusSpec | undefined>)[status];
+  return spec ? lightStatus(spec) : quoteFallbackStyle(status);
+};
 
 // ============================================================
 // Métodos de Pago
@@ -372,13 +561,52 @@ export type PaymentMethod =
   | 'YAPE'
   | 'PLIN';
 
+const PAYMENT_METHOD_SPECS: Record<PaymentMethod, StatusSpec> = {
+  CASH: {
+    label: 'Efectivo',
+    icon: 'cash',
+    light: { color: '#006D44', soft: '#94F8BE' },
+    dark: { color: '#8FE3AE', soft: 'rgba(143, 227, 174, 0.16)' },
+  },
+  CREDIT_CARD: {
+    label: 'Tarjeta de Crédito',
+    icon: 'credit-card',
+    light: { color: '#0052FF', soft: '#DCE1FF' },
+    dark: { color: '#B4C5FF', soft: 'rgba(180, 197, 255, 0.16)' },
+  },
+  DEBIT_CARD: {
+    label: 'Tarjeta de Débito',
+    icon: 'credit-card-outline',
+    light: { color: '#0052FF', soft: '#DCE1FF' },
+    dark: { color: '#B4C5FF', soft: 'rgba(180, 197, 255, 0.16)' },
+  },
+  TRANSFER: {
+    label: 'Transferencia',
+    icon: 'bank-transfer',
+    light: { color: '#4A6267', soft: '#CFE6EC' },
+    dark: { color: '#A8D5DF', soft: 'rgba(168, 213, 223, 0.16)' },
+  },
+  YAPE: {
+    label: 'Yape',
+    icon: 'cellphone',
+    light: { color: '#6B21A8', soft: '#F3E8FF' },
+    dark: { color: '#D3B8F5', soft: 'rgba(211, 184, 245, 0.16)' },
+  },
+  PLIN: {
+    label: 'Plin',
+    icon: 'cellphone',
+    light: { color: '#00838F', soft: '#E0F7FA' },
+    dark: { color: '#86D9E6', soft: 'rgba(134, 217, 230, 0.16)' },
+  },
+};
+
 export const PAYMENT_METHOD: Record<PaymentMethod, StatusStyle> = {
-  CASH: { label: 'Efectivo', color: '#006D44', soft: '#94F8BE', icon: 'cash' },
-  CREDIT_CARD: { label: 'Tarjeta de Crédito', color: '#0052FF', soft: '#DCE1FF', icon: 'credit-card' },
-  DEBIT_CARD: { label: 'Tarjeta de Débito', color: '#0052FF', soft: '#DCE1FF', icon: 'credit-card-outline' },
-  TRANSFER: { label: 'Transferencia', color: '#4A6267', soft: '#CFE6EC', icon: 'bank-transfer' },
-  YAPE: { label: 'Yape', color: '#6B21A8', soft: '#F3E8FF', icon: 'cellphone' },
-  PLIN: { label: 'Plin', color: '#00838F', soft: '#E0F7FA', icon: 'cellphone' },
+  CASH: statusStyle(PAYMENT_METHOD_SPECS.CASH),
+  CREDIT_CARD: statusStyle(PAYMENT_METHOD_SPECS.CREDIT_CARD),
+  DEBIT_CARD: statusStyle(PAYMENT_METHOD_SPECS.DEBIT_CARD),
+  TRANSFER: statusStyle(PAYMENT_METHOD_SPECS.TRANSFER),
+  YAPE: statusStyle(PAYMENT_METHOD_SPECS.YAPE),
+  PLIN: statusStyle(PAYMENT_METHOD_SPECS.PLIN),
 };
 
 // ============================================================

@@ -1,5 +1,5 @@
 // ponytail: M3 OrderCard component with appliance icon, status chip and 48dp action buttons
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -12,6 +12,7 @@ import {
   ORDER_STATUS,
   getDeviceIcon,
 } from '../theme';
+import { useTheme } from '../contexts/ThemeContext';
 import StatusBadge from './ui/StatusBadge';
 import Card from './ui/Card';
 
@@ -32,6 +33,8 @@ export default function OrderCard({
   onPrintReceipt,
   formatRelativeDate,
 }: OrderCardProps) {
+  const { isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [isDark]);
   const router = useRouter();
   const status = ORDER_STATUS[order.status] ?? ORDER_STATUS.RECEIVED;
   const firstItem = order.items?.[0];
@@ -166,7 +169,7 @@ export default function OrderCard({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   card: {
     marginBottom: spacing.md,
     padding: spacing.md,
@@ -229,7 +232,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     paddingTop: spacing.xs,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(195, 199, 208, 0.3)',
+    borderTopColor: colors.border,
   },
   techCol: {
     flex: 1,

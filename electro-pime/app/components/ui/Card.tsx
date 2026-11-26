@@ -1,7 +1,7 @@
 // ponytail: M3 Card with ripple and tonal elevation variants
 import React, { useMemo } from 'react';
 import { View, Pressable, StyleSheet, StyleProp, ViewStyle, Platform } from 'react-native';
-import { colors, radii, tonalElevation, spacing } from '../../theme';
+import { colors, radii, tonalElevation, spacing, withAlpha } from '../../theme';
 import { useTheme } from '../../contexts/ThemeContext';
 
 interface CardProps {
@@ -43,7 +43,7 @@ export default function Card({
       <View style={[styles.card, variantStyle, style]}>
         <Pressable
           onPress={onPress}
-          android_ripple={{ color: 'rgba(0, 82, 255, 0.08)', foreground: true }}
+          android_ripple={{ color: withAlpha(colors.primary, 0.16), foreground: true }}
           style={({ pressed }) => [
             styles.pressable,
             Platform.OS !== 'android' && pressed && styles.pressed,
@@ -72,11 +72,13 @@ const createStyles = (colors: any) => StyleSheet.create({
   elevated: {
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(195, 199, 208, 0.4)',
+    borderColor: colors.border,
     ...tonalElevation.level1,
   },
   filled: {
     backgroundColor: colors.surfaceContainer,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   outlined: {
     backgroundColor: colors.surface,

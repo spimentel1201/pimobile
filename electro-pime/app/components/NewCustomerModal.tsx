@@ -126,7 +126,7 @@ export default function NewCustomerModal({
             <Pressable
               onPress={onClose}
               style={styles.closeBtn}
-              android_ripple={{ color: 'rgba(0, 82, 255, 0.12)', borderless: true, radius: 20 }}
+              android_ripple={{ color: colors.ripple, borderless: true, radius: 20 }}
             >
               <MaterialCommunityIcons name="close" size={24} color={colors.textSecondary} />
             </Pressable>
@@ -163,7 +163,7 @@ export default function NewCustomerModal({
                     key={dt.value}
                     style={[styles.docTypeChip, isSelected && styles.docTypeChipSelected]}
                     onPress={() => setDocumentType(dt.value)}
-                    android_ripple={{ color: 'rgba(0, 82, 255, 0.15)' }}
+                    android_ripple={{ color: colors.ripple }}
                   >
                     <Text style={[styles.docTypeChipText, isSelected && styles.docTypeChipTextSelected]}>
                       {dt.label}
@@ -225,13 +225,13 @@ export default function NewCustomerModal({
               style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
               onPress={handleSave}
               disabled={saving}
-              android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+              android_ripple={{ color: colors.rippleOnPrimary }}
             >
               {saving ? (
-                <ActivityIndicator color={colors.white} size="small" />
+                <ActivityIndicator color={colors.onPrimary} size="small" />
               ) : (
                 <>
-                  <MaterialCommunityIcons name="check" size={20} color={colors.white} />
+                  <MaterialCommunityIcons name="check" size={20} color={colors.onPrimary} />
                   <Text style={styles.saveBtnText}>Guardar y Asignar</Text>
                 </>
               )}
@@ -337,7 +337,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '600',
   },
   docTypeChipTextSelected: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   footer: {
@@ -378,7 +378,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   saveBtnText: {
     ...typography.labelLarge,
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
 });

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -15,6 +15,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, typography, spacing, radii } from '../theme';
+import { useTheme } from '../contexts/ThemeContext';
 import {
   recognizeLabel,
   isCloudOcrConfigured,
@@ -45,6 +46,8 @@ const FIELD_DEFS: Array<{ key: keyof ScannedFields; label: string; placeholder: 
 ];
 
 export default function LabelScanner({ visible, onApply, onClose }: LabelScannerProps) {
+  const { isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [isDark]);
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
 
@@ -174,7 +177,7 @@ export default function LabelScanner({ visible, onApply, onClose }: LabelScanner
           <MaterialCommunityIcons
             name="cloud-check"
             size={18}
-            color={engine === 'cloud' ? colors.white : colors.primary}
+            color={engine === 'cloud' ? colors.onPrimary : colors.primary}
           />
           <Text style={[styles.engineText, engine === 'cloud' && styles.engineTextActive]}>
             Nube (Gemini)
@@ -188,7 +191,7 @@ export default function LabelScanner({ visible, onApply, onClose }: LabelScanner
           <MaterialCommunityIcons
             name="cellphone"
             size={18}
-            color={engine === 'local' ? colors.white : colors.textSecondary}
+            color={engine === 'local' ? colors.onPrimary : colors.textSecondary}
           />
           <Text style={[styles.engineText, engine === 'local' && styles.engineTextActive]}>
             Local (Offline)
@@ -276,10 +279,10 @@ export default function LabelScanner({ visible, onApply, onClose }: LabelScanner
           activeOpacity={0.85}
         >
           {scanning ? (
-            <ActivityIndicator color={colors.white} />
+            <ActivityIndicator color={colors.onPrimary} />
           ) : (
             <>
-              <MaterialCommunityIcons name="barcode-scan" size={20} color={colors.white} />
+              <MaterialCommunityIcons name="barcode-scan" size={20} color={colors.onPrimary} />
               <Text style={styles.primaryButtonText}>Escanear etiqueta</Text>
             </>
           )}
@@ -373,7 +376,7 @@ export default function LabelScanner({ visible, onApply, onClose }: LabelScanner
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,
@@ -431,7 +434,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   engineTextActive: {
-    color: colors.white,
+    color: colors.onPrimary,
   },
   engineTextDisabled: {
     color: colors.textMuted,
@@ -530,7 +533,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   primaryButtonText: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '600',
     fontSize: 15,
   },

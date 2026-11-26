@@ -47,10 +47,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       ? systemScheme === 'dark'
       : preference === 'dark';
 
-  // Aplicar la paleta al objeto `colors` mutable
-  useEffect(() => {
-    applyColorScheme(isDark);
-  }, [isDark]);
+  // Aplicar la paleta durante el render (no en un efecto diferido) para que
+  // el primer render de cada pantalla ya use los colores correctos.
+  useMemo(() => applyColorScheme(isDark), [isDark]);
 
   const setPreference = useCallback((pref: ThemePreference) => {
     setPreferenceState(pref);

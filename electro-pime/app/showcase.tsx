@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ScrollView, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Stack } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -15,6 +15,7 @@ import {
   QuoteStatus,
   PaymentMethod,
 } from './theme';
+import { useTheme } from './contexts/ThemeContext';
 import Card from './components/ui/Card';
 import StatusBadge from './components/ui/StatusBadge';
 import SectionHeader from './components/ui/SectionHeader';
@@ -28,6 +29,8 @@ import SegmentedControl from './components/ui/SegmentedControl';
  * del flujo de la app y se puede eliminar al integrar las pantallas.
  */
 export default function ShowcaseScreen() {
+  const { isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [isDark]);
   const [demoFilter, setDemoFilter] = useState<'all' | 'pending' | 'approved'>('all');
   const orderStatuses = Object.keys(ORDER_STATUS) as RepairOrderStatus[];
   const quoteStatuses = Object.keys(QUOTE_STATUS) as QuoteStatus[];
@@ -153,7 +156,7 @@ export default function ShowcaseScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   canvas: {
     flex: 1,
     backgroundColor: colors.canvas,

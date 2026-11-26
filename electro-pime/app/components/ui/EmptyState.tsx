@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, StyleProp, ViewStyle, Pressable } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '../../theme';
+import { colors, radii, spacing, typography, withAlpha } from '../../theme';
 import { useTheme } from '../../contexts/ThemeContext';
 
 interface EmptyStateProps {
@@ -34,7 +34,7 @@ export default function EmptyState({
   return (
     <View style={[styles.container, style]}>
       <View style={styles.iconCircle}>
-        <MaterialCommunityIcons name={icon} size={36} color={colors.primary} />
+        <MaterialCommunityIcons name={icon} size={36} color={colors.onPrimaryContainer} />
       </View>
       <Text style={styles.title}>{title}</Text>
       {description && <Text style={styles.description}>{description}</Text>}
@@ -43,7 +43,7 @@ export default function EmptyState({
           <Pressable
             style={styles.cta}
             onPress={activeAction}
-            android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+            android_ripple={{ color: withAlpha(colors.onPrimary, 0.2) }}
           >
             <Text style={styles.ctaText}>{activeLabel}</Text>
           </Pressable>
@@ -96,7 +96,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   ctaText: {
     ...typography.labelLarge,
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '600',
   },
 });

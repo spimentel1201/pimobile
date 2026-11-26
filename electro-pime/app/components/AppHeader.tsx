@@ -50,7 +50,7 @@ export default function AppHeader({
           <Pressable
             onPress={handleBack}
             style={styles.backButton}
-            android_ripple={{ color: 'rgba(0, 82, 255, 0.12)', borderless: true, radius: 24 }}
+            android_ripple={{ color: colors.ripple, borderless: true, radius: 24 }}
             accessibilityRole="button"
             accessibilityLabel="Volver"
           >
@@ -77,7 +77,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   header: {
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(195, 199, 208, 0.3)',
+    borderBottomColor: colors.border,
     paddingBottom: spacing.sm,
     paddingHorizontal: spacing.md,
     elevation: 2,

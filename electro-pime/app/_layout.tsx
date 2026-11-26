@@ -56,7 +56,7 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
-      <View style={styles.container} key={isDark ? 'dark' : 'light'}>
+      <View style={styles.container}>
         <Stack
           screenOptions={{
             header: (props) => <CustomHeader {...props} />,
@@ -81,7 +81,11 @@ function RootLayoutNav() {
         </Stack>
 
         {isTabBarVisible && <BottomTabBar />}
-        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+        <StatusBar
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={colors.canvas}
+          translucent={false}
+        />
       </View>
     </ThemeProvider>
   );

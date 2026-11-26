@@ -1,5 +1,5 @@
 // ponytail: M3 Login Screen with workshop identity, M3TextField and native ripple
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from './contexts/AuthContext';
+import { useTheme } from './contexts/ThemeContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { colors, radii, spacing, typography, tonalElevation } from './theme';
@@ -22,6 +23,8 @@ import Card from './components/ui/Card';
 export default function LoginScreen() {
   const router = useRouter();
   const { login } = useAuth();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [isDark]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -116,14 +119,14 @@ export default function LoginScreen() {
             style={[styles.loginBtn, loading && styles.loginBtnDisabled]}
             onPress={handleLogin}
             disabled={loading}
-            android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+            android_ripple={{ color: colors.rippleOnPrimary }}
           >
             {loading ? (
-              <ActivityIndicator size="small" color={colors.white} />
+              <ActivityIndicator size="small" color={colors.onPrimary} />
             ) : (
               <>
                 <Text style={styles.loginBtnText}>Entrar al Sistema</Text>
-                <MaterialCommunityIcons name="arrow-right" size={20} color={colors.white} />
+                <MaterialCommunityIcons name="arrow-right" size={20} color={colors.onPrimary} />
               </>
             )}
           </Pressable>
@@ -140,7 +143,7 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,
@@ -203,7 +206,7 @@ const styles = StyleSheet.create({
   },
   loginBtnText: {
     ...typography.labelLarge,
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   registerPrompt: {

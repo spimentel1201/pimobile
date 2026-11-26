@@ -219,7 +219,7 @@ export default function SalesScreen() {
               key={f.key}
               style={[styles.filterChip, active && styles.filterChipActive]}
               onPress={() => setDateFilter(f.key)}
-              android_ripple={{ color: 'rgba(0, 82, 255, 0.15)' }}
+              android_ripple={{ color: colors.ripple }}
             >
               <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
                 {f.label}
@@ -375,7 +375,7 @@ export default function SalesScreen() {
                       key={opt.key}
                       style={[styles.ticketSizeChip, active && styles.ticketSizeChipActive]}
                       onPress={() => setTicketSize(opt.key)}
-                      android_ripple={{ color: 'rgba(0, 82, 255, 0.15)' }}
+                      android_ripple={{ color: colors.ripple }}
                     >
                       <Text
                         style={[
@@ -393,7 +393,7 @@ export default function SalesScreen() {
                 <Pressable
                   style={styles.sheetBtnSecondary}
                   onPress={() => handleShare(selectedSale)}
-                  android_ripple={{ color: 'rgba(0, 82, 255, 0.12)' }}
+                  android_ripple={{ color: colors.ripple }}
                 >
                   <MaterialCommunityIcons name="share-variant" size={20} color={colors.primary} />
                   <Text style={styles.sheetBtnSecondaryText}>Compartir</Text>
@@ -402,12 +402,12 @@ export default function SalesScreen() {
                   style={[styles.sheetBtnPrimary, printing && styles.sheetBtnDisabled]}
                   onPress={() => handlePrint(selectedSale)}
                   disabled={printing}
-                  android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+                  android_ripple={{ color: colors.rippleOnPrimary }}
                 >
                   {printing ? (
-                    <ActivityIndicator size="small" color={colors.white} />
+                    <ActivityIndicator size="small" color={colors.onPrimary} />
                   ) : (
-                    <MaterialCommunityIcons name="printer" size={20} color={colors.white} />
+                    <MaterialCommunityIcons name="printer" size={20} color={colors.onPrimary} />
                   )}
                   <Text style={styles.sheetBtnPrimaryText}>
                     {printing ? 'Abriendo…' : 'Imprimir Ticket'}
@@ -507,7 +507,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderRadius: radii.full,
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(195, 199, 208, 0.4)',
+    borderColor: colors.border,
   },
   filterChipActive: {
     backgroundColor: colors.primary,
@@ -519,7 +519,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '600',
   },
   filterChipTextActive: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   listContainer: {
@@ -572,7 +572,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     marginTop: spacing.sm,
     paddingTop: spacing.xs,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(195, 199, 208, 0.3)',
+    borderTopColor: colors.border,
   },
   sellerName: {
     ...typography.bodySmall,
@@ -634,7 +634,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 6,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(195, 199, 208, 0.2)',
+    borderBottomColor: colors.border,
   },
   itemInfo: {
     flex: 1,
@@ -656,7 +656,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   totalDivider: {
     height: 1,
-    backgroundColor: 'rgba(195, 199, 208, 0.4)',
+    backgroundColor: colors.border,
     marginVertical: spacing.md,
   },
   totalRow: {
@@ -685,7 +685,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     paddingVertical: 5,
     borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: 'rgba(195, 199, 208, 0.5)',
+    borderColor: colors.borderStrong,
     backgroundColor: colors.surface,
   },
   ticketSizeChipActive: {
@@ -698,7 +698,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '600',
   },
   ticketSizeTextActive: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   sheetFooterRow: {
@@ -735,7 +735,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   sheetBtnPrimaryText: {
     ...typography.labelLarge,
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
 });

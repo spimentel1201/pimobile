@@ -1,5 +1,5 @@
 import { colors } from '../theme';
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScrollView } from 'react-native-gesture-handler';
+import { useTheme } from '../contexts/ThemeContext';
 
 // Mock data for customers and products
 const mockCustomers = [
@@ -52,6 +53,8 @@ interface CartItem extends Product {
 }
 
 const NewSaleScreen = ({ onClose }: { onClose: () => void }) => {
+  const { isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [isDark]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
@@ -304,7 +307,7 @@ const NewSaleScreen = ({ onClose }: { onClose: () => void }) => {
 };
 
 // Styles
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,

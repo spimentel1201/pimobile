@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     View,
     Text,
@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii } from '../theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface SearchableSelectorProps<T> {
     label: string;
@@ -42,6 +43,8 @@ export default function SearchableSelector<T>({
     debounceMs = 300,
     onCreateNew,
 }: SearchableSelectorProps<T>) {
+    const { isDark } = useTheme();
+    const styles = useMemo(() => createStyles(colors), [isDark]);
     const [modalVisible, setModalVisible] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [results, setResults] = useState<T[]>([]);
@@ -197,7 +200,7 @@ export default function SearchableSelector<T>({
                                     }}
                                     activeOpacity={0.7}
                                 >
-                                    <Ionicons name="person-add" size={18} color={colors.white} />
+                                    <Ionicons name="person-add" size={18} color={colors.onPrimary} />
                                     <Text style={styles.createButtonText}>
                                         Registrar nuevo cliente "{searchQuery}"
                                     </Text>
@@ -233,7 +236,7 @@ export default function SearchableSelector<T>({
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: {
         marginBottom: 16,
     },
@@ -382,7 +385,7 @@ const styles = StyleSheet.create({
         marginTop: 16,
     },
     createButtonText: {
-        color: colors.white,
+        color: colors.onPrimary,
         fontSize: 14,
         fontWeight: '600',
     },

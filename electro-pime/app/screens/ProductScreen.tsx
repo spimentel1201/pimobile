@@ -311,7 +311,7 @@ export default function ProductsScreen() {
             style={styles.actionBtn}
             onPress={() => openEditProductModal(item)}
             hitSlop={8}
-            android_ripple={{ color: 'rgba(0, 82, 255, 0.15)', borderless: true, radius: 20 }}
+            android_ripple={{ color: colors.ripple, borderless: true, radius: 20 }}
           >
             <MaterialCommunityIcons name="pencil-outline" size={20} color={colors.primary} />
           </Pressable>
@@ -446,10 +446,10 @@ export default function ProductsScreen() {
               style={styles.saveBtn}
               onPress={handleSaveProduct}
               disabled={saving}
-              android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+              android_ripple={{ color: colors.rippleOnPrimary }}
             >
               {saving ? (
-                <ActivityIndicator size="small" color={colors.white} />
+                <ActivityIndicator size="small" color={colors.onPrimary} />
               ) : (
                 <Text style={styles.saveBtnText}>
                   {editingProduct ? 'Guardar Cambios' : 'Registrar en Catálogo'}
@@ -528,8 +528,8 @@ export default function ProductsScreen() {
               <Switch
                 value={formData.isActive}
                 onValueChange={(val) => setFormData((p) => ({ ...p, isActive: val }))}
-                trackColor={{ false: colors.border, true: colors.primarySoft }}
-                thumbColor={formData.isActive ? colors.primary : colors.white}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={formData.isActive ? colors.onPrimary : colors.surface}
               />
             </View>
           </ScrollView>
@@ -606,7 +606,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderRadius: radii.full,
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(195, 199, 208, 0.4)',
+    borderColor: colors.border,
   },
   filterChipActive: {
     backgroundColor: colors.primary,
@@ -618,7 +618,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '600',
   },
   filterChipTextActive: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   listContainer: {
@@ -667,7 +667,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     marginTop: spacing.sm,
     paddingTop: spacing.xs,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(195, 199, 208, 0.3)',
+    borderTopColor: colors.border,
   },
   priceLabel: {
     ...typography.bodySmall,
@@ -755,7 +755,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(195, 199, 208, 0.3)',
+    borderTopColor: colors.border,
     marginTop: spacing.sm,
   },
   switchInfo: {
@@ -780,7 +780,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   saveBtnText: {
     ...typography.labelLarge,
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   errorBanner: {

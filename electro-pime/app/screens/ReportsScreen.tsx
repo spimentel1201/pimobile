@@ -196,7 +196,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     paddingBottom: spacing.sm,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(195, 199, 208, 0.3)',
+    borderBottomColor: colors.border,
   },
   screenTitle: {
     ...typography.headlineSmall,
@@ -237,7 +237,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     alignItems: 'center',
     paddingBottom: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(195, 199, 208, 0.4)',
+    borderBottomColor: colors.border,
   },
   tableHeadLabel: {
     ...typography.labelSmall,
@@ -263,7 +263,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   tableDivider: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(195, 199, 208, 0.2)',
+    borderTopColor: colors.border,
   },
   cellText: {
     ...typography.bodyMedium,
@@ -280,7 +280,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     paddingTop: spacing.md,
     marginTop: spacing.xs,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(195, 199, 208, 0.4)',
+    borderTopColor: colors.border,
   },
   footerLabel: {
     ...typography.bodyMedium,

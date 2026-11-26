@@ -175,7 +175,7 @@ const DashboardScreen = () => {
               setScanProcessed(false);
               setScanVisible(true);
             }}
-            android_ripple={{ color: 'rgba(0, 82, 255, 0.15)', borderless: true, radius: 24 }}
+            android_ripple={{ color: colors.ripple, borderless: true, radius: 24 }}
             accessibilityRole="button"
             accessibilityLabel="Escanear QR de orden"
           >
@@ -185,7 +185,7 @@ const DashboardScreen = () => {
           <Pressable
             style={styles.avatarButton}
             onPress={() => router.push('/profile')}
-            android_ripple={{ color: 'rgba(0, 82, 255, 0.15)', borderless: true, radius: 24 }}
+            android_ripple={{ color: colors.ripple, borderless: true, radius: 24 }}
             accessibilityRole="button"
             accessibilityLabel="Ir a perfil"
           >
@@ -247,7 +247,7 @@ const DashboardScreen = () => {
         icon: 'wrench-outline',
         label: 'Nueva Orden',
         route: '/orders/new',
-        color: colors.white,
+        color: colors.onPrimary,
         bg: colors.primary,
         isMain: true,
       },
@@ -302,7 +302,7 @@ const DashboardScreen = () => {
                   Platform.OS !== 'web' && Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   router.push(act.route as any);
                 }}
-                android_ripple={{ color: 'rgba(0, 82, 255, 0.12)' }}
+                android_ripple={{ color: colors.ripple }}
                 accessibilityRole="button"
                 accessibilityLabel={act.label}
               >
@@ -347,7 +347,7 @@ const DashboardScreen = () => {
                   key={row.status}
                   style={[styles.quoteRow, index > 0 && styles.quoteRowDivider]}
                   onPress={() => router.push('/budgets')}
-                  android_ripple={{ color: 'rgba(0, 82, 255, 0.08)' }}
+                  android_ripple={{ color: colors.ripple }}
                 >
                   <StatusBadge
                     label={row.style.label}
@@ -526,7 +526,7 @@ const DashboardScreen = () => {
               <Pressable
                 style={styles.scanCloseBtn}
                 onPress={() => setScanVisible(false)}
-                android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+                android_ripple={{ color: colors.rippleOnPrimary }}
               >
                 <Text style={styles.scanCloseText}>Cerrar Cámara</Text>
               </Pressable>
@@ -637,7 +637,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
     borderWidth: 1,
-    borderColor: 'rgba(195, 199, 208, 0.4)',
+    borderColor: colors.border,
     ...tonalElevation.level1,
   },
   actionTileSquare: {
@@ -681,7 +681,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   quoteRowDivider: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(195, 199, 208, 0.3)',
+    borderTopColor: colors.border,
   },
   quoteMeta: {
     alignItems: 'flex-end',
@@ -702,7 +702,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     paddingTop: spacing.md,
     marginTop: spacing.xs,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(195, 199, 208, 0.4)',
+    borderTopColor: colors.border,
   },
   quoteFooterLabel: {
     ...typography.bodyMedium,
@@ -825,7 +825,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   scanCloseText: {
     ...typography.labelLarge,
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '600',
   },
 });

@@ -208,7 +208,7 @@ export default function ReceiptPreview({ visible, order, onClose }: ReceiptPrevi
                 disabled={printing || status !== 'ready'}
                 accessibilityLabel="Imprimir recibo"
               >
-                <MaterialCommunityIcons name="printer" size={18} color={colors.white} />
+                <MaterialCommunityIcons name="printer" size={18} color={colors.onPrimary} />
                 <Text style={styles.printText}>{printing ? 'Abriendo…' : 'Imprimir'}</Text>
               </TouchableOpacity>
             </View>
@@ -378,6 +378,6 @@ const createStyles = (colors: any) => StyleSheet.create({
   printText: {
     fontSize: 15,
     fontWeight: '700',
-    color: colors.white,
+    color: colors.onViolet,
   },
 });

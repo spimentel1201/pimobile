@@ -1,5 +1,5 @@
 // ponytail: M3 Register Screen with M3TextField, validations and native ripple
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from './contexts/AuthContext';
+import { useTheme } from './contexts/ThemeContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { colors, radii, spacing, typography } from './theme';
@@ -22,6 +23,8 @@ import Card from './components/ui/Card';
 export default function RegisterScreen() {
   const router = useRouter();
   const { register } = useAuth();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [isDark]);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -193,14 +196,14 @@ export default function RegisterScreen() {
             style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
             onPress={handleRegister}
             disabled={loading}
-            android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+            android_ripple={{ color: colors.rippleOnPrimary }}
           >
             {loading ? (
-              <ActivityIndicator size="small" color={colors.white} />
+              <ActivityIndicator size="small" color={colors.onPrimary} />
             ) : (
               <>
                 <Text style={styles.submitBtnText}>Registrarse</Text>
-                <MaterialCommunityIcons name="check" size={20} color={colors.white} />
+                <MaterialCommunityIcons name="check" size={20} color={colors.onPrimary} />
               </>
             )}
           </Pressable>
@@ -217,7 +220,7 @@ export default function RegisterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,
@@ -274,7 +277,7 @@ const styles = StyleSheet.create({
   },
   submitBtnText: {
     ...typography.labelLarge,
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   loginPrompt: {

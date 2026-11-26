@@ -270,7 +270,7 @@ export default function CustomersScreen() {
               <Pressable
                 style={styles.actionPillBtn}
                 onPress={() => openPhone(item.phone)}
-                android_ripple={{ color: 'rgba(0, 82, 255, 0.15)' }}
+                android_ripple={{ color: colors.ripple }}
               >
                 <MaterialCommunityIcons name="phone" size={18} color={colors.primary} />
                 <Text style={styles.actionPillText}>Llamar</Text>
@@ -293,7 +293,7 @@ export default function CustomersScreen() {
             style={styles.iconActionBtn}
             onPress={() => handleOpenEdit(item)}
             hitSlop={8}
-            android_ripple={{ color: 'rgba(0, 82, 255, 0.15)', borderless: true, radius: 20 }}
+            android_ripple={{ color: colors.ripple, borderless: true, radius: 20 }}
           >
             <MaterialCommunityIcons name="pencil-outline" size={20} color={colors.primary} />
           </Pressable>
@@ -419,10 +419,10 @@ export default function CustomersScreen() {
               style={styles.saveBtn}
               onPress={handleSave}
               disabled={saving}
-              android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+              android_ripple={{ color: colors.rippleOnPrimary }}
             >
               {saving ? (
-                <ActivityIndicator size="small" color={colors.white} />
+                <ActivityIndicator size="small" color={colors.onPrimary} />
               ) : (
                 <Text style={styles.saveBtnText}>
                   {editingCustomer ? 'Guardar Cambios' : 'Registrar Cliente'}
@@ -633,7 +633,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     marginTop: spacing.sm,
     paddingTop: spacing.xs,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(195, 199, 208, 0.3)',
+    borderTopColor: colors.border,
   },
   contactDetailItem: {
     flexDirection: 'row',
@@ -716,7 +716,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '600',
   },
   docTypeChipTextSelected: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   saveBtn: {
@@ -728,7 +728,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   saveBtnText: {
     ...typography.labelLarge,
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   errorBanner: {

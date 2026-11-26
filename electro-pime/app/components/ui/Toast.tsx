@@ -18,13 +18,14 @@ export default function Toast({ message, type = 'success' }: ToastProps) {
   const { isDark } = useTheme();
   const styles = React.useMemo(() => createStyles(colors), [isDark]);
   const background = type === 'success' ? colors.success : colors.danger;
+  const textColor = type === 'success' ? colors.onSuccess : colors.onDanger;
   const icon = type === 'success' ? 'check-circle' : 'alert-circle';
 
   return (
     <View pointerEvents="none" style={styles.wrapper}>
       <View style={[styles.toast, { backgroundColor: background }]}>
-        <MaterialCommunityIcons name={icon} size={18} color={colors.white} />
-        <Text style={styles.text}>{message}</Text>
+        <MaterialCommunityIcons name={icon} size={18} color={textColor} />
+        <Text style={[styles.text, { color: textColor }]}>{message}</Text>
       </View>
     </View>
   );
@@ -52,7 +53,6 @@ const createStyles = (colors: any) => StyleSheet.create({
   text: {
     ...typography.bodyStrong,
     fontSize: 14,
-    color: colors.white,
     flexShrink: 1,
   },
 });

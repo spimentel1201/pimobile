@@ -1,5 +1,5 @@
 // ponytail: M3 POS (New Sale) screen with customer search, product catalog, cart and payment chips
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   Platform,
   View,
@@ -22,6 +22,7 @@ import { printSaleReceipt } from '../utils/orderReceipt';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Card from '../components/ui/Card';
 import M3TextField from '../components/ui/M3TextField';
+import { useTheme } from '../contexts/ThemeContext';
 import {
   colors,
   typography,
@@ -50,6 +51,8 @@ const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: string }[] =
 export default function NewSaleScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [isDark]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerQuery, setCustomerQuery] = useState('');
   const [customerMatches, setCustomerMatches] = useState<Customer[]>([]);
@@ -206,7 +209,7 @@ export default function NewSaleScreen() {
         <Pressable
           style={styles.backBtn}
           onPress={() => router.back()}
-          android_ripple={{ color: 'rgba(0, 82, 255, 0.15)', borderless: true, radius: 24 }}
+          android_ripple={{ color: colors.ripple, borderless: true, radius: 24 }}
         >
           <MaterialCommunityIcons name="arrow-left" size={24} color={colors.textPrimary} />
         </Pressable>
@@ -270,7 +273,7 @@ export default function NewSaleScreen() {
         <Pressable
           style={styles.addProductBtn}
           onPress={() => setShowProductSearch(true)}
-          android_ripple={{ color: 'rgba(0, 82, 255, 0.15)' }}
+          android_ripple={{ color: colors.ripple }}
         >
           <MaterialCommunityIcons name="plus-circle-outline" size={22} color={colors.primary} />
           <Text style={styles.addProductBtnText}>Buscar y Agregar Repuesto / Producto</Text>
@@ -347,7 +350,7 @@ export default function NewSaleScreen() {
                   <MaterialCommunityIcons
                     name={pm.icon as any}
                     size={20}
-                    color={isSelected ? colors.white : colors.textPrimary}
+                    color={isSelected ? colors.onPrimary : colors.textPrimary}
                   />
                   <Text style={[styles.paymentChipText, isSelected && styles.paymentChipTextSelected]}>
                     {pm.label}
@@ -364,7 +367,7 @@ export default function NewSaleScreen() {
         <Pressable
           style={styles.cancelBtn}
           onPress={() => router.back()}
-          android_ripple={{ color: 'rgba(0, 82, 255, 0.12)' }}
+          android_ripple={{ color: colors.ripple }}
         >
           <MaterialCommunityIcons name="close" size={20} color={colors.textSecondary} />
           <Text style={styles.cancelBtnText}>Cancelar</Text>
@@ -379,13 +382,13 @@ export default function NewSaleScreen() {
           style={[styles.confirmBtn, (cart.length === 0 || saving) && styles.confirmBtnDisabled]}
           onPress={handleCreateSale}
           disabled={cart.length === 0 || saving}
-          android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+          android_ripple={{ color: colors.rippleOnPrimary }}
         >
           {saving ? (
-            <ActivityIndicator size="small" color={colors.white} />
+            <ActivityIndicator size="small" color={colors.onSuccess} />
           ) : (
             <>
-              <MaterialCommunityIcons name="check" size={22} color={colors.white} />
+              <MaterialCommunityIcons name="check" size={22} color={colors.onSuccess} />
               <Text style={styles.confirmBtnText}>Confirmar Venta</Text>
             </>
           )}
@@ -434,7 +437,7 @@ export default function NewSaleScreen() {
                 <Pressable
                   style={styles.productItemCard}
                   onPress={() => addToCart(item)}
-                  android_ripple={{ color: 'rgba(0, 82, 255, 0.12)' }}
+                  android_ripple={{ color: colors.ripple }}
                 >
                   <View style={styles.productInfo}>
                     <Text style={styles.productItemName}>{item.name}</Text>
@@ -491,7 +494,7 @@ export default function NewSaleScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,
@@ -503,7 +506,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(195, 199, 208, 0.3)',
+    borderBottomColor: colors.border,
   },
   backBtn: {
     width: 48,
@@ -590,7 +593,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(195, 199, 208, 0.2)',
+    borderBottomColor: colors.border,
   },
   matchName: {
     ...typography.bodyMedium,
@@ -645,7 +648,7 @@ const styles = StyleSheet.create({
   },
   itemDivider: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(195, 199, 208, 0.3)',
+    borderTopColor: colors.border,
   },
   cartItemTextCol: {
     flex: 1,
@@ -703,7 +706,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
     backgroundColor: colors.surfaceContainer,
     borderWidth: 1,
-    borderColor: 'rgba(195, 199, 208, 0.3)',
+    borderColor: colors.border,
   },
   paymentChipSelected: {
     backgroundColor: colors.primary,
@@ -715,7 +718,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   paymentChipTextSelected: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   bottomBar: {
@@ -730,7 +733,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(195, 199, 208, 0.4)',
+    borderTopColor: colors.border,
     elevation: 12,
   },
   cancelBtn: {
@@ -773,7 +776,7 @@ const styles = StyleSheet.create({
   },
   confirmBtnText: {
     ...typography.labelLarge,
-    color: colors.white,
+    color: colors.onSuccess,
     fontWeight: '700',
   },
   searchModal: {
@@ -788,7 +791,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(195, 199, 208, 0.3)',
+    borderBottomColor: colors.border,
   },
   searchModalTitle: {
     ...typography.titleLarge,
@@ -826,7 +829,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(195, 199, 208, 0.3)',
+    borderColor: colors.border,
     gap: spacing.sm,
   },
   productInfo: {

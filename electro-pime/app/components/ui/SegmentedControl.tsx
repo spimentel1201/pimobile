@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, StyleProp, ViewStyle } from 'react-native';
 import { colors, radii, shadow, spacing } from '../../theme';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface SegmentedControlProps<T extends string> {
   options: { value: T; label: string }[];
@@ -19,6 +20,8 @@ export default function SegmentedControl<T extends string>({
   onChange,
   style,
 }: SegmentedControlProps<T>) {
+  const { isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [isDark]);
   return (
     <View style={[styles.track, style]}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content}>
@@ -42,7 +45,7 @@ export default function SegmentedControl<T extends string>({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   track: {
     backgroundColor: colors.surfaceMuted,
     borderRadius: radii.pill,

@@ -1,5 +1,5 @@
 import { colors } from '../theme';
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTheme } from '../contexts/ThemeContext';
 import LabelScanner from './LabelScanner';
 import type { ScannedFields } from '../services/labelOcr';
 
@@ -17,6 +18,8 @@ interface ScanLabelButtonProps {
 }
 
 export default function ScanLabelButton({ onScanned }: ScanLabelButtonProps) {
+  const { isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [isDark]);
   const [showScanner, setShowScanner] = useState(false);
 
   return (
@@ -40,7 +43,7 @@ export default function ScanLabelButton({ onScanned }: ScanLabelButtonProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   scanButton: {
     flexDirection: 'row',
     alignItems: 'center',

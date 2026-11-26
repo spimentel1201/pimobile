@@ -232,7 +232,7 @@ export default function OrderDetailScreen() {
                 onPress={() => setReceiptOrder(order)}
                 style={styles.headerActionBtn}
                 hitSlop={8}
-                android_ripple={{ color: 'rgba(0, 82, 255, 0.15)', borderless: true, radius: 20 }}
+                android_ripple={{ color: colors.ripple, borderless: true, radius: 20 }}
               >
                 <MaterialCommunityIcons name="printer" size={22} color={colors.primary} />
               </Pressable>
@@ -240,7 +240,7 @@ export default function OrderDetailScreen() {
                 onPress={handleShare}
                 style={styles.headerActionBtn}
                 hitSlop={8}
-                android_ripple={{ color: 'rgba(0, 82, 255, 0.15)', borderless: true, radius: 20 }}
+                android_ripple={{ color: colors.ripple, borderless: true, radius: 20 }}
               >
                 <MaterialCommunityIcons name="share-variant" size={22} color={colors.primary} />
               </Pressable>
@@ -297,15 +297,15 @@ export default function OrderDetailScreen() {
                       ]}
                       onPress={() => canTap && handleStatusUpdate(st)}
                       disabled={!canTap}
-                      android_ripple={{ color: 'rgba(0, 82, 255, 0.15)', borderless: true, radius: 18 }}
+                      android_ripple={{ color: colors.ripple, borderless: true, radius: 18 }}
                     >
                       {isPast ? (
-                        <MaterialCommunityIcons name="check" size={14} color={colors.white} />
+                        <MaterialCommunityIcons name="check" size={14} color={colors.onPrimary} />
                       ) : (
                         <MaterialCommunityIcons
                           name={(stepInfo.icon || 'circle') as any}
                           size={14}
-                          color={isCurrent ? colors.white : colors.textMuted}
+                          color={isCurrent ? colors.onPrimary : colors.textMuted}
                         />
                       )}
                     </Pressable>
@@ -322,7 +322,7 @@ export default function OrderDetailScreen() {
                     style={styles.timelineRowBody}
                     onPress={() => canTap && handleStatusUpdate(st)}
                     disabled={!canTap}
-                    android_ripple={{ color: 'rgba(0, 82, 255, 0.08)' }}
+                    android_ripple={{ color: colors.ripple }}
                   >
                     <Text
                       style={[
@@ -385,7 +385,7 @@ export default function OrderDetailScreen() {
                     const u = buildTelUrl(customerPhone);
                     if (u) Linking.openURL(u);
                   }}
-                  android_ripple={{ color: 'rgba(0, 82, 255, 0.15)', borderless: true, radius: 20 }}
+                  android_ripple={{ color: colors.ripple, borderless: true, radius: 20 }}
                 >
                   <MaterialCommunityIcons name="phone" size={20} color={colors.primary} />
                 </Pressable>
@@ -508,7 +508,7 @@ export default function OrderDetailScreen() {
                   key={q.id}
                   style={styles.quoteItemRow}
                   onPress={() => router.push('/budgets' as never)}
-                  android_ripple={{ color: 'rgba(0, 82, 255, 0.08)' }}
+                  android_ripple={{ color: colors.ripple }}
                 >
                   <View style={styles.quoteInfo}>
                     <Text style={styles.quoteCode}>COT-{q.id.slice(0, 6).toUpperCase()}</Text>
@@ -538,9 +538,9 @@ export default function OrderDetailScreen() {
         <Pressable
           style={styles.createQuoteBtn}
           onPress={() => router.push(`/budgets?repairOrderId=${order.id}` as never)}
-          android_ripple={{ color: 'rgba(0, 82, 255, 0.12)' }}
+          android_ripple={{ color: colors.ripple }}
         >
-          <MaterialCommunityIcons name="file-document-outline" size={20} color={colors.white} />
+          <MaterialCommunityIcons name="file-document-outline" size={20} color={colors.onPrimary} />
           <Text style={styles.createQuoteBtnText}>Crear presupuesto para esta orden</Text>
         </Pressable>
 
@@ -574,9 +574,9 @@ export default function OrderDetailScreen() {
                   showToast('No se pudo imprimir la etiqueta QR', 'error');
                 }
               }}
-              android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+              android_ripple={{ color: colors.rippleOnPrimary }}
             >
-              <MaterialCommunityIcons name="printer" size={18} color={colors.white} />
+              <MaterialCommunityIcons name="printer" size={18} color={colors.onPrimary} />
               <Text style={styles.printQrBtnText}>Imprimir Etiqueta</Text>
             </Pressable>
           </View>
@@ -588,7 +588,7 @@ export default function OrderDetailScreen() {
         <Pressable
           style={styles.bottomActionSecondary}
           onPress={() => router.push(`/orders/${order.id}/edit` as any)}
-          android_ripple={{ color: 'rgba(0, 82, 255, 0.12)' }}
+          android_ripple={{ color: colors.ripple }}
         >
           <MaterialCommunityIcons name="pencil-outline" size={20} color={colors.primary} />
           <Text style={styles.bottomSecondaryText}>Editar</Text>
@@ -597,9 +597,9 @@ export default function OrderDetailScreen() {
         <Pressable
           style={styles.bottomActionPrimary}
           onPress={() => setShowStatusSheet(true)}
-          android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+          android_ripple={{ color: colors.rippleOnPrimary }}
         >
-          <MaterialCommunityIcons name="swap-horizontal" size={20} color={colors.white} />
+          <MaterialCommunityIcons name="swap-horizontal" size={20} color={colors.onPrimary} />
           <Text style={styles.bottomPrimaryText}>Cambiar Estado</Text>
         </Pressable>
       </View>
@@ -621,7 +621,7 @@ export default function OrderDetailScreen() {
                   key={st}
                   style={[styles.statusSheetRow, isSelected && styles.statusSheetRowActive]}
                   onPress={() => handleStatusUpdate(st)}
-                  android_ripple={{ color: 'rgba(0, 82, 255, 0.12)' }}
+                  android_ripple={{ color: colors.ripple }}
                 >
                   <View style={[styles.statusSheetIcon, { backgroundColor: info.soft }]}>
                     <MaterialCommunityIcons name={(info.icon || 'tag') as any} size={20} color={info.color} />
@@ -648,10 +648,10 @@ export default function OrderDetailScreen() {
               style={styles.savePaymentBtn}
               onPress={handlePayReview}
               disabled={reviewPaySaving}
-              android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+              android_ripple={{ color: colors.rippleOnPrimary }}
             >
               {reviewPaySaving ? (
-                <ActivityIndicator size="small" color={colors.white} />
+                <ActivityIndicator size="small" color={colors.onPrimary} />
               ) : (
                 <Text style={styles.savePaymentText}>Confirmar Pago</Text>
               )}
@@ -673,7 +673,7 @@ export default function OrderDetailScreen() {
                     <MaterialCommunityIcons
                       name={(info.icon || 'cash') as any}
                       size={18}
-                      color={isSelected ? colors.white : colors.textPrimary}
+                      color={isSelected ? colors.onPrimary : colors.textPrimary}
                     />
                     <Text style={[styles.payMethodText, isSelected && styles.payMethodTextSelected]}>
                       {info.label}
@@ -940,7 +940,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   deviceDivider: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(195, 199, 208, 0.3)',
+    borderTopColor: colors.border,
     marginTop: spacing.sm,
   },
   deviceItemHeader: {
@@ -1014,7 +1014,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   costDivider: {
     height: 1,
-    backgroundColor: 'rgba(195, 199, 208, 0.4)',
+    backgroundColor: colors.border,
     marginVertical: spacing.sm,
   },
   totalLabel: {
@@ -1094,7 +1094,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   createQuoteBtnText: {
     ...typography.labelLarge,
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   qrContainer: {
@@ -1113,7 +1113,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   printQrBtnText: {
     ...typography.labelLarge,
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '600',
   },
   bottomBar: {
@@ -1128,7 +1128,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     paddingVertical: spacing.md,
     backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(195, 199, 208, 0.4)',
+    borderTopColor: colors.border,
     elevation: 8,
   },
   bottomActionSecondary: {
@@ -1158,7 +1158,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   bottomPrimaryText: {
     ...typography.labelLarge,
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   statusSheetScroll: {
@@ -1222,7 +1222,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     color: colors.textPrimary,
   },
   payMethodTextSelected: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   savePaymentBtn: {
@@ -1234,7 +1234,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   savePaymentText: {
     ...typography.labelLarge,
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   errorText: {
@@ -1252,7 +1252,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   retryBtnText: {
     ...typography.labelLarge,
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '600',
   },
 });

@@ -120,7 +120,7 @@ export default function ProfileScreen() {
                   key={iIdx}
                   style={[styles.menuItem, iIdx > 0 && styles.itemDivider]}
                   onPress={item.onPress}
-                  android_ripple={{ color: 'rgba(0, 82, 255, 0.12)' }}
+                  android_ripple={{ color: colors.ripple }}
                 >
                   <View style={styles.menuIconCircle}>
                     <MaterialCommunityIcons name={item.icon as any} size={22} color={colors.primary} />
@@ -274,7 +274,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   itemDivider: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(195, 199, 208, 0.3)',
+    borderTopColor: colors.border,
   },
   switchRow: {
     flexDirection: 'row',

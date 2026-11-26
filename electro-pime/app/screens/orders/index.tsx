@@ -1,5 +1,5 @@
 import { colors } from '../../theme';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, StyleSheet, FlatList, Text, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { api } from '../../services/api';
@@ -7,8 +7,9 @@ import { RepairOrder, RepairOrderStatus } from '../../types/api';
 import { MaterialIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useTheme } from '../../contexts/ThemeContext';
 
-const statusMeta: Record<RepairOrderStatus, { label: string; color: string }> = {
+const getStatusMeta = (colors: any): Record<RepairOrderStatus, { label: string; color: string }> => ({
   RECEIVED: { label: 'Recibido', color: colors.warning },
   DIAGNOSED: { label: 'Diagnosticado', color: colors.violet },
   IN_PROGRESS: { label: 'En Progreso', color: colors.primary },
@@ -16,10 +17,13 @@ const statusMeta: Record<RepairOrderStatus, { label: string; color: string }> = 
   COMPLETED: { label: 'Completado', color: colors.success },
   DELIVERED: { label: 'Entregado', color: colors.success },
   CANCELLED: { label: 'Cancelado', color: colors.danger },
-};
+});
 
 export default function OrdersIndexScreen() {
   const router = useRouter();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [isDark]);
+  const statusMeta = getStatusMeta(colors);
   const [orders, setOrders] = useState<RepairOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -168,7 +172,7 @@ export default function OrdersIndexScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.surface,

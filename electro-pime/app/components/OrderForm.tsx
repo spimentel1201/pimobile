@@ -1,5 +1,5 @@
 // ponytail: M3 OrderForm with 3-step progressive stepper, appliance icons and OCR integration
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Platform,
   View,
@@ -16,6 +16,7 @@ import NewCustomerModal from './NewCustomerModal';
 import ScanLabelButton from './ScanLabelButton';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import {
   colors,
   spacing,
@@ -126,6 +127,8 @@ export default function OrderForm({
   paidTotal,
 }: OrderFormProps) {
   const { user } = useAuth();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [isDark]);
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
   // Customer
@@ -340,7 +343,7 @@ export default function OrderForm({
       >
         <View style={[styles.stepCircle, currentStep === 1 && styles.stepCircleActive, selectedCustomer && styles.stepCircleDone]}>
           {selectedCustomer ? (
-            <MaterialCommunityIcons name="check" size={16} color={colors.white} />
+            <MaterialCommunityIcons name="check" size={16} color={colors.onSuccess} />
           ) : (
             <Text style={[styles.stepNumber, currentStep === 1 && styles.stepNumberActive]}>1</Text>
           )}
@@ -356,7 +359,7 @@ export default function OrderForm({
       >
         <View style={[styles.stepCircle, currentStep === 2 && styles.stepCircleActive, items.some(i => i.brand && i.model) && styles.stepCircleDone]}>
           {items.some(i => i.brand && i.model) ? (
-            <MaterialCommunityIcons name="check" size={16} color={colors.white} />
+            <MaterialCommunityIcons name="check" size={16} color={colors.onSuccess} />
           ) : (
             <Text style={[styles.stepNumber, currentStep === 2 && styles.stepNumberActive]}>2</Text>
           )}
@@ -424,7 +427,7 @@ export default function OrderForm({
             <Pressable
               style={styles.changeCustomerBtn}
               onPress={() => setSelectedCustomer(null)}
-              android_ripple={{ color: 'rgba(0, 82, 255, 0.15)', borderless: true, radius: 20 }}
+              android_ripple={{ color: colors.ripple, borderless: true, radius: 20 }}
             >
               <MaterialCommunityIcons name="pencil" size={18} color={colors.primary} />
               <Text style={styles.changeCustomerText}>Cambiar</Text>
@@ -459,9 +462,9 @@ export default function OrderForm({
                   setNewCustomerInitialName(customerSearchQuery.trim());
                   setNewCustomerVisible(true);
                 }}
-                android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+                android_ripple={{ color: colors.rippleOnPrimary }}
               >
-                <MaterialCommunityIcons name="account-plus" size={18} color={colors.white} />
+                <MaterialCommunityIcons name="account-plus" size={18} color={colors.onPrimary} />
                 <Text style={styles.newCustomerBtnText}>Nuevo</Text>
               </Pressable>
             </View>
@@ -486,7 +489,7 @@ export default function OrderForm({
                       setCustomerSearchResults([]);
                       if (errors.customer) setErrors((e) => ({ ...e, customer: '' }));
                     }}
-                    android_ripple={{ color: 'rgba(0, 82, 255, 0.1)' }}
+                    android_ripple={{ color: colors.ripple }}
                   >
                     <View style={styles.suggestionAvatar}>
                       <Text style={styles.suggestionAvatarText}>{c.name?.charAt(0).toUpperCase()}</Text>
@@ -549,7 +552,7 @@ export default function OrderForm({
           <Pressable
             style={styles.statusBtn}
             onPress={() => setShowStatusPicker(!showStatusPicker)}
-            android_ripple={{ color: 'rgba(0, 82, 255, 0.15)' }}
+            android_ripple={{ color: colors.ripple }}
           >
             <StatusBadge
               label={ORDER_STATUS[status].label}
@@ -645,7 +648,7 @@ export default function OrderForm({
                     <MaterialCommunityIcons
                       name={getDeviceIcon(dt) as any}
                       size={16}
-                      color={isSelected ? colors.white : colors.textSecondary}
+                      color={isSelected ? colors.onPrimary : colors.textSecondary}
                     />
                     <Text style={[styles.deviceChipText, isSelected && styles.deviceChipTextSelected]}>
                       {dt}
@@ -732,7 +735,7 @@ export default function OrderForm({
         <Pressable
           style={styles.addDeviceBtn}
           onPress={addItem}
-          android_ripple={{ color: 'rgba(0, 82, 255, 0.15)' }}
+          android_ripple={{ color: colors.ripple }}
         >
           <MaterialCommunityIcons name="plus-circle-outline" size={22} color={colors.primary} />
           <Text style={styles.addDeviceText}>Agregar otro artefacto a la orden</Text>
@@ -786,7 +789,7 @@ export default function OrderForm({
                     <MaterialCommunityIcons
                       name={pm.icon as any}
                       size={18}
-                      color={isSelected ? colors.white : colors.textPrimary}
+                      color={isSelected ? colors.onPrimary : colors.textPrimary}
                     />
                     <Text style={[styles.paymentChipText, isSelected && styles.paymentChipTextSelected]}>
                       {pm.label}
@@ -850,7 +853,7 @@ export default function OrderForm({
           <Pressable
             style={styles.backStepBtn}
             onPress={handlePrevStep}
-            android_ripple={{ color: 'rgba(0, 82, 255, 0.15)' }}
+            android_ripple={{ color: colors.ripple }}
           >
             <MaterialCommunityIcons name="arrow-left" size={20} color={colors.primary} />
             <Text style={styles.backStepText}>Anterior</Text>
@@ -863,23 +866,23 @@ export default function OrderForm({
           <Pressable
             style={styles.nextStepBtn}
             onPress={handleNextStep}
-            android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+            android_ripple={{ color: colors.rippleOnPrimary }}
           >
             <Text style={styles.nextStepText}>Siguiente</Text>
-            <MaterialCommunityIcons name="arrow-right" size={20} color={colors.white} />
+            <MaterialCommunityIcons name="arrow-right" size={20} color={colors.onPrimary} />
           </Pressable>
         ) : (
           <Pressable
             style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
             onPress={handleSubmit}
             disabled={loading}
-            android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
+            android_ripple={{ color: colors.rippleOnPrimary }}
           >
             {loading ? (
-              <ActivityIndicator size="small" color={colors.white} />
+              <ActivityIndicator size="small" color={colors.onSuccess} />
             ) : (
               <>
-                <MaterialCommunityIcons name="check" size={22} color={colors.white} />
+                <MaterialCommunityIcons name="check" size={22} color={colors.onSuccess} />
                 <Text style={styles.submitText}>
                   {initialData ? 'Guardar Cambios' : 'Registrar Orden'}
                 </Text>
@@ -905,7 +908,7 @@ export default function OrderForm({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,
@@ -918,7 +921,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(195, 199, 208, 0.3)',
+    borderBottomColor: colors.border,
   },
   stepItem: {
     alignItems: 'center',
@@ -944,7 +947,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   stepNumberActive: {
-    color: colors.white,
+    color: colors.onPrimary,
   },
   stepLabel: {
     ...typography.labelSmall,
@@ -1083,7 +1086,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceContainer,
     marginRight: spacing.xs,
     borderWidth: 1,
-    borderColor: 'rgba(195, 199, 208, 0.4)',
+    borderColor: colors.border,
   },
   deviceChipSelected: {
     backgroundColor: colors.primary,
@@ -1094,7 +1097,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   deviceChipTextSelected: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   gridRow: {
@@ -1119,7 +1122,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
     backgroundColor: colors.surfaceContainerLow,
     borderWidth: 1,
-    borderColor: 'rgba(195, 199, 208, 0.3)',
+    borderColor: colors.border,
   },
   accessoryChipChecked: {
     backgroundColor: colors.primarySoft,
@@ -1157,7 +1160,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(195, 199, 208, 0.3)',
+    borderTopColor: colors.border,
     marginTop: spacing.sm,
   },
   switchInfo: {
@@ -1191,6 +1194,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   switchThumbActive: {
+    backgroundColor: colors.onPrimary,
     alignSelf: 'flex-end',
   },
   paymentSection: {
@@ -1219,7 +1223,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   paymentChipTextSelected: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   summaryCard: {
@@ -1258,7 +1262,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(195, 199, 208, 0.3)',
+    borderTopColor: colors.border,
     elevation: 8,
     marginBottom: 72,
   },
@@ -1290,7 +1294,7 @@ const styles = StyleSheet.create({
   },
   nextStepText: {
     ...typography.labelLarge,
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   submitBtn: {
@@ -1308,7 +1312,7 @@ const styles = StyleSheet.create({
   },
   submitText: {
     ...typography.labelLarge,
-    color: colors.white,
+    color: colors.onSuccess,
     fontWeight: '700',
   },
   errorText: {
@@ -1441,7 +1445,7 @@ const styles = StyleSheet.create({
   },
   newCustomerBtnText: {
     ...typography.labelMedium,
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   searchSpinnerBox: {

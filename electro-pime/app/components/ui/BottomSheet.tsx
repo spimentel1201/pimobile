@@ -97,9 +97,12 @@ const createStyles = (colors: any) => StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceContainerHigh,
     borderTopLeftRadius: radii.xxl,
     borderTopRightRadius: radii.xxl,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: colors.border,
     maxHeight: '92%',
     paddingHorizontal: spacing.xl,
     elevation: 16,
@@ -119,7 +122,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     justifyContent: 'space-between',
     paddingBottom: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(195, 199, 208, 0.3)',
+    borderBottomColor: colors.border,
   },
   headerText: {
     flex: 1,
@@ -146,6 +149,6 @@ const createStyles = (colors: any) => StyleSheet.create({
   footer: {
     paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(195, 199, 208, 0.3)',
+    borderTopColor: colors.border,
   },
 });

@@ -1,10 +1,14 @@
 import { Redirect } from 'expo-router';
 import { useAuth } from './contexts/AuthContext';
+import { useTheme } from './contexts/ThemeContext';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { colors } from './theme';
+import React, { useMemo } from 'react';
 
 export default function Index() {
   const { user, loading } = useAuth();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [isDark]);
 
   // Show loading while checking auth state
   if (loading) {
@@ -23,7 +27,7 @@ export default function Index() {
   }
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',

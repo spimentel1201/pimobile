@@ -29,6 +29,7 @@ import {
   PAYMENT_METHOD,
   type PaymentMethod,
   QUOTE_STATUS,
+  withAlpha,
 } from '../theme';
 import Card from '../components/ui/Card';
 import StatusBadge from '../components/ui/StatusBadge';
@@ -330,7 +331,7 @@ export default function BudgetsScreen() {
               key={st}
               style={[styles.filterChip, isSelected && styles.filterChipActive]}
               onPress={() => setStatusFilter(st)}
-              android_ripple={{ color: 'rgba(0, 82, 255, 0.15)' }}
+              android_ripple={{ color: colors.ripple }}
               accessibilityRole="button"
               accessibilityState={{ selected: isSelected }}
             >
@@ -338,7 +339,7 @@ export default function BudgetsScreen() {
                 <MaterialCommunityIcons
                   name={(info.icon || 'circle') as any}
                   size={14}
-                  color={isSelected ? colors.white : info.color}
+                  color={isSelected ? colors.onPrimary : info.color}
                   style={styles.chipIcon}
                 />
               )}
@@ -503,7 +504,7 @@ export default function BudgetsScreen() {
                   style={styles.sheetPrimaryBtn}
                   onPress={() => handleUpdateStatus(selectedQuote, 'APPROVED', 'Presupuesto Aprobado')}
                 >
-                  <MaterialCommunityIcons name="thumb-up-outline" size={20} color={colors.white} />
+                  <MaterialCommunityIcons name="thumb-up-outline" size={20} color={colors.onPrimary} />
                   <Text style={styles.sheetPrimaryBtnText}>Aprobar Presupuesto</Text>
                 </Pressable>
               )}
@@ -516,7 +517,7 @@ export default function BudgetsScreen() {
                     setShowBillModal(true);
                   }}
                 >
-                  <MaterialCommunityIcons name="cash-register" size={20} color={colors.white} />
+                  <MaterialCommunityIcons name="cash-register" size={20} color={colors.onSuccess} />
                   <Text style={styles.sheetPrimaryBtnText}>Convertir a Venta (Facturar)</Text>
                 </Pressable>
               )}
@@ -614,7 +615,7 @@ export default function BudgetsScreen() {
               disabled={saving}
             >
               {saving ? (
-                <ActivityIndicator size="small" color={colors.white} />
+                <ActivityIndicator size="small" color={colors.onPrimary} />
               ) : (
                 <Text style={styles.saveQuoteBtnText}>Emitir Presupuesto</Text>
               )}
@@ -730,7 +731,7 @@ export default function BudgetsScreen() {
               disabled={billing}
             >
               {billing ? (
-                <ActivityIndicator size="small" color={colors.white} />
+                <ActivityIndicator size="small" color={colors.onPrimary} />
               ) : (
                 <Text style={styles.saveQuoteBtnText}>Confirmar y Generar Venta</Text>
               )}
@@ -752,7 +753,7 @@ export default function BudgetsScreen() {
                     <MaterialCommunityIcons
                       name={(info.icon || 'cash') as any}
                       size={18}
-                      color={isSelected ? colors.white : colors.textPrimary}
+                      color={isSelected ? colors.onPrimary : colors.textPrimary}
                     />
                     <Text style={[styles.payMethodText, isSelected && styles.payMethodTextSelected]}>
                       {info.label}
@@ -832,7 +833,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderRadius: radii.full,
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(195, 199, 208, 0.4)',
+    borderColor: colors.border,
   },
   filterChipActive: {
     backgroundColor: colors.primary,
@@ -844,7 +845,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '600',
   },
   filterChipTextActive: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   countPill: {
@@ -854,7 +855,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderRadius: radii.full,
   },
   countPillActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: withAlpha(colors.onPrimary, 0.18),
   },
   countText: {
     ...typography.labelSmall,
@@ -863,7 +864,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '700',
   },
   countTextActive: {
-    color: colors.white,
+    color: colors.onPrimary,
   },
   listContainer: {
     flex: 1,
@@ -915,7 +916,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     marginTop: spacing.sm,
     paddingTop: spacing.xs,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(195, 199, 208, 0.3)',
+    borderTopColor: colors.border,
   },
   totalAmountText: {
     ...typography.titleLarge,
@@ -962,7 +963,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   sheetPrimaryBtnText: {
     ...typography.labelLarge,
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   sheetDangerBtn: {
@@ -1025,7 +1026,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 6,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(195, 199, 208, 0.2)',
+    borderBottomColor: colors.border,
   },
   itemDetailCol: {
     flex: 1,
@@ -1047,7 +1048,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   totalDivider: {
     height: 1,
-    backgroundColor: 'rgba(195, 199, 208, 0.4)',
+    backgroundColor: colors.border,
     marginVertical: spacing.md,
   },
   detailTotalRow: {
@@ -1095,7 +1096,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     color: colors.textPrimary,
   },
   orderChipTextSelected: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   addItemCard: {
@@ -1141,7 +1142,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 6,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(195, 199, 208, 0.2)',
+    borderBottomColor: colors.border,
   },
   addedItemInfo: {
     flex: 1,
@@ -1175,7 +1176,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   saveQuoteBtnText: {
     ...typography.labelLarge,
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   billSheetBody: {
@@ -1204,7 +1205,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     color: colors.textPrimary,
   },
   payMethodTextSelected: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   errorBanner: {

@@ -89,7 +89,7 @@ export default function BottomTabBar() {
               key={tab.name}
               style={styles.tab}
               onPress={() => handleNavigation(tab.route)}
-              android_ripple={{ color: 'rgba(0, 82, 255, 0.12)', borderless: true, radius: 28 }}
+              android_ripple={{ color: colors.ripple, borderless: true, radius: 28 }}
               accessibilityRole="tab"
               accessibilityState={{ selected: active }}
               accessibilityLabel={tab.name}
@@ -127,7 +127,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     zIndex: 100,
     backgroundColor: colors.surfaceContainer,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(195, 199, 208, 0.4)',
+    borderTopColor: colors.border,
     elevation: 8,
   },
   tabContainer: {

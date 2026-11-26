@@ -42,10 +42,10 @@ export default function ConfirmDialog({
   const effectiveTone = destructive ? 'danger' : tone;
   const palette =
     effectiveTone === 'danger'
-      ? { color: colors.danger, soft: colors.dangerSoft }
+      ? { color: colors.danger, soft: colors.dangerSoft, onColor: colors.onDanger }
       : effectiveTone === 'primary'
-        ? { color: colors.primary, soft: colors.primarySoft }
-        : { color: colors.success, soft: colors.successSoft };
+        ? { color: colors.primary, soft: colors.primarySoft, onColor: colors.onPrimary }
+        : { color: colors.success, soft: colors.successSoft, onColor: colors.onSuccess };
 
   return (
     <Modal
@@ -98,12 +98,12 @@ export default function ConfirmDialog({
                 style={[styles.primaryBtn, { backgroundColor: palette.color }]}
                 onPress={onConfirm}
                 disabled={busy}
-                android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
+                android_ripple={{ color: colors.rippleOnPrimary }}
               >
                 {busy ? (
-                  <ActivityIndicator size="small" color={colors.white} />
+                  <ActivityIndicator size="small" color={palette.onColor} />
                 ) : (
-                  <Text style={styles.confirmText}>{confirmLabel}</Text>
+                  <Text style={[styles.confirmText, { color: palette.onColor }]}>{confirmLabel}</Text>
                 )}
               </Pressable>
             </View>
@@ -125,10 +125,12 @@ const createStyles = (colors: any) => StyleSheet.create({
   dialog: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceContainerHigh,
     borderRadius: radii.xxl,
     padding: spacing.xxl,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
     elevation: 24,
   },
   iconBubble: {
@@ -165,7 +167,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   detailRowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(195, 199, 208, 0.3)',
+    borderBottomColor: colors.border,
   },
   detailLabel: {
     ...typography.bodySmall,
@@ -208,7 +210,6 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   confirmText: {
     ...typography.labelLarge,
-    color: colors.white,
     fontWeight: '600',
   },
 });

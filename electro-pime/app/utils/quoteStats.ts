@@ -23,7 +23,11 @@ const LIFECYCLE: QuoteStatus[] = [
 
 const emptyRow = (status: QuoteStatus): QuoteSummaryRow => ({
   status,
-  style: quoteStatusStyle(status),
+  // Getter: los colores se resuelven al renderizar, así el resumen sigue
+  // el tema activo aunque los datos se hayan cargado antes del cambio.
+  get style() {
+    return quoteStatusStyle(status);
+  },
   count: 0,
   amount: 0,
 });
