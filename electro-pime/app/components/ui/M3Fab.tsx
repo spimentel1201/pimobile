@@ -1,8 +1,9 @@
 // ponytail: M3 Extended FAB with tonal container and ripple
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, StyleProp, ViewStyle } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, radii, tonalElevation, spacing, typography } from '../../theme';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface M3FabProps {
   label?: string;
@@ -21,6 +22,8 @@ export default function M3Fab({
   variant = 'primary',
   extended = true,
 }: M3FabProps) {
+  const { isDark } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [isDark]);
   const isPrimary = variant === 'primary';
   const isSecondary = variant === 'secondary';
 
@@ -50,7 +53,7 @@ export default function M3Fab({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   fabContainer: {
     borderRadius: radii.xl,
     overflow: 'hidden',

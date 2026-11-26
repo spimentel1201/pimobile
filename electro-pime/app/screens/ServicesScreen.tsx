@@ -1,9 +1,10 @@
 // ponytail: M3 ServicesScreen placeholder / services management screen with native app bar and service catalog cards.
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { theme, typography, spacing, radius } from '../theme';
+import { useTheme } from '../contexts/ThemeContext';
 import { Card } from '../components/ui';
 import AppHeader from '../components/AppHeader';
 
@@ -47,6 +48,8 @@ const DEFAULT_SERVICES = [
 
 const ServicesScreen = () => {
   const router = useRouter();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [isDark]);
 
   return (
     <View style={styles.container}>
@@ -93,7 +96,7 @@ const ServicesScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colorRoles.surface,

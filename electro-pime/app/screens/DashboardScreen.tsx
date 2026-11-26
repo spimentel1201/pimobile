@@ -1,5 +1,5 @@
 // ponytail: M3 Dashboard screen with tonal cards, device icons and quick actions
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Platform,
   View,
@@ -18,6 +18,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { RepairOrder } from '../types/api';
 import {
   colors,
@@ -63,6 +64,8 @@ const DashboardScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [isDark]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -535,7 +538,7 @@ const DashboardScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,

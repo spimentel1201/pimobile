@@ -1,9 +1,10 @@
 // ponytail: M3 Dialog with 28dp radius, tonal icon header and text actions
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Modal, View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ComponentProps } from 'react';
 import { colors, radii, spacing, typography } from '../../theme';
+import { useTheme } from '../../contexts/ThemeContext';
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -36,6 +37,8 @@ export default function ConfirmDialog({
   onCancel,
   busy = false,
 }: ConfirmDialogProps) {
+  const { isDark } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [isDark]);
   const effectiveTone = destructive ? 'danger' : tone;
   const palette =
     effectiveTone === 'danger'
@@ -111,7 +114,7 @@ export default function ConfirmDialog({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.45)',

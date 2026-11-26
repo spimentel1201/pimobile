@@ -1,8 +1,9 @@
 // ponytail: M3 Empty State with tonal circular icon and ripple CTA
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, StyleProp, ViewStyle, Pressable } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '../../theme';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface EmptyStateProps {
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
@@ -25,6 +26,8 @@ export default function EmptyState({
   onAction,
   style,
 }: EmptyStateProps) {
+  const { isDark } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [isDark]);
   const activeLabel = ctaLabel || actionLabel;
   const activeAction = onCta || onAction;
 
@@ -50,7 +53,7 @@ export default function EmptyState({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     alignItems: 'center',
     paddingVertical: spacing.xxxl,

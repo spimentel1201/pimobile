@@ -1,11 +1,12 @@
 // ponytail: Material Design 3 Navigation Bar with active indicator pill and haptics
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, Text, Pressable, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useSegments } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { colors, radii, spacing, typography } from '../theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 type TabItem = {
   name: string;
@@ -43,6 +44,8 @@ const tabs: TabItem[] = [
 
 export default function BottomTabBar() {
   const router = useRouter();
+  const { isDark } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [isDark]);
   const segments = useSegments();
   const insets = useSafeAreaInsets();
 
@@ -115,7 +118,7 @@ export default function BottomTabBar() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     position: 'absolute',
     bottom: 0,

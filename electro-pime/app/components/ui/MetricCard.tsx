@@ -1,8 +1,9 @@
 // ponytail: M3 Metric Card with tonal container and circular icon badge
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, radii, tonalElevation, spacing, typography } from '../../theme';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface MetricCardProps {
   label?: string;
@@ -29,6 +30,8 @@ export default function MetricCard({
   style,
   subtitle,
 }: MetricCardProps) {
+  const { isDark } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [isDark]);
   const displayLabel = title || label || '';
   const isHero = variant === 'hero';
   const isTonal = variant === 'tonal';
@@ -80,7 +83,7 @@ export default function MetricCard({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   card: {
     borderRadius: radii.card,
     padding: spacing.md,

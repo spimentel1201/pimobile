@@ -1,5 +1,5 @@
 // ponytail: M3 Order Detail Screen with Hero Header, Progress Timeline and Collapsible Sections
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../services/api';
 import { RepairOrder, RepairOrderStatus, Quote, QuoteStatus, PaymentMethod } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import {
@@ -63,6 +64,8 @@ export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
+  const { isDark } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [isDark]);
   const isAdmin = user?.role === 'ADMIN';
   const [order, setOrder] = useState<RepairOrder | null>(null);
   const [loading, setLoading] = useState(true);
@@ -707,7 +710,7 @@ export default function OrderDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -16,6 +16,7 @@ import {
   printReceiptHTML,
 } from '../utils/orderReceipt';
 import { colors, radii, shadow, spacing, typography } from '../theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 // react-native-webview no publica build web (solo `requireNativeComponent`), así
 // que se exige perezosamente y solo fuera de web. En web se usa un <iframe>.
@@ -46,6 +47,8 @@ interface ReceiptPreviewProps {
  * El HTML que se ve es exactamente el mismo que manda a imprimir.
  */
 export default function ReceiptPreview({ visible, order, onClose }: ReceiptPreviewProps) {
+  const { isDark } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [isDark]);
   const [status, setStatus] = useState<PreviewStatus>('loading');
   const [html, setHtml] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
@@ -216,7 +219,7 @@ export default function ReceiptPreview({ visible, order, onClose }: ReceiptPrevi
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(16, 24, 40, 0.6)',

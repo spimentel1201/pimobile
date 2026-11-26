@@ -1,10 +1,11 @@
 // ponytail: M3 Top App Bar with back button, ripple and safe insets
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useNavigation } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radii, spacing, typography } from '../theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 type AppHeaderProps = {
   title: string;
@@ -26,6 +27,8 @@ export default function AppHeader({
   rightAction,
 }: AppHeaderProps) {
   const navigation = useNavigation();
+  const { isDark } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [isDark]);
   const insets = useSafeAreaInsets();
   const hasBack = showBack ?? showBackButton;
   const rightContent = rightAction ?? headerRight;
@@ -70,7 +73,7 @@ export default function AppHeader({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   header: {
     backgroundColor: colors.surface,
     borderBottomWidth: 1,

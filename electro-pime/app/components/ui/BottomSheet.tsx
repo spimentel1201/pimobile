@@ -1,5 +1,5 @@
 // ponytail: M3 Modal Bottom Sheet with draggable handle, proper insets and backdrop
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Modal,
   View,
@@ -12,6 +12,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radii, spacing, typography } from '../../theme';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface BottomSheetProps {
   visible: boolean;
@@ -31,6 +32,8 @@ export default function BottomSheet({
   footer,
 }: BottomSheetProps) {
   const insets = useSafeAreaInsets();
+  const { isDark } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [isDark]);
 
   return (
     <Modal
@@ -81,7 +84,7 @@ export default function BottomSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.45)',

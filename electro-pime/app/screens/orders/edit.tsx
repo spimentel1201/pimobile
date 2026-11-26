@@ -1,5 +1,6 @@
 import { colors } from '../../theme';
-import React, { useState, useEffect } from 'react';
+import { useTheme } from '../../contexts/ThemeContext';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../../services/api';
@@ -10,6 +11,8 @@ import { RepairOrder, CreateRepairOrderDto, UpdateRepairOrderDto, Quote } from '
 export default function EditOrderScreen() {
     const router = useRouter();
     const { id } = useLocalSearchParams<{ id: string }>();
+    const { isDark } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [isDark]);
     const [order, setOrder] = useState<RepairOrder | null>(null);
     const [paidQuote, setPaidQuote] = useState<Quote | null>(null);
     const [loading, setLoading] = useState(true);
@@ -103,7 +106,7 @@ export default function EditOrderScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: colors.canvas,

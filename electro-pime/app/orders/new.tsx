@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, StyleSheet, Alert, SafeAreaView, Platform } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { api } from '../services/api';
 import OrderForm from '../components/OrderForm';
 import { CreateRepairOrderDto } from '../types/api';
 import { colors } from '../theme';
+import { useTheme } from '../contexts/ThemeContext';
 import * as Haptics from 'expo-haptics';
 
 export default function NewOrderScreen() {
   const router = useRouter();
+  const { isDark } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [isDark]);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (data: CreateRepairOrderDto) => {
@@ -45,7 +48,7 @@ export default function NewOrderScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,

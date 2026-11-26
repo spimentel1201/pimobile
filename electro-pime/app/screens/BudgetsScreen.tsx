@@ -17,6 +17,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { api, ApiError } from '../services/api';
 import { Quote, QuoteStatus, CreateQuoteDto, Customer, RepairOrder } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import SearchableSelector from '../components/SearchableSelector';
 import {
   colors,
@@ -60,6 +61,8 @@ export default function BudgetsScreen() {
   const insets = useSafeAreaInsets();
   const { repairOrderId } = useLocalSearchParams<{ repairOrderId?: string }>();
   const { user } = useAuth();
+  const { isDark } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [isDark]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -781,7 +784,7 @@ export default function BudgetsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,

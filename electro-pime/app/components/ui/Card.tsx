@@ -1,7 +1,8 @@
 // ponytail: M3 Card with ripple and tonal elevation variants
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Pressable, StyleSheet, StyleProp, ViewStyle, Platform } from 'react-native';
 import { colors, radii, tonalElevation, spacing } from '../../theme';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface CardProps {
   children: React.ReactNode;
@@ -19,6 +20,8 @@ export default function Card({
   accentColor,
   onPress,
 }: CardProps) {
+  const { isDark } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [isDark]);
   const content = accentColor ? (
     <View style={styles.row}>
       <View style={[styles.accent, { backgroundColor: accentColor }]} />
@@ -55,7 +58,7 @@ export default function Card({
   return <View style={[styles.card, variantStyle, style]}>{content}</View>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   card: {
     borderRadius: radii.card,
     overflow: 'hidden',

@@ -18,6 +18,7 @@ import * as Sharing from 'expo-sharing';
 import { api } from '../services/api';
 import { Sale } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { FlashList } from '@shopify/flash-list';
 import { printSaleReceipt, type TicketSize } from '../utils/orderReceipt';
 import {
@@ -70,6 +71,8 @@ export default function SalesScreen() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [printing, setPrinting] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { isDark } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [isDark]);
 
   const fetchSales = useCallback(async () => {
     if (!user) {
@@ -465,7 +468,7 @@ export default function SalesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,

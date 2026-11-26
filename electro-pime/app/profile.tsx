@@ -19,6 +19,7 @@ export default function ProfileScreen() {
   const { isDark, isSystem, setPreference } = useTheme();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const styles = React.useMemo(() => createStyles(colors), [isDark]);
 
   const performLogout = async () => {
     setLoggingOut(true);
@@ -208,7 +209,7 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,

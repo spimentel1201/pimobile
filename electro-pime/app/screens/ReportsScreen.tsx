@@ -1,5 +1,5 @@
 // ponytail: M3 ReportsScreen with tonal quote-to-cash metrics and analytics table
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../services/api';
 import { Quote } from '../types/api';
 import { colors, typography, spacing, radii, tonalElevation } from '../theme';
+import { useTheme } from '../contexts/ThemeContext';
 import Card from '../components/ui/Card';
 import SectionHeader from '../components/ui/SectionHeader';
 import StatusBadge from '../components/ui/StatusBadge';
@@ -26,6 +27,8 @@ import {
 
 export default function ReportsScreen() {
   const insets = useSafeAreaInsets();
+  const { isDark } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [isDark]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [rows, setRows] = useState<QuoteSummaryRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -177,7 +180,7 @@ export default function ReportsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,

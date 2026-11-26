@@ -1,5 +1,5 @@
 // ponytail: M3 UsersScreen with search, role filters, user details bottom sheet, and confirm dialogs.
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import * as Haptics from 'expo-haptics';
 import { api } from '../services/api';
 import { User } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { theme, colors, typography, spacing, radius } from '../theme';
 import {
   Card,
@@ -44,6 +45,8 @@ const ROLE_ICONS: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> =
 const UsersScreen = () => {
   const router = useRouter();
   const { user: currentUser } = useAuth();
+  const { isDark } = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [isDark]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -463,7 +466,7 @@ const UsersScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colorRoles.surface,

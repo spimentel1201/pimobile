@@ -1,5 +1,5 @@
 // ponytail: M3 NewCustomerModal with M3TextFields, document type chips, and Electric Blue styling
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, typography, spacing, radii } from '../theme';
+import { useTheme } from '../contexts/ThemeContext';
 import { api } from '../services/api';
 import { Customer, CreateCustomerDto } from '../types/api';
 import M3TextField from './ui/M3TextField';
@@ -36,6 +37,8 @@ export default function NewCustomerModal({
   onClose,
   onCreated,
 }: NewCustomerModalProps) {
+  const { isDark } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [isDark]);
   const [name, setName] = useState(initialName);
   const [documentType, setDocumentType] = useState('dni');
   const [documentNumber, setDocumentNumber] = useState('');
@@ -240,7 +243,7 @@ export default function NewCustomerModal({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   keyboardContainer: {
     flex: 1,
     backgroundColor: colors.surface,

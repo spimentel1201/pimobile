@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, radii, shadow, spacing, typography } from '../../theme';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface ToastProps {
   message: string;
@@ -14,6 +15,8 @@ interface ToastProps {
  * (en web Alert.alert no muestra nada).
  */
 export default function Toast({ message, type = 'success' }: ToastProps) {
+  const { isDark } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [isDark]);
   const background = type === 'success' ? colors.success : colors.danger;
   const icon = type === 'success' ? 'check-circle' : 'alert-circle';
 
@@ -27,7 +30,7 @@ export default function Toast({ message, type = 'success' }: ToastProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   wrapper: {
     position: 'absolute',
     top: spacing.lg,

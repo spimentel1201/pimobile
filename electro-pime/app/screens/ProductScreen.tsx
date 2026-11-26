@@ -18,6 +18,7 @@ import { FlashList } from '@shopify/flash-list';
 import { api } from '../services/api';
 import { Product, CreateProductDto } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import StatusBadge from '../components/ui/StatusBadge';
 import BottomSheet from '../components/ui/BottomSheet';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
@@ -41,6 +42,8 @@ type ProductFormErrors = Partial<
 export default function ProductsScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { isDark } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [isDark]);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -553,7 +556,7 @@ export default function ProductsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,

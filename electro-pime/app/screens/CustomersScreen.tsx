@@ -18,6 +18,7 @@ import { FlashList } from '@shopify/flash-list';
 import { api } from '../services/api';
 import { Customer, CreateCustomerDto } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import BottomSheet from '../components/ui/BottomSheet';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import EmptyState from '../components/ui/EmptyState';
@@ -49,6 +50,8 @@ const emptyForm: CreateCustomerDto = {
 export default function CustomersScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { isDark } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [isDark]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -514,7 +517,7 @@ export default function CustomersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,

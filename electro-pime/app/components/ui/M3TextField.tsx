@@ -1,5 +1,5 @@
 // ponytail: M3 Outlined Text Field with leading icon, helper text and error state
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '../../theme';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface M3TextFieldProps extends TextInputProps {
   label?: string;
@@ -38,6 +39,8 @@ export default function M3TextField({
   style,
   ...props
 }: M3TextFieldProps) {
+  const { isDark } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [isDark]);
   const [isFocused, setIsFocused] = useState(false);
 
   const activeError = error || errorText;
@@ -104,7 +107,7 @@ export default function M3TextField({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   wrapper: {
     marginBottom: spacing.md,
   },

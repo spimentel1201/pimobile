@@ -21,6 +21,7 @@ import { FlashList } from '@shopify/flash-list';
 import { api } from '../services/api';
 import { RepairOrder, RepairOrderStatus } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import Toast from '../components/ui/Toast';
 import BottomSheet from '../components/ui/BottomSheet';
 import EmptyState from '../components/ui/EmptyState';
@@ -71,6 +72,8 @@ const OrdersScreen = () => {
   const { openOrderId } = useLocalSearchParams<{ openOrderId: string }>();
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
+  const { isDark } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [isDark]);
   // Orden canónico del flujo de reparación (mayor = más avanzado). Solo ADMIN
   // puede retroceder a un estado anterior; el backend valida la transición.
   const STATUS_RANK: Record<RepairOrderStatus, number> = {
@@ -506,7 +509,7 @@ const OrdersScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,
